@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:cf": "curl -s -X POST https://api.cloudflare.com/client/v4/workers/builds/deploy_hooks/66e1340f-aade-47cd-bea7-947f59b1d190"
   },
   "dependencies": {
     "clsx": "^2.1.1",
