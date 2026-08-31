@@ -201,6 +201,7 @@ export const App: React.FC = () => {
           onOpenExport={() => setShowExportModal(true)}
           onOpenHistory={() => setShowHistoryModal(true)}
           onOpenActionPlan={() => setShowActionPlanModal(true)}
+          onOpenPersonnel={() => setShowPersonnelModal(true)}
           onLoadDemo={() => loadDemoData(language)}
           onReset={() => resetWalkthrough(language)}
           onFinish={handleFinish}
@@ -319,6 +320,7 @@ export const App: React.FC = () => {
             session={session}
             onUpdateNotes={(notes) => updateSessionHeader('generalNotes', notes)}
             onUpdateSignatures={(sigs) => updateSessionHeader('signatures', sigs)}
+            onOpenPersonnel={() => setShowPersonnelModal(true)}
           />
 
           {/* Bottom Fast Action Footer Card */}

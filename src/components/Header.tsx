@@ -10,7 +10,8 @@ import {
   Sparkles, 
   RotateCcw,
   CheckCircle2,
-  GitCommit
+  GitCommit,
+  Users
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
@@ -22,6 +23,7 @@ interface HeaderProps {
   onOpenExport: () => void;
   onOpenHistory: () => void;
   onOpenActionPlan: () => void;
+  onOpenPersonnel?: () => void;
   onLoadDemo: () => void;
   onReset: () => void;
   onFinish: () => void;
@@ -33,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenExport,
   onOpenHistory,
   onOpenActionPlan,
+  onOpenPersonnel,
   onLoadDemo,
   onReset,
   onFinish,
@@ -211,6 +214,22 @@ export const Header: React.FC<HeaderProps> = ({
               <History className="w-3.5 h-3.5 text-blue-400" />
               <span className="hidden md:inline">{t.common.history}</span>
             </button>
+
+            {/* Personnel Directory button */}
+            {onOpenPersonnel && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenPersonnel();
+                }}
+                className="px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
+                title={language === 'ru' ? 'Справочник персонала (инспекторы, мастера, руководители)' : 'Staff & Personnel Directory (Inspectors, Supervisors)'}
+              >
+                <Users className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden md:inline">{language === 'ru' ? 'Персонал' : 'Staff'}</span>
+              </button>
+            )}
 
             {/* Demo Data button */}
             <button

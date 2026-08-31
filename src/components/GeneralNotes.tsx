@@ -1,5 +1,5 @@
-import React from 'react';
-import { FileText, PenTool, UserCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, PenTool, UserCheck, Users, BookmarkPlus, Check } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { useLanguage } from '../i18n/LanguageContext';
 import { usePersonnel } from '../hooks/usePersonnel';
@@ -9,15 +9,18 @@ interface GeneralNotesProps {
   session: InspectionSession;
   onUpdateNotes: (notes: string) => void;
   onUpdateSignatures: (signatures: InspectionSession['signatures']) => void;
+  onOpenPersonnel: () => void;
 }
 
 export const GeneralNotes: React.FC<GeneralNotesProps> = ({
   session,
   onUpdateNotes,
   onUpdateSignatures,
+  onOpenPersonnel,
 }) => {
   const { language, t } = useLanguage();
-  const { personnel } = usePersonnel();
+  const { personnel, addPerson } = usePersonnel();
+  const [savedToast, setSavedToast] = useState(false);
 
   const handleSelectApprover = (personId: string) => {
     const person = personnel.find((p) => p.id === personId);
@@ -29,6 +32,26 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
       reviewedBy: approverString,
       reviewTimestamp: new Date().toISOString(),
     });
+  };
+
+  const handleSaveCurrentApprover = () => {
+    if (!session.signatures.reviewedBy?.trim()) return;
+    triggerHaptic(30);
+    const raw = session.signatures.reviewedBy.trim();
+    // Parse "Name (Role)" or just "Name"
+    const match = raw.match(/^([^(]+)(?:\(([^)]+)\))?$/);
+    const name = match ? match[1].trim() : raw;
+    const role = match && match[2] ? match[2].trim() : (language === 'ru' ? 'Руководитель смены' : 'Operations Lead');
+    
+    addPerson({
+      name,
+      role,
+      department: 'Production',
+      isDefault: false,
+    });
+
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2500);
   };
 
   return (
@@ -77,12 +100,23 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
         {/* Approver / Shift Lead Review Box */}
         <div className="bg-slate-900/80 border border-slate-700/80 rounded-xl p-3 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-1.5">
               <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-blue-400" />
                 {t.generalNotes.approverBox}
               </span>
-              <span className="text-[10px] text-slate-400">{t.generalNotes.approvalLabel}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenPersonnel();
+                }}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/60 transition-colors"
+                title={language === 'ru' ? 'Редактировать список сотрудников' : 'Manage Personnel Directory'}
+              >
+                <Users className="w-3 h-3" />
+                <span>{language === 'ru' ? 'Персонал' : 'Manage'}</span>
+              </button>
             </div>
 
             {/* Quick picker from saved staff */}
@@ -96,7 +130,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
                       handleSelectApprover(e.target.value);
                     }
                   }}
-                  className="w-full bg-slate-950/90 border border-slate-750 rounded-lg px-2 py-1 text-slate-400 hover:text-slate-200 text-xs focus:outline-none focus:border-blue-500 truncate"
+                  className="w-full bg-slate-950/90 border border-slate-700 rounded-lg px-2 py-1 text-slate-300 hover:text-white text-xs focus:outline-none focus:border-blue-500 truncate"
                 >
                   <option value="" disabled>
                     {t.generalNotes.selectApprover}
@@ -110,19 +144,36 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
               </div>
             )}
 
-            <input
-              type="text"
-              value={session.signatures.reviewedBy || ''}
-              onChange={(e) => {
-                onUpdateSignatures({
-                  ...session.signatures,
-                  reviewedBy: e.target.value,
-                  reviewTimestamp: e.target.value ? new Date().toISOString() : undefined,
-                });
-              }}
-              placeholder={t.generalNotes.approverPlaceholder}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={session.signatures.reviewedBy || ''}
+                onChange={(e) => {
+                  onUpdateSignatures({
+                    ...session.signatures,
+                    reviewedBy: e.target.value,
+                    reviewTimestamp: e.target.value ? new Date().toISOString() : undefined,
+                  });
+                }}
+                placeholder={t.generalNotes.approverPlaceholder}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+              />
+
+              {session.signatures.reviewedBy && (
+                <button
+                  type="button"
+                  onClick={handleSaveCurrentApprover}
+                  className={`p-1.5 rounded-lg border transition-all shrink-0 ${
+                    savedToast
+                      ? 'bg-emerald-600 border-emerald-500 text-white'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                  }`}
+                  title={language === 'ru' ? 'Сохранить этого руководителя в список персонала' : 'Save this approver to personnel directory'}
+                >
+                  {savedToast ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5 text-indigo-400" />}
+                </button>
+              )}
+            </div>
           </div>
           <div className="text-[10px] text-slate-500 mt-2 font-mono">
             {session.signatures.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US') : t.generalNotes.awaitingSign}
