@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Calendar, MapPin } from 'lucide-react';
 import { DefectPhoto } from '../types/inspection';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface PhotoModalProps {
   photo: DefectPhoto | null;
@@ -10,6 +11,7 @@ interface PhotoModalProps {
 }
 
 export const PhotoModal: React.FC<PhotoModalProps> = ({ photo, location, itemTitle, onClose }) => {
+  const { language, t } = useLanguage();
   if (!photo) return null;
 
   return (
@@ -22,7 +24,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({ photo, location, itemTit
         <div className="flex items-center justify-between px-5 py-3 bg-slate-800 border-b border-slate-700">
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-white truncate max-w-md">
-              {itemTitle || 'Фотофиксация замечания'}
+              {itemTitle || t.photoModal.defaultTitle}
             </span>
             {location && (
               <span className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
@@ -34,7 +36,7 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({ photo, location, itemTit
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-            title="Закрыть"
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -55,12 +57,12 @@ export const PhotoModal: React.FC<PhotoModalProps> = ({ photo, location, itemTit
             {photo.caption ? (
               <span className="font-medium text-slate-200">{photo.caption}</span>
             ) : (
-              <span className="italic text-slate-500">Без описания</span>
+              <span className="italic text-slate-500">{t.photoModal.noCaption}</span>
             )}
           </div>
           <div className="flex items-center gap-1 text-slate-400">
             <Calendar className="w-3.5 h-3.5" />
-            <span>{new Date(photo.timestamp).toLocaleString('ru-RU')}</span>
+            <span>{new Date(photo.timestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { 
   X, 
   FileText, 
@@ -15,6 +15,7 @@ import { generatePlaintextReport } from '../utils/exportPlaintext';
 import { exportInspectionToExcel } from '../utils/exportExcel';
 import { exportInspectionToJson, importInspectionFromJson } from '../utils/exportJson';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ExportModalProps {
   session: InspectionSession;
@@ -29,11 +30,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onRestoreSession,
   onSaveToHistory,
 }) => {
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'txt' | 'xlsx' | 'print' | 'json'>('txt');
   const [copied, setCopied] = useState(false);
   const jsonInputRef = useRef<HTMLInputElement>(null);
 
-  const plaintextReport = generatePlaintextReport(session);
+  const plaintextReport = useMemo(() => {
+    return generatePlaintextReport(session, language);
+  }, [session, language]);
 
   const handleCopyText = async () => {
     triggerHaptic();
@@ -70,7 +74,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleDownloadXlsx = () => {
     triggerHaptic();
     onSaveToHistory(session);
-    exportInspectionToExcel(session);
+    exportInspectionToExcel(session, language);
   };
 
   const handleDownloadJson = () => {
@@ -90,10 +94,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       const parsed = await importInspectionFromJson(file);
       onRestoreSession(parsed);
       triggerHaptic([50, 50]);
-      alert('Данные инспекции успешно восстановлены!');
+      alert(t.exportModal.jsonSuccessAlert);
       onClose();
     } catch (err: any) {
-      alert(`Ошибка при чтении JSON: ${err?.message || err}`);
+      alert(`${t.exportModal.jsonErrorAlert} ${err?.message || err}`);
     }
   };
 
@@ -111,10 +115,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
-                Центр экспорта и формирования отчетов
+                {t.exportModal.title}
               </h2>
               <p className="text-xs text-slate-400">
-                Excel (.xlsx), Текстовый ASCII, Печать / PDF, JSON Backup
+                {t.exportModal.subtitle}
               </p>
             </div>
           </div>
@@ -137,7 +141,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>Текстовый отчет (ASCII)</span>
+            <span>{t.exportModal.tabTxt}</span>
           </button>
 
           <button
@@ -149,7 +153,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Excel (.xlsx)</span>
+            <span>{t.exportModal.tabXlsx}</span>
           </button>
 
           <button
@@ -161,7 +165,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <Printer className="w-4 h-4" />
-            <span>Печать / PDF (A4)</span>
+            <span>{t.exportModal.tabPrint}</span>
           </button>
 
           <button
@@ -173,7 +177,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             }`}
           >
             <Database className="w-4 h-4" />
-            <span>JSON Резервная копия</span>
+            <span>{t.exportModal.tabJson}</span>
           </button>
         </div>
 
@@ -184,7 +188,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-850 p-3 rounded-xl border border-slate-755 text-xs">
                 <span className="text-slate-300">
-                  Форматированный текстовый протокол для отправки в Telegram, Email, Slack или архивации.
+                  {t.exportModal.txtDescription}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -192,14 +196,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-semibold flex items-center gap-1.5 transition-colors"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    <span>{copied ? 'Скопировано!' : 'Копировать'}</span>
+                    <span>{copied ? t.common.copied : t.common.copy}</span>
                   </button>
                   <button
                     onClick={handleDownloadTxt}
                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-md transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Скачать .txt</span>
+                    <span>{t.exportModal.downloadTxt}</span>
                   </button>
                 </div>
               </div>
@@ -221,24 +225,24 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   </div>
                   <div className="flex-1">
                     <h3 className="text-base font-bold text-white mb-1">
-                      Экспорт в многостраничную книгу Microsoft Excel (.xlsx)
+                      {t.exportModal.xlsxHeading}
                     </h3>
                     <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-                      Генерирует профессиональный структурированный файл с тремя детализированными листами:
+                      {t.exportModal.xlsxSub}
                     </p>
 
                     <ul className="space-y-2 text-xs text-slate-300 mb-6">
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <strong>Лист 1: Сводка (Summary & KPIs)</strong> — параметры обхода, процент соответствия (Score), разбивка по категориям.
+                        <span>{t.exportModal.xlsxSheet1Desc}</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-red-400" />
-                        <strong>Лист 2: Журнал дефектов (CAPA)</strong> — все выявленные несоответствия с приоритетами (P1/P2/P3), локацией, ответственным и сроками.
+                        <span>{t.exportModal.xlsxSheet2Desc}</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-blue-400" />
-                        <strong>Лист 3: Полный чек-лист (Full Audit)</strong> — все 17 пунктов с полным текстом стандартов безопасности и примечаниями.
+                        <span>{t.exportModal.xlsxSheet3Desc}</span>
                       </li>
                     </ul>
 
@@ -247,7 +251,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                       className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all"
                     >
                       <Download className="w-4 h-4" />
-                      <span>Сформировать и скачать .xlsx</span>
+                      <span>{t.exportModal.downloadXlsx}</span>
                     </button>
                   </div>
                 </div>
@@ -265,10 +269,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   </div>
                   <div className="flex-1">
                     <h3 className="text-base font-bold text-white mb-1">
-                      Официальный печатный отчет / Сохранение в PDF (A4)
+                      {t.exportModal.printHeading}
                     </h3>
                     <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-                      Готовый документ для печати или сохранения в PDF через системное диалоговое окно браузера. Содержит фотофиксацию дефектов, таблицы соответствия и блоки для подписей аудитора и руководителя.
+                      {t.exportModal.printSub}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-3">
@@ -277,7 +281,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-blue-950/60 transition-all"
                       >
                         <Printer className="w-4 h-4" />
-                        <span>Открыть печать / Сохранить в PDF</span>
+                        <span>{t.exportModal.printBtn}</span>
                       </button>
                     </div>
                   </div>
@@ -295,10 +299,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   <div>
                     <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
                       <Download className="w-4 h-4 text-emerald-400" />
-                      Экспорт JSON бэкапа
+                      {t.exportModal.jsonExportHeading}
                     </h4>
                     <p className="text-xs text-slate-400 mb-4">
-                      Сохраните полный слепок текущей инспекции (включая фотографии и метаданные) в виде JSON файла.
+                      {t.exportModal.jsonExportSub}
                     </p>
                   </div>
                   <button
@@ -306,7 +310,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 border border-slate-600 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Скачать JSON бэкап</span>
+                    <span>{t.exportModal.downloadJson}</span>
                   </button>
                 </div>
 
@@ -315,10 +319,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   <div>
                     <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
                       <Upload className="w-4 h-4 text-blue-400" />
-                      Восстановление из JSON
+                      {t.exportModal.jsonImportHeading}
                     </h4>
                     <p className="text-xs text-slate-400 mb-4">
-                      Загрузите ранее сохраненный JSON файл для продолжения аудита или повторного экспорта.
+                      {t.exportModal.jsonImportSub}
                     </p>
                   </div>
                   <input
@@ -333,7 +337,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                     className="w-full py-2 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 border border-blue-500/50 transition-all"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>Выбрать JSON файл</span>
+                    <span>{t.exportModal.selectJson}</span>
                   </button>
                 </div>
               </div>
@@ -347,7 +351,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"
           >
-            Закрыть
+            {t.common.close}
           </button>
         </div>
       </div>

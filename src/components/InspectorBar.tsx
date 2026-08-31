@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface InspectorBarProps {
   session: InspectionSession;
@@ -16,6 +17,7 @@ interface InspectorBarProps {
 }
 
 export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHeader }) => {
+  const { t, getShifts } = useLanguage();
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const setEndTimeNow = () => {
@@ -30,6 +32,8 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
     onUpdateHeader('startTime', nowStr);
   };
 
+  const shiftOptions = getShifts();
+
   return (
     <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3.5 sm:p-4 mb-4 shadow-lg backdrop-blur-sm">
       {/* Primary compact summary row */}
@@ -38,7 +42,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
           {/* Inspector Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/80 border border-slate-700 rounded-xl text-slate-200">
             <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-semibold">{session.inspectorName || 'Инспектор не указан'}</span>
+            <span className="font-semibold">{session.inspectorName || t.inspectorBar.noInspector}</span>
             <span className="text-slate-400 text-xs hidden md:inline">({session.inspectorRole})</span>
           </div>
 
@@ -54,7 +58,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/80 border border-slate-700 rounded-xl text-slate-300">
             <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="font-mono text-xs">
-              {session.startTime || '--:--'} — {session.endTime || 'В процессе'}
+              {session.startTime || '--:--'} — {session.endTime || t.inspectorBar.inProgressTime}
             </span>
           </div>
 
@@ -73,7 +77,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
           }}
           className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-700/50 transition-colors ml-auto"
         >
-          <span>{isExpanded ? 'Скрыть параметры' : 'Изменить параметры'}</span>
+          <span>{isExpanded ? t.inspectorBar.hideParams : t.inspectorBar.editParams}</span>
           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
       </div>
@@ -83,13 +87,13 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
         <div className="mt-4 pt-3.5 border-t border-slate-700/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs animate-fade-in">
           {/* Inspector Name */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">ФИО Инспектора / Аудитора</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.inspectorName}</label>
             <div className="relative">
               <input
                 type="text"
                 value={session.inspectorName}
                 onChange={(e) => onUpdateHeader('inspectorName', e.target.value)}
-                placeholder="Иванов И. И."
+                placeholder={t.inspectorBar.inspectorNamePlaceholder}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
@@ -97,35 +101,38 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
 
           {/* Inspector Role */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Должность / Квалификация</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.inspectorRole}</label>
             <input
               type="text"
               value={session.inspectorRole}
               onChange={(e) => onUpdateHeader('inspectorRole', e.target.value)}
-              placeholder="Специалист по ОТ и ПБ / 5S Lead"
+              placeholder={t.inspectorBar.inspectorRolePlaceholder}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
           {/* Shift Select */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Рабочая смена</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.shift}</label>
             <select
               value={session.shift}
               onChange={(e) => onUpdateHeader('shift', e.target.value)}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
             >
-              <option value="Смена 1 (Дневная / 08:00 - 20:00)">Смена 1 (Дневная / 08:00 - 20:00)</option>
-              <option value="Смена 2 (Ночная / 20:00 - 08:00)">Смена 2 (Ночная / 20:00 - 08:00)</option>
-              <option value="Смена А (Утренняя / 07:00 - 15:30)">Смена А (Утренняя / 07:00 - 15:30)</option>
-              <option value="Смена Б (Вечерняя / 15:30 - 00:00)">Смена Б (Вечерняя / 15:30 - 00:00)</option>
-              <option value="Административная / Дневная">Административная / Дневная</option>
+              {shiftOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+              {!shiftOptions.some((opt) => opt.value === session.shift) && (
+                <option value={session.shift}>{session.shift}</option>
+              )}
             </select>
           </div>
 
           {/* Date Picker */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Дата обхода</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.date}</label>
             <input
               type="date"
               value={session.date}
@@ -136,7 +143,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
 
           {/* Time Tracking (Start / End) */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Время обхода (Начало / Конец)</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.time}</label>
             <div className="flex items-center gap-1.5">
               <input
                 type="time"
@@ -148,9 +155,9 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
                 type="button"
                 onClick={setStartTimeNow}
                 className="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]"
-                title="Начало сейчас"
+                title={t.inspectorBar.startNow}
               >
-                Старт
+                {t.inspectorBar.startNow}
               </button>
               <span className="text-slate-500">—</span>
               <input
@@ -164,33 +171,33 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({ session, onUpdateHea
                 type="button"
                 onClick={setEndTimeNow}
                 className="px-1.5 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[10px]"
-                title="Окончание сейчас"
+                title={t.inspectorBar.stopNow}
               >
-                Стоп
+                {t.inspectorBar.stopNow}
               </button>
             </div>
           </div>
 
           {/* Facility Campus Name */}
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Предприятие / Площадка</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.facilityName}</label>
             <input
               type="text"
               value={session.facilityName}
               onChange={(e) => onUpdateHeader('facilityName', e.target.value)}
-              placeholder="Основной производственный корпус"
+              placeholder={t.inspectorBar.facilityNamePlaceholder}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
 
           {/* Facility Area / Scope */}
           <div className="sm:col-span-2 lg:col-span-3">
-            <label className="block text-slate-400 font-medium mb-1">Охват обхода / Проверяемые участки</label>
+            <label className="block text-slate-400 font-medium mb-1">{t.inspectorBar.facilityArea}</label>
             <input
               type="text"
               value={session.facilityArea}
               onChange={(e) => onUpdateHeader('facilityArea', e.target.value)}
-              placeholder="Цех 1, 2, склад комплектации, зарядная зона, доки 1-4, наружный периметр"
+              placeholder={t.inspectorBar.facilityAreaPlaceholder}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
             />
           </div>

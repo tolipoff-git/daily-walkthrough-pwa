@@ -25,6 +25,7 @@ import {
 } from '../types/inspection';
 import { compressImage } from '../utils/imageCompressor';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ChecklistItemCardProps {
   item: ChecklistItem;
@@ -36,28 +37,6 @@ interface ChecklistItemCardProps {
   onPreviewPhoto: (photo: DefectPhoto, location?: string, itemTitle?: string) => void;
 }
 
-const ZONE_PRESETS = [
-  'Цех №1 (Металлообработка)',
-  'Цех №2 (Сборка & Упаковка)',
-  'Склад ГП (Ряды 1-10)',
-  'Склад сырья & Комплектации',
-  'Зона доков / Рампа №1-4',
-  'Зарядная станция АКБ',
-  'Электрощитовая / ВРУ',
-  'Наружный периметр & КПП',
-];
-
-const ASSIGNEES: Assignee[] = [
-  'Maintenance',
-  'Logistics',
-  'Facilities',
-  'Safety & EHS',
-  'Production',
-  'Warehouse',
-  'Quality',
-  'Cleaning',
-];
-
 export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
   item,
   onSetStatus,
@@ -67,6 +46,18 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
   onRemovePhoto,
   onPreviewPhoto,
 }) => {
+  const { 
+    t, 
+    getItemTitle, 
+    getItemStandard, 
+    getCategoryTitle, 
+    getItemGuidelines,
+    getPriorityInfo,
+    getZonePresets,
+    getAssignees,
+    getTargetDateOptions
+  } = useLanguage();
+
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [showPassNoteInput, setShowPassNoteInput] = useState(Boolean(item.itemNotes));
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -86,6 +77,15 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
     resolutionStatus: 'Open' as const,
   };
 
+  const itemTitle = getItemTitle(item);
+  const itemStandard = getItemStandard(item);
+  const categoryTitle = getCategoryTitle({ titleRu: item.categoryTitleRu, titleEn: item.categoryTitleEn });
+  const guidelines = getItemGuidelines(item);
+  const priorityInfo = getPriorityInfo(defect.priority);
+  const zonePresets = getZonePresets();
+  const assigneesList = getAssignees();
+  const targetDateOptions = getTargetDateOptions();
+
   const handleStatusChange = (newStatus: InspectionStatus) => {
     triggerHaptic(newStatus === 'FAIL' ? [50, 50] : 25);
     onSetStatus(item.id, newStatus);
@@ -102,7 +102,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
         const newPhoto: DefectPhoto = {
           id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           url: compressedBase64,
-          caption: `${item.id} - ${defect.location || 'Дефект'}`,
+          caption: `${item.id} - ${defect.location || itemTitle}`,
           timestamp: new Date().toISOString(),
         };
         onAddPhoto(item.id, newPhoto);
@@ -110,7 +110,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
       triggerHaptic(30);
     } catch (err) {
       console.error('Photo compression error:', err);
-      alert('Ошибка при обработке фотографии');
+      alert('Error processing photo / Ошибка при обработке фотографии');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -137,7 +137,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
               {item.id}
             </span>
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              {item.categoryTitleRu}
+              {categoryTitle}
             </span>
 
             {item.status === 'FAIL' && (
@@ -150,24 +150,24 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                     : 'bg-blue-600 text-white'
                 }`}
               >
-                {defect.priority === 'P1' ? 'P1 • Критично' : defect.priority === 'P2' ? 'P2 • Смена' : 'P3 • Планово'}
+                {priorityInfo.short}
               </span>
             )}
 
             {defect.isRepeatIssue && item.status === 'FAIL' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
                 <Repeat className="w-2.5 h-2.5" />
-                Повторно
+                {t.card.repeatBadge}
               </span>
             )}
           </div>
 
           <h3 className="text-base sm:text-lg font-bold text-white leading-snug">
-            {item.titleRu}
+            {itemTitle}
           </h3>
 
           <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-            {item.standardRu}
+            {itemStandard}
           </p>
         </div>
 
@@ -182,10 +182,10 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/60 scale-102 ring-1 ring-emerald-400'
                 : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-800/80'
             }`}
-            title="Отметить как Соответствует (PASS)"
+            title={t.card.passBtnTitle}
           >
             <CheckCircle2 className={`w-4 h-4 ${item.status === 'PASS' ? 'text-white' : 'text-emerald-500'}`} />
-            <span>PASS</span>
+            <span>{t.common.pass}</span>
           </button>
 
           {/* FAIL Button */}
@@ -197,10 +197,10 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 ? 'bg-red-600 text-white shadow-md shadow-red-950/60 scale-102 ring-1 ring-red-400'
                 : 'text-slate-400 hover:text-red-400 hover:bg-slate-800/80'
             }`}
-            title="Зафиксировать дефект / несоответствие (FAIL)"
+            title={t.card.failBtnTitle}
           >
             <XCircle className={`w-4 h-4 ${item.status === 'FAIL' ? 'text-white' : 'text-red-500'}`} />
-            <span>FAIL</span>
+            <span>{t.common.fail}</span>
           </button>
 
           {/* NA Button */}
@@ -212,16 +212,16 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 ? 'bg-slate-700 text-slate-100 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
             }`}
-            title="Не применимо к данной зоне (N/A)"
+            title={t.card.naBtnTitle}
           >
             <MinusCircle className="w-4 h-4 text-slate-400" />
-            <span>N/A</span>
+            <span>{t.common.na}</span>
           </button>
         </div>
       </div>
 
       {/* Collapsible Guidelines / Inspection Tips */}
-      {item.guidelines && item.guidelines.length > 0 && (
+      {guidelines && guidelines.length > 0 && (
         <div className="mt-2.5">
           <button
             type="button"
@@ -229,15 +229,15 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
           >
             <HelpCircle className="w-3 h-3" />
-            <span>{showGuidelines ? 'Скрыть контрольные точки' : 'Что проверять (критерии аудита)'}</span>
+            <span>{showGuidelines ? t.card.guidelinesHide : t.card.guidelinesShow}</span>
             {showGuidelines ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
 
           {showGuidelines && (
             <div className="mt-2 p-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-300 animate-fade-in space-y-1.5">
-              <span className="font-semibold text-slate-400 block mb-1">Чек-лист для инспектора:</span>
+              <span className="font-semibold text-slate-400 block mb-1">{t.card.guidelinesHeading}</span>
               <ul className="list-disc list-inside space-y-1 text-slate-300">
-                {item.guidelines.map((g, idx) => (
+                {guidelines.map((g, idx) => (
                   <li key={idx} className="leading-relaxed">
                     {g}
                   </li>
@@ -253,7 +253,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
         <div className="mt-4 pt-4 border-t border-red-900/60 bg-red-950/15 -mx-4 -mb-4 sm:-mx-5 sm:-mb-5 p-4 sm:p-5 rounded-b-2xl animate-fade-in">
           <div className="flex items-center gap-2 mb-3 text-red-400">
             <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wide">
-              Карточка несоответствия & План действий (CAPA)
+              {t.card.defectDrawerTitle}
             </h4>
           </div>
 
@@ -261,7 +261,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             {/* 1. Priority Toggle */}
             <div>
               <label className="block text-slate-300 font-semibold mb-1.5">
-                Уровень критичности (Приоритет)
+                {t.card.priorityLabel}
               </label>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
@@ -276,8 +276,8 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                       : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-red-600'
                   }`}
                 >
-                  <span className="text-xs font-black">P1</span>
-                  <span className="text-[10px] leading-tight">Критично</span>
+                  <span className="text-xs font-black">{t.card.priorityP1}</span>
+                  <span className="text-[10px] leading-tight">{t.card.priorityP1Label}</span>
                 </button>
 
                 <button
@@ -292,8 +292,8 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                       : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-amber-600'
                   }`}
                 >
-                  <span className="text-xs font-black">P2</span>
-                  <span className="text-[10px] leading-tight">В смену</span>
+                  <span className="text-xs font-black">{t.card.priorityP2}</span>
+                  <span className="text-[10px] leading-tight">{t.card.priorityP2Label}</span>
                 </button>
 
                 <button
@@ -308,8 +308,8 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                       : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:border-blue-600'
                   }`}
                 >
-                  <span className="text-xs font-black">P3</span>
-                  <span className="text-[10px] leading-tight">Планово</span>
+                  <span className="text-xs font-black">{t.card.priorityP3}</span>
+                  <span className="text-[10px] leading-tight">{t.card.priorityP3Label}</span>
                 </button>
               </div>
             </div>
@@ -317,16 +317,16 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             {/* 2. Assignee */}
             <div>
               <label className="block text-slate-300 font-semibold mb-1.5">
-                Ответственное подразделение / Исполнитель
+                {t.card.assignedToLabel}
               </label>
               <select
                 value={defect.assignedTo}
                 onChange={(e) => onUpdateDefect(item.id, { assignedTo: e.target.value as Assignee })}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 font-medium focus:outline-none focus:border-red-500"
               >
-                {ASSIGNEES.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
+                {assigneesList.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
                   </option>
                 ))}
               </select>
@@ -337,13 +337,13 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-slate-300 font-semibold flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-red-400" />
-                  Точная локация / Место обнаружения
+                  {t.card.locationLabel}
                 </label>
               </div>
 
               {/* Quick preset chips */}
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {ZONE_PRESETS.map((preset) => (
+                {zonePresets.map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -351,6 +351,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                       triggerHaptic();
                       onUpdateDefect(item.id, {
                         location: defect.location ? `${defect.location}, ${preset}` : preset,
+                        zonePreset: preset,
                       });
                     }}
                     className="text-[10px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700 transition-colors"
@@ -364,7 +365,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 type="text"
                 value={defect.location}
                 onChange={(e) => onUpdateDefect(item.id, { location: e.target.value })}
-                placeholder="Например: Участок ЧПУ №2, стойка 04-B, проход у ворот №3"
+                placeholder={t.card.locationPlaceholder}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500"
               />
             </div>
@@ -372,13 +373,13 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             {/* 4. Defect Description */}
             <div className="md:col-span-2">
               <label className="block text-slate-300 font-semibold mb-1.5">
-                Описание замечания / Фактическое состояние
+                {t.card.descriptionLabel}
               </label>
               <textarea
                 rows={2}
                 value={defect.description}
                 onChange={(e) => onUpdateDefect(item.id, { description: e.target.value })}
-                placeholder="Опишите, что именно нарушено, риск и требуемое действие..."
+                placeholder={t.card.descriptionPlaceholder}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500 leading-relaxed"
               />
             </div>
@@ -387,18 +388,18 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             <div>
               <label className="block text-slate-300 font-semibold mb-1.5 flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                Срок устранения (Target Date)
+                {t.card.targetDateLabel}
               </label>
               <select
                 value={defect.targetDate}
                 onChange={(e) => onUpdateDefect(item.id, { targetDate: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-red-500"
               >
-                <option value="Today">Сегодня (Немедленно / До конца смены)</option>
-                <option value="Tomorrow AM">Завтра утром (08:00)</option>
-                <option value="Next Shift">Следующая смена</option>
-                <option value="End of Week">До конца недели (3-5 дней)</option>
-                <option value="Custom">Выбрать точную дату...</option>
+                {targetDateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
 
               {defect.targetDate === 'Custom' && (
@@ -421,7 +422,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                   className="w-4 h-4 rounded text-red-600 focus:ring-0 bg-slate-800 border-slate-600 cursor-pointer"
                 />
                 <span className="text-xs text-slate-200 font-medium select-none">
-                  Повторное замечание (хроническая проблема)
+                  {t.card.repeatIssue}
                 </span>
               </label>
             </div>
@@ -431,9 +432,9 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <label className="text-slate-300 font-semibold flex items-center gap-1.5">
                   <Camera className="w-4 h-4 text-emerald-400" />
-                  Фотофиксация дефекта ({defect.photos?.length || 0})
+                  {t.card.photosLabel} ({defect.photos?.length || 0})
                 </label>
-                <span className="text-[10px] text-slate-400">Сжатие до 1024px JPEG</span>
+                <span className="text-[10px] text-slate-400">{t.card.photosCompressHint}</span>
               </div>
 
               {/* Photos Gallery Thumbnails */}
@@ -447,14 +448,14 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                       src={photo.url}
                       alt={photo.caption || 'Thumbnail'}
                       className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                      onClick={() => onPreviewPhoto(photo, defect.location, item.titleRu)}
+                      onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => onPreviewPhoto(photo, defect.location, item.titleRu)}
+                        onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
                         className="p-1 bg-slate-900/80 rounded-md text-white hover:bg-slate-900"
-                        title="Увеличить"
+                        title={t.card.zoomPhoto}
                       >
                         <ZoomIn className="w-3.5 h-3.5" />
                       </button>
@@ -462,7 +463,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                         type="button"
                         onClick={() => onRemovePhoto(item.id, photo.id)}
                         className="p-1 bg-red-600/90 rounded-md text-white hover:bg-red-600"
-                        title="Удалить фото"
+                        title={t.card.deletePhoto}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -478,7 +479,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                   className="w-20 h-20 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500 bg-slate-900/80 hover:bg-slate-900 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 transition-all gap-1 text-[10px] font-medium"
                 >
                   <Camera className="w-5 h-5 text-emerald-400" />
-                  <span>Камера</span>
+                  <span>{t.card.cameraBtn}</span>
                 </button>
                 <input
                   type="file"
@@ -497,7 +498,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                   className="w-20 h-20 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-900/80 hover:bg-slate-900 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-all gap-1 text-[10px] font-medium"
                 >
                   <Upload className="w-5 h-5 text-blue-400" />
-                  <span>Галерея</span>
+                  <span>{t.card.galleryBtn}</span>
                 </button>
                 <input
                   type="file"
@@ -513,13 +514,13 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             {/* 7. Inspector Action Notes */}
             <div className="md:col-span-2 mt-1">
               <label className="block text-slate-300 font-semibold mb-1">
-                Комментарий аудитора / Принятые оперативные меры
+                {t.card.notesLabel}
               </label>
               <input
                 type="text"
                 value={defect.notes || ''}
                 onChange={(e) => onUpdateDefect(item.id, { notes: e.target.value })}
-                placeholder="Например: Уведомлен начальник смены, выставлен сигнальный конус..."
+                placeholder={t.card.notesPlaceholder}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-red-500"
               />
             </div>
@@ -537,7 +538,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
               className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1"
             >
               <MessageSquare className="w-3 h-3 text-slate-500" />
-              <span>Добавить примечание / наблюдение 5S</span>
+              <span>{t.card.addNoteBtn}</span>
             </button>
           ) : (
             <div className="w-full flex items-center gap-2 animate-fade-in">
@@ -545,7 +546,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 type="text"
                 value={item.itemNotes || ''}
                 onChange={(e) => onUpdateNotes(item.id, e.target.value)}
-                placeholder="Примечание к данному пункту (например: проведена влажная уборка)..."
+                placeholder={t.card.noteInputPlaceholder}
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
               <button
@@ -555,7 +556,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                   setShowPassNoteInput(false);
                 }}
                 className="text-xs text-slate-500 hover:text-slate-300 p-1"
-                title="Очистить"
+                title={t.card.clearBtn}
               >
                 ✕
               </button>

@@ -44,6 +44,8 @@ export interface ChecklistItem {
   titleEn: string;
   standardRu: string;
   standardEn: string;
+  guidelinesRu?: string[];
+  guidelinesEn?: string[];
   guidelines?: string[];
   status: InspectionStatus;
   defectDetails?: DefectDetails;
@@ -56,6 +58,7 @@ export interface CategoryGroup {
   titleRu: string;
   titleEn: string;
   descriptionRu: string;
+  descriptionEn?: string;
   iconName: string;
   items: ChecklistItem[];
 }

@@ -1,5 +1,6 @@
 # Daily Facility & EHS Walkthrough Inspection PWA
 > **Итоговый чек-лист ежедневного обхода предприятия (Безопасность, 5S, Склад, Инфраструктура)**
+> **Bilingual (Russian / English) PWA for Facility Safety & 5S Walkthrough Audits**
 
 A high-performance, offline-first Progressive Web App (PWA) built with **React 18**, **TypeScript**, **Tailwind CSS**, **Lucide Icons**, and **SheetJS (xlsx)**, designed for direct deployment to **Cloudflare Pages**.
 
@@ -7,13 +8,22 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
 
 ## 🌟 Key Features
 
-1. **Complete 17-Point Audit Checklist (4 Core Categories)**:
+1. **Complete Bilingual (RU / ENG) Internationalization (i18n)**:
+   - **Header Language Toggle (RU | ENG)**: Instant live switching with persistence in `localStorage` (defaulting to Russian).
+   - **Checklist Items**: All 17 audit items with full titles, audit criteria, and requirements in both Russian and English.
+   - **Categories**: All 4 categories with dual-language titles and descriptions.
+   - **UI & Modals**: Comprehensive localization across all forms, counters, tabs, confirmation dialogs, and CAPA logs.
+   - **Priority Badges**: `P1` (Критический - Немедленно / Critical - Immediate), `P2` (Текущая смена / This shift), `P3` (Плановый / Scheduled).
+   - **Departments & Presets**: Localized department assignees (ТОиР/Maintenance, Логистика/Logistics, Служба ТБ/Safety, АХО/Facilities, Производство/Production, Склад/Warehouse, etc.) and facility zone presets.
+   - **Bilingual Export Engines**: Plaintext ASCII protocols, multi-sheet Excel (.xlsx) workbooks, and printable PDF reports in the active language.
+
+2. **Complete 17-Point Audit Checklist (4 Core Categories)**:
    - **Category 1: Life Safety & Egress** (1.1 - 1.5) — Emergency exits, aisles, fire extinguishers (36" clearance), electrical panels & sprinkler risers, illuminated Exit signs.
    - **Category 2: Shop Floor & Workstations (5S)** (2.1 - 2.4) — Trip hazards & loose cables, floor cleanliness/spills, workstation 5S & tooling return, machine guarding & E-Stops.
    - **Category 3: Warehouse, Racking & Docks** (3.1 - 3.4) — Rack uprights & safety pins, pallet load stacking, loading dock doors & barriers, battery charging ventilation & eyewash.
    - **Category 4: Facility, Grounds & Waste** (4.1 - 4.4) — Waste & scrap bins (80% haul trigger), high-bay lighting, perimeter access control & fire lanes, 100% PPE compliance.
 
-2. **Interactive Walkthrough Experience**:
+3. **Interactive Walkthrough Experience**:
    - **Fast 3-State Toggle**: `PASS` (Emerald) / `FAIL` (Red) / `N/A` (Slate) with tactile haptic feedback.
    - **Inline Defect Drawer on FAIL**:
      - **Priority Selector**: `P1` (Critical - Immediate / Stop), `P2` (This shift / Tomorrow AM), `P3` (Scheduled / 3-5 days).
@@ -24,18 +34,18 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
    - **Anti-Pencil-Whipping & Bulk Ergonomics**:
      - Category-level batch pass (`Пройти раздел`).
      - Global batch pass with confirmation modal.
-     - Sample Demo Data filler for training and testing.
+     - Sample Demo Data filler for training and testing in RU or ENG.
      - Search & filter by keyword, category, and status (`Все`, `Замечания`, `Ожидают`).
 
-3. **Offline-First & Local Persistence**:
+4. **Offline-First & Local Persistence**:
    - **IndexedDB (`EHS_Walkthrough_DB`)** for high-capacity photo storage and state preservation.
    - **PWA Service Worker (`sw.js`)** with offline asset caching and network fallback.
    - **W3C `manifest.webmanifest`** for native Android/iOS/Desktop installation.
    - Automatic local auto-save on every keystroke and toggle.
 
-4. **Multi-Format Export & Reporting Engines**:
-   - 📄 **ASCII Plaintext Protocol**: Exact structured template matching field reporting requirements (ready for Telegram, Email, Slack).
-   - 📊 **Excel (.xlsx) Dual/Tri-Sheet Workbook**: Built with SheetJS (`xlsx`) — Sheet 1: Executive Summary & KPIs, Sheet 2: CAPA Action Log, Sheet 3: Full 17-Item Audit.
+5. **Multi-Format Export & Reporting Engines**:
+   - 📄 **ASCII Plaintext Protocol**: Exact structured template matching field reporting requirements in selected language (ready for Telegram, Email, Slack).
+   - 📊 **Excel (.xlsx) Multi-Sheet Workbook**: Built with SheetJS (`xlsx`) — Sheet 1: Executive Summary & KPIs, Sheet 2: CAPA Action Log, Sheet 3: Full 17-Item Audit in active language.
    - 🖨️ **Vector Print / PDF (A4)**: Dedicated `@media print` layout with KPI tables, defect photo thumbnails, and formal sign-off signature block.
    - 💾 **JSON Backup & Restore**: One-click full database export and import.
    - 🗂️ **Offline History Log**: Local audit archive with instant reload and export.
@@ -62,24 +72,29 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
 │   │   ├── ChecklistItemCard.tsx  # Interactive inspection item card with drawer
 │   │   ├── ExportModal.tsx        # Multi-tab export hub (TXT, XLSX, Print, JSON)
 │   │   ├── GeneralNotes.tsx       # 5S observations & sign-off signatures
-│   │   ├── Header.tsx             # PWA app bar, online/offline pill, install trigger
+│   │   ├── Header.tsx             # PWA app bar, language toggle (RU|ENG), online/offline
 │   │   ├── HistoryModal.tsx       # Local inspection log & history viewer
 │   │   ├── InspectorBar.tsx       # Inspector metadata, facility & time tracking
 │   │   ├── MetricsBar.tsx         # Score gauge, segmented progress, P1/P2/P3 pills
 │   │   ├── PhotoModal.tsx         # High-res photo preview modal
 │   │   └── PrintReportView.tsx    # Clean A4 executive printable report
 │   ├── data/
-│   │   ├── checklistData.ts       # All 17 items & categories
-│   │   └── mockData.ts            # Realistic demo walkthrough dataset
+│   │   ├── checklistData.ts       # All 17 items & categories (bilingual)
+│   │   └── mockData.ts            # Realistic demo walkthrough dataset (RU & ENG)
 │   ├── hooks/
 │   │   ├── useHistory.ts          # History state & DB synchronization
 │   │   └── useInspection.ts       # Core walkthrough state & IndexedDB auto-save
+│   ├── i18n/
+│   │   ├── en.ts                  # English translation dictionary
+│   │   ├── ru.ts                  # Russian translation dictionary
+│   │   ├── types.ts               # Translation interfaces & schema
+│   │   └── LanguageContext.tsx    # React Context for language state & helpers
 │   ├── types/
 │   │   └── inspection.ts          # Complete TypeScript domain interfaces
 │   ├── utils/
-│   │   ├── exportExcel.ts         # SheetJS Excel workbook builder
+│   │   ├── exportExcel.ts         # SheetJS Excel workbook builder (bilingual)
 │   │   ├── exportJson.ts          # JSON backup & restore parser
-│   │   ├── exportPlaintext.ts     # ASCII text formatter
+│   │   ├── exportPlaintext.ts     # ASCII text formatter (bilingual)
 │   │   ├── haptics.ts             # Mobile vibration feedback
 │   │   ├── imageCompressor.ts     # HTML5 Canvas JPEG compressor (1024px)
 │   │   ├── indexedDb.ts           # IndexedDB asynchronous storage wrapper
@@ -87,7 +102,7 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
 │   │   └── pwa.ts                 # Service Worker registration
 │   ├── App.tsx                    # Master Application container
 │   ├── index.css                  # Tailwind CSS directives & @media print rules
-│   └── main.tsx                   # React root entry point
+│   └── main.tsx                   # React root entry point with LanguageProvider
 ├── dist/                          # Production build output
 ├── package.json
 ├── tailwind.config.js

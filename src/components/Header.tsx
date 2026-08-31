@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface HeaderProps {
   metrics: InspectionMetrics;
@@ -35,6 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   onFinish,
   isFinished,
 }) => {
+  const { language, setLanguage, t } = useLanguage();
+
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -81,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
-                  EHS & 5S Walkthrough
+                  {t.common.appName}
                 </h1>
                 {/* Online/Offline status pill */}
                 <span
@@ -90,38 +93,72 @@ export const Header: React.FC<HeaderProps> = ({
                       ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
                       : 'bg-amber-950 text-amber-400 border border-amber-800/60'
                   }`}
-                  title={isOnline ? 'Работает в сети' : 'Офлайн режим (данные сохраняются локально)'}
+                  title={isOnline ? t.common.onlineTitle : t.common.offlineTitle}
                 >
                   {isOnline ? (
                     <>
                       <Wifi className="w-2.5 h-2.5" />
-                      <span>Online</span>
+                      <span>{t.common.online}</span>
                     </>
                   ) : (
                     <>
                       <WifiOff className="w-2.5 h-2.5" />
-                      <span>Offline</span>
+                      <span>{t.common.offline}</span>
                     </>
                   )}
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden xs:block">
-                Итоговый чек-лист ежедневного обхода предприятия
+                {t.common.appSubtitle}
               </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons & Language Switcher */}
           <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+            {/* Prominent Bilingual Language Toggle */}
+            <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-750 shadow-inner">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setLanguage('ru');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${
+                  language === 'ru'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 scale-102'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Переключить интерфейс на Русский язык"
+              >
+                <span>RU</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setLanguage('en');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${
+                  language === 'en'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 scale-102'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="Switch interface to English"
+              >
+                <span>ENG</span>
+              </button>
+            </div>
+
             {/* Install PWA Prompt Button */}
             {installPrompt && (
               <button
                 onClick={handleInstallPWA}
                 className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition-all animate-bounce"
-                title="Установить как PWA приложение"
+                title={t.common.installPwa}
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Установить PWA</span>
+                <span className="hidden sm:inline">{t.common.installPwa}</span>
               </button>
             )}
 
@@ -136,10 +173,10 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-red-950/60 text-red-300 border-red-800 hover:bg-red-900/80'
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
-              title="Журнал выявленных замечаний и корректирующих мер (CAPA)"
+              title={t.common.actionPlanTitle}
             >
               <AlertTriangle className={`w-3.5 h-3.5 ${metrics.failed > 0 ? 'text-red-400' : 'text-slate-400'}`} />
-              <span className="hidden sm:inline">Замечания</span>
+              <span className="hidden sm:inline">{t.common.actionPlan}</span>
               {metrics.failed > 0 && (
                 <span className="inline-flex items-center justify-center px-1.5 py-0.2 min-w-4 text-[10px] font-bold bg-red-600 text-white rounded-full">
                   {metrics.failed}
@@ -154,10 +191,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenHistory();
               }}
               className="px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
-              title="История сохраненных обходов"
+              title={t.common.historyTitle}
             >
               <History className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden md:inline">История</span>
+              <span className="hidden md:inline">{t.common.history}</span>
             </button>
 
             {/* Demo Data button */}
@@ -167,10 +204,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onLoadDemo();
               }}
               className="px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-indigo-950 text-indigo-300 border border-indigo-900/60 hover:border-indigo-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
-              title="Заполнить реалистичными демо-данными"
+              title={t.common.demoDataTitle}
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden lg:inline">Демо-данные</span>
+              <span className="hidden lg:inline">{t.common.demoData}</span>
             </button>
 
             {/* Reset button */}
@@ -180,10 +217,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onReset();
               }}
               className="p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1 transition-all"
-              title="Сбросить текущий обход"
+              title={t.common.resetTitle}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden xl:inline">Сброс</span>
+              <span className="hidden xl:inline">{t.common.reset}</span>
             </button>
 
             {/* Export & Report Button */}
@@ -193,10 +230,10 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenExport();
               }}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-md shadow-emerald-950/50 transition-all"
-              title="Экспорт отчета (Excel, Plaintext, PDF Print, JSON)"
+              title={t.common.exportTitle}
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Отчет / Экспорт</span>
+              <span>{t.common.export}</span>
             </button>
 
             {/* Finish / Complete Button */}
@@ -210,10 +247,10 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50 cursor-default'
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-950/50 active:scale-95'
               }`}
-              title={isFinished ? 'Обход завершен' : 'Зафиксировать время окончания и завершить'}
+              title={isFinished ? t.common.finishedTitle : t.common.finishTitle}
             >
               <CheckCircle2 className="w-3.5 h-3.5 text-blue-300" />
-              <span>{isFinished ? 'Завершен' : 'Завершить'}</span>
+              <span>{isFinished ? t.common.finished : t.common.finish}</span>
             </button>
           </div>
         </div>

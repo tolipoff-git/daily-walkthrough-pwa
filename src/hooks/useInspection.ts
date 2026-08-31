@@ -3,6 +3,7 @@ import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, Defe
 import { createNewInspectionSession } from '../data/checklistData';
 import { getSampleDemoSession } from '../data/mockData';
 import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
+import { Language } from '../i18n/types';
 
 export function useInspection() {
   const [session, setSession] = useState<InspectionSession>(() => {
@@ -14,7 +15,8 @@ export function useInspection() {
     } catch (e) {
       console.error('Error loading initial session from localStorage:', e);
     }
-    return createNewInspectionSession();
+    const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
+    return createNewInspectionSession(currentLang);
   });
 
   const isInitialMount = useRef(true);
@@ -252,13 +254,13 @@ export function useInspection() {
     });
   }, []);
 
-  const resetWalkthrough = useCallback(() => {
-    const newSession = createNewInspectionSession();
+  const resetWalkthrough = useCallback((lang: Language = 'ru') => {
+    const newSession = createNewInspectionSession(lang);
     setSession(newSession);
   }, []);
 
-  const loadDemoData = useCallback(() => {
-    const demo = getSampleDemoSession();
+  const loadDemoData = useCallback((lang: Language = 'ru') => {
+    const demo = getSampleDemoSession(lang);
     setSession(demo);
   }, []);
 

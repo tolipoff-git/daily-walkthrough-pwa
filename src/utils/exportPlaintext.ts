@@ -1,91 +1,122 @@
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from './metrics';
+import { Language } from '../i18n/types';
+import { ru } from '../i18n/ru';
+import { en } from '../i18n/en';
 
-export function generatePlaintextReport(session: InspectionSession): string {
+export function generatePlaintextReport(session: InspectionSession, lang: Language = 'ru'): string {
+  const t = lang === 'ru' ? ru : en;
+  const isRu = lang === 'ru';
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
 
-  const divider = '='.repeat(76);
-  const thinDivider = '-'.repeat(76);
+  const divider = '='.repeat(78);
+  const thinDivider = '-'.repeat(78);
 
   let out = '';
   out += `${divider}\n`;
-  out += `ИТОГОВЫЙ ОТЧЕТ: ЕЖЕДНЕВНЫЙ ОБХОД ПРЕДПРИЯТИЯ (EHS & FACILITY WALKTHROUGH)\n`;
+  out += isRu
+    ? `ИТОГОВЫЙ ОТЧЕТ: ЕЖЕДНЕВНЫЙ ОБХОД ПРЕДПРИЯТИЯ (EHS & 5S WALKTHROUGH)\n`
+    : `DAILY FACILITY & EHS WALKTHROUGH INSPECTION REPORT\n`;
   out += `${divider}\n\n`;
 
-  out += `ОБЩАЯ ИНФОРМАЦИЯ / GENERAL INFO\n`;
+  out += isRu
+    ? `ОБЩАЯ ИНФОРМАЦИЯ / GENERAL INFO\n`
+    : `GENERAL AUDIT INFORMATION\n`;
   out += `${thinDivider}\n`;
-  out += `ID Обхода:       ${session.id}\n`;
-  out += `Дата:            ${session.date}\n`;
-  out += `Время обхода:    ${session.startTime} - ${session.endTime || 'В процессе'}\n`;
-  out += `Объект / Локация:${session.facilityName}\n`;
-  out += `Зона инспекции:  ${session.facilityArea}\n`;
-  out += `Смена:           ${session.shift}\n`;
-  out += `Инспектор (EHS): ${session.inspectorName} (${session.inspectorRole})\n`;
-  out += `Статус аудита:   ${session.status === 'Completed' ? 'ЗАВЕРШЕН / COMPLETED' : session.status}\n\n`;
+  out += `${(isRu ? 'ID Обхода:' : 'Audit ID:').padEnd(20, ' ')}${session.id}\n`;
+  out += `${(isRu ? 'Дата:' : 'Date:').padEnd(20, ' ')}${session.date}\n`;
+  out += `${(isRu ? 'Время обхода:' : 'Walkthrough Time:').padEnd(20, ' ')}${session.startTime} - ${session.endTime || (isRu ? 'В процессе' : 'In Progress')}\n`;
+  out += `${(isRu ? 'Объект / Площадка:' : 'Facility / Campus:').padEnd(20, ' ')}${session.facilityName}\n`;
+  out += `${(isRu ? 'Зона инспекции:' : 'Inspection Area:').padEnd(20, ' ')}${session.facilityArea}\n`;
+  out += `${(isRu ? 'Смена:' : 'Work Shift:').padEnd(20, ' ')}${session.shift}\n`;
+  out += `${(isRu ? 'Инспектор (EHS):' : 'Auditor (EHS):').padEnd(20, ' ')}${session.inspectorName} (${session.inspectorRole})\n`;
+  out += `${(isRu ? 'Статус аудита:' : 'Audit Status:').padEnd(20, ' ')}${session.status === 'Completed' ? (isRu ? 'ЗАВЕРШЕН' : 'COMPLETED') : session.status}\n\n`;
 
-  out += `СВОДНЫЕ МЕТРИКИ И ПОКАЗАТЕЛИ / EXECUTIVE METRICS\n`;
+  out += isRu
+    ? `СВОДНЫЕ МЕТРИКИ И ПОКАЗАТЕЛИ / EXECUTIVE METRICS\n`
+    : `EXECUTIVE SUMMARY & COMPLIANCE METRICS\n`;
   out += `${thinDivider}\n`;
-  out += `Всего пунктов проверки:   ${metrics.total}\n`;
-  out += `Пройдено (PASS):          ${metrics.passed}  (${Math.round((metrics.passed / metrics.total) * 100)}%)\n`;
-  out += `Выявлено замечаний (FAIL):${metrics.failed}\n`;
-  out += `Не применимо (N/A):       ${metrics.na}\n`;
-  out += `В ожидании (Pending):     ${metrics.pending}\n`;
-  out += `ИНДЕКС СООТВЕТСТВИЯ (SCORE): ${metrics.scorePercentage}%\n`;
-  out += `Приоритет дефектов:       P1 (Критично): ${metrics.criticalP1Count} | P2 (В смену): ${metrics.shiftP2Count} | P3 (Планово): ${metrics.scheduledP3Count}\n\n`;
+  out += `${(isRu ? 'Всего пунктов:' : 'Total Checklist Items:').padEnd(30, ' ')}${metrics.total}\n`;
+  out += `${(isRu ? 'Соответствует (PASS):' : 'Compliant (PASS):').padEnd(30, ' ')}${metrics.passed} (${Math.round((metrics.passed / metrics.total) * 100)}%)\n`;
+  out += `${(isRu ? 'Замечания (FAIL):' : 'Defects (FAIL):').padEnd(30, ' ')}${metrics.failed}\n`;
+  out += `${(isRu ? 'Не применимо (N/A):' : 'Not Applicable (N/A):').padEnd(30, ' ')}${metrics.na}\n`;
+  out += `${(isRu ? 'В ожидании (Pending):' : 'Pending Review:').padEnd(30, ' ')}${metrics.pending}\n`;
+  out += `${(isRu ? 'ИНДЕКС СООТВЕТСТВИЯ:' : 'COMPLIANCE SCORE:').padEnd(30, ' ')}${metrics.scorePercentage}%\n`;
+  out += `${(isRu ? 'Приоритеты дефектов:' : 'Defect Priorities:').padEnd(30, ' ')}P1: ${metrics.criticalP1Count} | P2: ${metrics.shiftP2Count} | P3: ${metrics.scheduledP3Count}\n\n`;
 
   if (defects.length > 0) {
-    out += `ЖУРНАЛ КОРРЕКТИРУЮЩИХ ДЕЙСТВИЙ (ACTION LOG / DEFECTS)\n`;
+    out += isRu
+      ? `ЖУРНАЛ КОРРЕКТИРУЮЩИХ ДЕЙСТВИЙ (ACTION LOG / CAPA)\n`
+      : `CORRECTIVE ACTION PLAN & DEFECT LOG (CAPA)\n`;
     out += `${thinDivider}\n`;
     defects.forEach((d, idx) => {
       const details = d.defectDetails;
-      out += `[${idx + 1}] ПУНКТ ${d.id}: ${d.titleRu}\n`;
-      out += `    Категория:    ${d.categoryTitleRu}\n`;
-      out += `    Локация/Зона: ${details?.location || 'Не указана'}\n`;
-      out += `    Приоритет:    [${details?.priority || 'P2'}] ${details?.priority === 'P1' ? 'КРИТИЧНО (Срочно!)' : details?.priority === 'P2' ? 'В течение смены' : 'Плановое устранение'}\n`;
-      out += `    Ответственный:${details?.assignedTo || 'Не назначен'}\n`;
-      out += `    Срок (Target):${details?.targetDate || 'Сегодня'}${details?.customTargetDate ? ' (' + details.customTargetDate + ')' : ''}\n`;
-      out += `    Описание:     ${details?.description || 'Нет описания'}\n`;
+      const title = isRu ? d.titleRu : d.titleEn;
+      const category = isRu ? d.categoryTitleRu : d.categoryTitleEn;
+      const priorityInfo = t.priorities[details?.priority || 'P2'];
+      const assigneeLabel = details?.assignedTo ? (t.assignees[details.assignedTo] || details.assignedTo) : (isRu ? 'Не назначен' : 'Unassigned');
+      const targetDateLabel = details?.targetDate ? (t.targetDates[details.targetDate] || details.targetDate) : (isRu ? 'Сегодня' : 'Today');
+      const customDateStr = details?.targetDate === 'Custom' && details.customTargetDate ? ` (${details.customTargetDate})` : '';
+
+      out += `[${idx + 1}] ${isRu ? 'ПУНКТ' : 'ITEM'} ${d.id}: ${title}\n`;
+      out += `    ${(isRu ? 'Категория:' : 'Category:').padEnd(16, ' ')}${category}\n`;
+      out += `    ${(isRu ? 'Локация/Зона:' : 'Location:').padEnd(16, ' ')}${details?.location || (isRu ? 'Не указана' : 'Not specified')}\n`;
+      out += `    ${(isRu ? 'Приоритет:' : 'Priority:').padEnd(16, ' ')}[${details?.priority || 'P2'}] ${priorityInfo.short}\n`;
+      out += `    ${(isRu ? 'Ответственный:' : 'Assignee:').padEnd(16, ' ')}${assigneeLabel}\n`;
+      out += `    ${(isRu ? 'Срок (Target):' : 'Due Date:').padEnd(16, ' ')}${targetDateLabel}${customDateStr}\n`;
+      out += `    ${(isRu ? 'Описание:' : 'Description:').padEnd(16, ' ')}${details?.description || (isRu ? 'Нет описания' : 'No description')}\n`;
       if (details?.notes) {
-        out += `    Комментарий:  ${details.notes}\n`;
+        out += `    ${(isRu ? 'Комментарий:' : 'Notes:').padEnd(16, ' ')}${details.notes}\n`;
       }
       if (details?.photos && details.photos.length > 0) {
-        out += `    Фотофиксация: ${details.photos.length} прикреплено\n`;
+        out += `    ${(isRu ? 'Фотофиксация:' : 'Photo Evidence:').padEnd(16, ' ')}${details.photos.length} ${isRu ? 'прикреплено' : 'attached'}\n`;
       }
       out += `\n`;
     });
   } else {
-    out += `ЗАМЕЧАНИЙ НЕ ВЫЯВЛЕНО. Все проверенные участки соответствуют стандартам EHS & 5S.\n\n`;
+    out += isRu
+      ? `ЗАМЕЧАНИЙ НЕ ВЫЯВЛЕНО. Все проверенные участки соответствуют стандартам EHS & 5S.\n\n`
+      : `ZERO DEFECTS IDENTIFIED. All inspected areas meet safety & 5S standards.\n\n`;
   }
 
-  out += `ПОЛНЫЙ ЧЕК-ЛИСТ ПРОВЕРКИ (17 ПУНКТОВ)\n`;
+  out += isRu
+    ? `ПОЛНЫЙ ЧЕК-ЛИСТ ПРОВЕРКИ (17 ПУНКТОВ)\n`
+    : `FULL WALKTHROUGH CHECKLIST (17 ITEMS)\n`;
   out += `${thinDivider}\n`;
-  out += `| ID  | Статус | Наименование пункта проверки                      | Примечание\n`;
+  out += isRu
+    ? `| ID  | Статус | Наименование пункта проверки                      | Примечание / Локация\n`
+    : `| ID  | Status | Inspection Point Name                             | Notes / Location\n`;
   out += `${thinDivider}\n`;
 
   session.items.forEach((item) => {
     const statusText = item.status === 'PASS' ? '[ OK ]' : item.status === 'FAIL' ? '[FAIL]' : item.status === 'NA' ? '[N/A ]' : '[ -- ]';
-    const cleanTitle = item.titleRu.length > 44 ? item.titleRu.substring(0, 41) + '...' : item.titleRu.padEnd(44, ' ');
-    const note = item.status === 'FAIL' 
+    const rawTitle = isRu ? item.titleRu : item.titleEn;
+    const cleanTitle = rawTitle.length > 46 ? rawTitle.substring(0, 43) + '...' : rawTitle.padEnd(46, ' ');
+    const note = item.status === 'FAIL'
       ? `(P:${item.defectDetails?.priority || 'P2'}) ${item.defectDetails?.location || item.defectDetails?.description || ''}`
       : (item.itemNotes || '');
-    
-    out += `| ${item.id.padEnd(3, ' ')} | ${statusText} | ${cleanTitle} | ${note.substring(0, 30)}\n`;
+
+    out += `| ${item.id.padEnd(3, ' ')} | ${statusText} | ${cleanTitle} | ${note.substring(0, 26)}\n`;
   });
   out += `${thinDivider}\n\n`;
 
   if (session.generalNotes) {
-    out += `ОБЩИЕ НАБЛЮДЕНИЯ И 5S КОММЕНТАРИИ:\n`;
+    out += isRu
+      ? `ОБЩИЕ НАБЛЮДЕНИЯ И 5S КОММЕНТАРИИ:\n`
+      : `GENERAL OBSERVATIONS & 5S CULTURE NOTES:\n`;
     out += `${session.generalNotes}\n\n`;
   }
 
-  out += `ПОДПИСИ И СОГЛАСОВАНИЕ:\n`;
+  out += isRu
+    ? `ПОДПИСИ И СОГЛАСОВАНИЕ:\n`
+    : `SIGNATURES & APPROVAL SIGN-OFF:\n`;
   out += `${thinDivider}\n`;
-  out += `Инспектор:   ${session.inspectorName} ____________ / Дата: ${new Date(session.signatures.timestamp).toLocaleString('ru-RU')}\n`;
+  out += `${(isRu ? 'Инспектор:' : 'Inspector:').padEnd(14, ' ')}${session.inspectorName} ____________ / ${isRu ? 'Дата:' : 'Date:'} ${new Date(session.signatures.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}\n`;
   if (session.signatures.reviewedBy) {
-    out += `Руководитель:${session.signatures.reviewedBy} ____________\n`;
+    out += `${(isRu ? 'Руководитель:' : 'Reviewed By:').padEnd(14, ' ')}${session.signatures.reviewedBy} ____________\n`;
   } else {
-    out += `Руководитель: __________________________ / Дата: _____________\n`;
+    out += `${(isRu ? 'Руководитель:' : 'Reviewed By:').padEnd(14, ' ')}__________________________ / ${isRu ? 'Дата:' : 'Date:'} _____________\n`;
   }
   out += `${divider}\n`;
 

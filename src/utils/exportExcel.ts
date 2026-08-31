@@ -1,78 +1,126 @@
 import * as XLSX from 'xlsx';
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from './metrics';
+import { Language } from '../i18n/types';
+import { ru } from '../i18n/ru';
+import { en } from '../i18n/en';
 
-export function exportInspectionToExcel(session: InspectionSession): void {
+export function exportInspectionToExcel(session: InspectionSession, lang: Language = 'ru'): void {
+  const t = lang === 'ru' ? ru : en;
+  const isRu = lang === 'ru';
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
 
   const workbook = XLSX.utils.book_new();
 
   // --- SHEET 1: SUMMARY & KPIS ---
+  const summaryTitle = isRu
+    ? 'ИТОГОВЫЙ ОТЧЕТ ЕЖЕДНЕВНОГО ОБХОДА (EHS & FACILITY WALKTHROUGH)'
+    : 'DAILY FACILITY & EHS WALKTHROUGH INSPECTION REPORT';
+
   const summaryData: (string | number)[][] = [
-    ['ИТОГОВЫЙ ОТЧЕТ ЕЖЕДНЕВНОГО ОБХОДА (EHS & FACILITY WALKTHROUGH)'],
+    [summaryTitle],
     [''],
-    ['ПАРАМЕТР ИНСПЕКЦИИ', 'ЗНАЧЕНИЕ'],
-    ['ID Проверки', session.id],
-    ['Дата проведения', session.date],
-    ['Время начала / окончания', `${session.startTime} - ${session.endTime || 'В процессе'}`],
-    ['Предприятие / Объект', session.facilityName],
-    ['Зона / Участок', session.facilityArea],
-    ['Смена', session.shift],
-    ['Инспектор (EHS)', `${session.inspectorName} (${session.inspectorRole})`],
-    ['Статус аудита', session.status],
+    [isRu ? 'ПАРАМЕТР ИНСПЕКЦИИ' : 'AUDIT PARAMETER', isRu ? 'ЗНАЧЕНИЕ' : 'VALUE'],
+    [isRu ? 'ID Проверки' : 'Inspection ID', session.id],
+    [isRu ? 'Дата проведения' : 'Audit Date', session.date],
+    [isRu ? 'Время начала / окончания' : 'Inspection Time', `${session.startTime} - ${session.endTime || (isRu ? 'В процессе' : 'In Progress')}`],
+    [isRu ? 'Предприятие / Объект' : 'Facility / Campus', session.facilityName],
+    [isRu ? 'Зона / Участок' : 'Scope / Area', session.facilityArea],
+    [isRu ? 'Смена' : 'Work Shift', session.shift],
+    [isRu ? 'Инспектор (EHS)' : 'Auditor (EHS)', `${session.inspectorName} (${session.inspectorRole})`],
+    [isRu ? 'Статус аудита' : 'Audit Status', session.status],
     [''],
-    ['ПОКАЗАТЕЛИ ИНСПЕКЦИИ (KPI)', 'КОЛИЧЕСТВО', 'ДОЛЯ (%)'],
-    ['Всего контрольных пунктов', metrics.total, '100%'],
-    ['Соответствует (PASS)', metrics.passed, `${Math.round((metrics.passed / metrics.total) * 100)}%`],
-    ['Несоответствия (FAIL)', metrics.failed, `${Math.round((metrics.failed / metrics.total) * 100)}%`],
-    ['Не применимо (N/A)', metrics.na, `${Math.round((metrics.na / metrics.total) * 100)}%`],
-    ['В процессе (Pending)', metrics.pending, `${Math.round((metrics.pending / metrics.total) * 100)}%`],
-    ['ИНДЕКС СООТВЕТСТВИЯ (SCORE)', `${metrics.scorePercentage}%`, ''],
+    [isRu ? 'ПОКАЗАТЕЛИ ИНСПЕКЦИИ (KPI)' : 'EXECUTIVE METRICS (KPIs)', isRu ? 'КОЛИЧЕСТВО' : 'COUNT', isRu ? 'ДОЛЯ (%)' : 'SHARE (%)'],
+    [isRu ? 'Всего контрольных пунктов' : 'Total Audit Points', metrics.total, '100%'],
+    [isRu ? 'Соответствует (PASS)' : 'Compliant (PASS)', metrics.passed, `${Math.round((metrics.passed / metrics.total) * 100)}%`],
+    [isRu ? 'Несоответствия (FAIL)' : 'Defects (FAIL)', metrics.failed, `${Math.round((metrics.failed / metrics.total) * 100)}%`],
+    [isRu ? 'Не применимо (N/A)' : 'Not Applicable (N/A)', metrics.na, `${Math.round((metrics.na / metrics.total) * 100)}%`],
+    [isRu ? 'В процессе (Pending)' : 'Pending Review', metrics.pending, `${Math.round((metrics.pending / metrics.total) * 100)}%`],
+    [isRu ? 'ИНДЕКС СООТВЕТСТВИЯ (SCORE)' : 'COMPLIANCE SCORE (SCORE)', `${metrics.scorePercentage}%`, ''],
     [''],
-    ['СТАТИСТИКА ЗАМЕЧАНИЙ ПО ПРИОРИТЕТАМ', 'КОЛИЧЕСТВО'],
-    ['P1 - Критический (Immediate / Stop)', metrics.criticalP1Count],
-    ['P2 - В течение смены (This shift)', metrics.shiftP2Count],
-    ['P3 - Плановое устранение (Scheduled)', metrics.scheduledP3Count],
+    [isRu ? 'СТАТИСТИКА ЗАМЕЧАНИЙ ПО ПРИОРИТЕТАМ' : 'DEFECT PRIORITY BREAKDOWN', isRu ? 'КОЛИЧЕСТВО' : 'COUNT'],
+    [isRu ? 'P1 - Критический (Immediate / Stop)' : 'P1 - Critical (Immediate / Stop-Work)', metrics.criticalP1Count],
+    [isRu ? 'P2 - В течение смены (This shift)' : 'P2 - This Shift (Before End of Shift)', metrics.shiftP2Count],
+    [isRu ? 'P3 - Плановое устранение (Scheduled)' : 'P3 - Scheduled (Planned Maintenance)', metrics.scheduledP3Count],
     [''],
-    ['ОБЩИЕ ЗАМЕЧАНИЯ И 5S КОММЕНТАРИИ:'],
-    [session.generalNotes || 'Без дополнительных примечаний'],
+    [isRu ? 'ОБЩИЕ ЗАМЕЧАНИЯ И 5S КОММЕНТАРИИ:' : 'GENERAL OBSERVATIONS & 5S COMMENTS:'],
+    [session.generalNotes || (isRu ? 'Без дополнительных примечаний' : 'No additional observations recorded')],
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  summarySheet['!cols'] = [{ wch: 35 }, { wch: 40 }, { wch: 15 }];
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Сводка (Summary)');
+  summarySheet['!cols'] = [{ wch: 38 }, { wch: 45 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(
+    workbook,
+    summarySheet,
+    isRu ? 'Сводка (Summary)' : 'Summary & KPIs'
+  );
 
   // --- SHEET 2: ACTION LOG & DEFECTS ---
-  const actionHeader = [
-    '№',
-    'ID Пункта',
-    'Категория',
-    'Контрольный пункт',
-    'Приоритет',
-    'Локация / Зона',
-    'Описание дефекта / замечания',
-    'Ответственный',
-    'Срок устранения',
-    'Статус дефекта',
-    'Фото',
-    'Комментарии',
-  ];
+  const actionHeader = isRu
+    ? [
+        '№',
+        'ID Пункта',
+        'Категория',
+        'Контрольный пункт',
+        'Приоритет',
+        'Локация / Зона',
+        'Описание дефекта / замечания',
+        'Ответственный',
+        'Срок устранения',
+        'Статус дефекта',
+        'Фото',
+        'Комментарии',
+      ]
+    : [
+        '#',
+        'Item ID',
+        'Category',
+        'Inspection Point',
+        'Priority',
+        'Location / Area',
+        'Defect Description / Hazard',
+        'Responsible Department',
+        'Target Date',
+        'Resolution Status',
+        'Photos',
+        'Auditor Notes',
+      ];
 
   const actionRows = defects.map((d, index) => {
     const details = d.defectDetails;
+    const category = isRu ? d.categoryTitleRu : d.categoryTitleEn;
+    const title = isRu ? d.titleRu : d.titleEn;
+    const priorityLabel = details?.priority ? t.priorities[details.priority].short : 'P2';
+    const assigneeLabel = details?.assignedTo ? (t.assignees[details.assignedTo] || details.assignedTo) : '';
+    const targetDateLabel = details?.targetDate === 'Custom'
+      ? (details.customTargetDate || 'Custom')
+      : details?.targetDate
+      ? (t.targetDates[details.targetDate] || details.targetDate)
+      : (isRu ? 'Сегодня' : 'Today');
+
+    const resStatusLabel = details?.resolutionStatus === 'Resolved'
+      ? (isRu ? 'Устранено (Resolved)' : 'Resolved')
+      : details?.resolutionStatus === 'In Progress'
+      ? (isRu ? 'В работе (In Progress)' : 'In Progress')
+      : (isRu ? 'Открыто (Open)' : 'Open');
+
+    const photosLabel = details?.photos?.length
+      ? `${details.photos.length} ${isRu ? 'фото' : 'photo(s)'}`
+      : (isRu ? 'Нет' : 'None');
+
     return [
       index + 1,
       d.id,
-      d.categoryTitleRu,
-      d.titleRu,
-      details?.priority || 'P2',
+      category,
+      title,
+      priorityLabel,
       details?.location || '',
       details?.description || '',
-      details?.assignedTo || '',
-      details?.targetDate === 'Custom' ? details.customTargetDate || 'Custom' : details?.targetDate || 'Today',
-      details?.resolutionStatus || 'Open',
-      details?.photos?.length ? `${details.photos.length} фото` : 'Нет',
+      assigneeLabel,
+      targetDateLabel,
+      resStatusLabel,
+      photosLabel,
       details?.notes || '',
     ];
   });
@@ -84,47 +132,80 @@ export function exportInspectionToExcel(session: InspectionSession): void {
     { wch: 10 },
     { wch: 32 },
     { wch: 35 },
-    { wch: 12 },
+    { wch: 16 },
     { wch: 30 },
     { wch: 45 },
+    { wch: 25 },
+    { wch: 25 },
     { wch: 18 },
-    { wch: 18 },
-    { wch: 14 },
-    { wch: 10 },
+    { wch: 12 },
     { wch: 35 },
   ];
-  XLSX.utils.book_append_sheet(workbook, actionSheet, 'Журнал дефектов (CAPA)');
+  XLSX.utils.book_append_sheet(
+    workbook,
+    actionSheet,
+    isRu ? 'Журнал дефектов (CAPA)' : 'Defects & CAPA Log'
+  );
 
   // --- SHEET 3: FULL 17 CHECKLIST ITEMS ---
-  const fullAuditHeader = [
-    'ID',
-    'Категория',
-    'Наименование пункта проверки',
-    'Стандарт безопасности / Описание требования',
-    'Результат',
-    'Локация / Описание замечания',
-    'Ответственный',
-    'Срок',
-    'Примечания инспектора',
-  ];
+  const fullAuditHeader = isRu
+    ? [
+        'ID',
+        'Категория',
+        'Наименование пункта проверки',
+        'Стандарт безопасности / Описание требования',
+        'Результат',
+        'Локация / Описание замечания',
+        'Ответственный',
+        'Срок',
+        'Примечания инспектора',
+      ]
+    : [
+        'ID',
+        'Category',
+        'Inspection Point Title',
+        'Safety Standard / Requirement',
+        'Inspection Result',
+        'Finding Description / Location',
+        'Assignee',
+        'Due Date',
+        'Inspector Notes',
+      ];
 
   const fullAuditRows = session.items.map((item) => {
-    const statusMap = {
-      PASS: 'PASS (OK)',
-      FAIL: 'FAIL (Несоответствие)',
-      NA: 'N/A (Не применимо)',
-      PENDING: 'В ожидании',
-    };
+    const statusMap = isRu
+      ? {
+          PASS: 'PASS (Соответствует)',
+          FAIL: 'FAIL (Замечание)',
+          NA: 'N/A (Не применимо)',
+          PENDING: 'В ожидании',
+        }
+      : {
+          PASS: 'PASS (Compliant)',
+          FAIL: 'FAIL (Defect)',
+          NA: 'N/A (Not Applicable)',
+          PENDING: 'Pending',
+        };
+
+    const category = isRu ? item.categoryTitleRu : item.categoryTitleEn;
+    const title = isRu ? item.titleRu : item.titleEn;
+    const standard = isRu ? item.standardRu : item.standardEn;
+    const assigneeLabel = item.defectDetails?.assignedTo
+      ? (t.assignees[item.defectDetails.assignedTo] || item.defectDetails.assignedTo)
+      : '';
+    const targetDateLabel = item.defectDetails?.targetDate
+      ? (t.targetDates[item.defectDetails.targetDate] || item.defectDetails.targetDate)
+      : '';
 
     return [
       item.id,
-      item.categoryTitleRu,
-      item.titleRu,
-      item.standardRu,
+      category,
+      title,
+      standard,
       statusMap[item.status] || item.status,
       item.status === 'FAIL' ? item.defectDetails?.location || item.defectDetails?.description || '' : '',
-      item.status === 'FAIL' ? item.defectDetails?.assignedTo || '' : '',
-      item.status === 'FAIL' ? item.defectDetails?.targetDate || '' : '',
+      item.status === 'FAIL' ? assigneeLabel : '',
+      item.status === 'FAIL' ? targetDateLabel : '',
       item.status === 'FAIL' ? item.defectDetails?.notes || '' : item.itemNotes || '',
     ];
   });
@@ -136,13 +217,17 @@ export function exportInspectionToExcel(session: InspectionSession): void {
     { wch: 32 },
     { wch: 35 },
     { wch: 55 },
-    { wch: 22 },
+    { wch: 24 },
     { wch: 35 },
-    { wch: 18 },
-    { wch: 15 },
+    { wch: 25 },
+    { wch: 20 },
     { wch: 35 },
   ];
-  XLSX.utils.book_append_sheet(workbook, fullAuditSheet, 'Полный чек-лист (17)');
+  XLSX.utils.book_append_sheet(
+    workbook,
+    fullAuditSheet,
+    isRu ? 'Полный чек-лист (17)' : 'Full Audit (17 Items)'
+  );
 
   // Generate binary XLSX file and trigger download
   const filename = `EHS_Walkthrough_${session.date}_${session.id}.xlsx`;

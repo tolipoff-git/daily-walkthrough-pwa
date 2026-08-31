@@ -5,6 +5,7 @@ import { calculateMetrics } from './utils/metrics';
 import { INITIAL_CHECKLIST_DATA } from './data/checklistData';
 import { DefectPhoto } from './types/inspection';
 import { triggerHaptic } from './utils/haptics';
+import { useLanguage } from './i18n/LanguageContext';
 
 // Components
 import { Header } from './components/Header';
@@ -33,6 +34,8 @@ import {
 } from 'lucide-react';
 
 export const App: React.FC = () => {
+  const { language, t, getCategoryTitle } = useLanguage();
+
   const {
     session,
     updateSessionHeader,
@@ -89,17 +92,28 @@ export const App: React.FC = () => {
       if (statusFilter === 'PENDING' && item.status !== 'PENDING') return false;
       if (statusFilter === 'PASS' && item.status !== 'PASS') return false;
 
-      // Search Query filter
+      // Search Query filter (searches across both RU and EN fields)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesId = item.id.toLowerCase().includes(query);
-        const matchesTitle = item.titleRu.toLowerCase().includes(query) || item.titleEn.toLowerCase().includes(query);
-        const matchesStandard = item.standardRu.toLowerCase().includes(query);
-        const matchesLocation = item.defectDetails?.location.toLowerCase().includes(query);
-        const matchesDefect = item.defectDetails?.description.toLowerCase().includes(query);
+        const matchesTitleRu = item.titleRu?.toLowerCase().includes(query);
+        const matchesTitleEn = item.titleEn?.toLowerCase().includes(query);
+        const matchesStandardRu = item.standardRu?.toLowerCase().includes(query);
+        const matchesStandardEn = item.standardEn?.toLowerCase().includes(query);
+        const matchesLocation = item.defectDetails?.location?.toLowerCase().includes(query);
+        const matchesDefect = item.defectDetails?.description?.toLowerCase().includes(query);
         const matchesNotes = item.itemNotes?.toLowerCase().includes(query);
 
-        if (!matchesId && !matchesTitle && !matchesStandard && !matchesLocation && !matchesDefect && !matchesNotes) {
+        if (
+          !matchesId &&
+          !matchesTitleRu &&
+          !matchesTitleEn &&
+          !matchesStandardRu &&
+          !matchesStandardEn &&
+          !matchesLocation &&
+          !matchesDefect &&
+          !matchesNotes
+        ) {
           return false;
         }
       }
@@ -174,8 +188,8 @@ export const App: React.FC = () => {
           onOpenExport={() => setShowExportModal(true)}
           onOpenHistory={() => setShowHistoryModal(true)}
           onOpenActionPlan={() => setShowActionPlanModal(true)}
-          onLoadDemo={loadDemoData}
-          onReset={resetWalkthrough}
+          onLoadDemo={() => loadDemoData(language)}
+          onReset={() => resetWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}
         />
@@ -208,9 +222,9 @@ export const App: React.FC = () => {
           {categoriesWithItems.length === 0 ? (
             <div className="text-center py-16 bg-slate-850/60 border border-slate-800 rounded-2xl p-6">
               <Sparkles className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-              <h3 className="text-base font-bold text-slate-200">Ничего не найдено</h3>
+              <h3 className="text-base font-bold text-slate-200">{t.notFound.title}</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Попробуйте изменить поисковый запрос или сбросить фильтры статуса
+                {t.notFound.subtitle}
               </p>
               <button
                 onClick={() => {
@@ -220,12 +234,15 @@ export const App: React.FC = () => {
                 }}
                 className="mt-4 px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold"
               >
-                Сбросить фильтры
+                {t.notFound.resetFilters}
               </button>
             </div>
           ) : (
             categoriesWithItems.map((catGroup) => {
               const pendingInCat = catGroup.items.filter((i) => i.status === 'PENDING').length;
+              const catTitle = getCategoryTitle(catGroup);
+              const catSub = language === 'ru' ? catGroup.titleEn : (catGroup.descriptionEn || catGroup.descriptionRu);
+
               return (
                 <section key={catGroup.id} className="mb-6">
                   {/* Category Header */}
@@ -236,10 +253,10 @@ export const App: React.FC = () => {
                       </div>
                       <div>
                         <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
-                          {catGroup.number}. {catGroup.titleRu}
+                          {catGroup.number}. {catTitle}
                         </h2>
                         <span className="text-[11px] text-slate-400">
-                          {catGroup.titleEn}
+                          {catSub}
                         </span>
                       </div>
                     </div>
@@ -252,10 +269,10 @@ export const App: React.FC = () => {
                           markCategoryAsPass(catGroup.id);
                         }}
                         className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 bg-slate-900/90 hover:bg-slate-900 px-2.5 py-1 rounded-lg border border-emerald-800/60 flex items-center gap-1 transition-colors"
-                        title="Отметить все непроверенные в этом разделе как PASS"
+                        title={t.categories.quickPassTitle}
                       >
                         <CheckCheck className="w-3.5 h-3.5" />
-                        <span>Пройти раздел ({pendingInCat})</span>
+                        <span>{t.categories.quickPassBtn.replace('{count}', String(pendingInCat))}</span>
                       </button>
                     )}
                   </div>
@@ -291,10 +308,13 @@ export const App: React.FC = () => {
           <div className="p-4 bg-gradient-to-r from-slate-850 to-slate-800 border border-slate-700 rounded-2xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
             <div>
               <h4 className="text-sm font-bold text-white">
-                Завершение ежедневного обхода
+                {t.bottomFooter.heading}
               </h4>
               <p className="text-xs text-slate-400 mt-0.5">
-                Проверено {metrics.completed} из {metrics.total} пунктов • Индекс соответствия: {metrics.scorePercentage}%
+                {t.bottomFooter.progressText
+                  .replace('{completed}', String(metrics.completed))
+                  .replace('{total}', String(metrics.total))
+                  .replace('{score}', String(metrics.scorePercentage))}
               </p>
             </div>
 
@@ -307,7 +327,7 @@ export const App: React.FC = () => {
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-emerald-950/50 transition-all"
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>Сформировать отчет / Экспорт</span>
+                <span>{t.bottomFooter.exportBtn}</span>
               </button>
             </div>
           </div>
@@ -319,7 +339,7 @@ export const App: React.FC = () => {
             <button
               onClick={handleJumpToNextPending}
               className="p-3 bg-amber-600 hover:bg-amber-500 text-white rounded-full shadow-2xl flex items-center justify-center transition-all animate-bounce"
-              title="Перейти к следующему непроверенному пункту"
+              title={t.bottomFooter.jumpToPending}
             >
               <CornerDownRight className="w-5 h-5" />
             </button>
@@ -331,7 +351,7 @@ export const App: React.FC = () => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className="p-3 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600 rounded-full shadow-2xl flex items-center justify-center transition-all backdrop-blur-md"
-            title="Наверх"
+            title={t.bottomFooter.backToTop}
           >
             <ArrowUp className="w-5 h-5" />
           </button>
@@ -340,7 +360,7 @@ export const App: React.FC = () => {
         {/* Footer */}
         <footer className="border-t border-slate-800/80 py-4 px-4 text-center text-xs text-slate-400 bg-slate-950/60">
           <p>
-            EHS & 5S Facility Daily Walkthrough Inspection PWA • Production Ready for Cloudflare Pages
+            {t.bottomFooter.credits}
           </p>
         </footer>
       </div>

@@ -10,6 +10,7 @@ import {
   X
 } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ChecklistFilterBarProps {
   activeCategory: string;
@@ -32,14 +33,15 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
   onMarkAllPass,
   pendingCount,
 }) => {
+  const { t } = useLanguage();
   const [showConfirmPassModal, setShowConfirmPassModal] = useState(false);
 
   const categories = [
-    { id: 'ALL', labelRu: 'Все разделы (17)', icon: ListFilter, count: 17 },
-    { id: 'cat1', labelRu: '1. Пожарная безопасность', icon: Flame, count: 5 },
-    { id: 'cat2', labelRu: '2. Производство & 5S', icon: Factory, count: 4 },
-    { id: 'cat3', labelRu: '3. Склад & Доки', icon: Warehouse, count: 4 },
-    { id: 'cat4', labelRu: '4. Инфраструктура & Отходы', icon: Building2, count: 4 },
+    { id: 'ALL', label: t.filterBar.allCategories, icon: ListFilter, count: 17 },
+    { id: 'cat1', label: t.filterBar.cat1, icon: Flame, count: 5 },
+    { id: 'cat2', label: t.filterBar.cat2, icon: Factory, count: 4 },
+    { id: 'cat3', label: t.filterBar.cat3, icon: Warehouse, count: 4 },
+    { id: 'cat4', label: t.filterBar.cat4, icon: Building2, count: 4 },
   ];
 
   const handleConfirmPass = () => {
@@ -69,7 +71,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-              <span>{cat.labelRu}</span>
+              <span>{cat.label}</span>
             </button>
           );
         })}
@@ -84,7 +86,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Поиск по чек-листу, локации или дефекту..."
+            placeholder={t.filterBar.searchPlaceholder}
             className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-8 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
           />
           {searchQuery && (
@@ -108,7 +110,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
               statusFilter === 'ALL' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            Все
+            {t.filterBar.filterAll}
           </button>
           <button
             onClick={() => {
@@ -119,7 +121,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
               statusFilter === 'FAIL' ? 'bg-red-600 text-white font-bold' : 'text-red-400 hover:text-red-300'
             }`}
           >
-            Замечания
+            {t.filterBar.filterFail}
           </button>
           <button
             onClick={() => {
@@ -130,7 +132,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
               statusFilter === 'PENDING' ? 'bg-amber-600 text-white font-bold' : 'text-amber-400 hover:text-amber-300'
             }`}
           >
-            Ожидают
+            {t.filterBar.filterPending}
           </button>
         </div>
 
@@ -142,10 +144,10 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
               setShowConfirmPassModal(true);
             }}
             className="px-3 py-1.5 bg-emerald-950/70 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/80 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
-            title="Отметить все непроверенные пункты как PASS"
+            title={t.filterBar.markAllPassTitle}
           >
             <CheckCheck className="w-4 h-4 text-emerald-400" />
-            <span>Пройти все ({pendingCount})</span>
+            <span>{t.filterBar.markAllPass.replace('{count}', String(pendingCount))}</span>
           </button>
         )}
       </div>
@@ -159,26 +161,26 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
                 <CheckCheck className="w-6 h-6 text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Пакетное подтверждение</h3>
-                <p className="text-xs text-slate-400">Быстрое заполнение чек-листа</p>
+                <h3 className="text-base font-bold text-white">{t.filterBar.bulkPassModalTitle}</h3>
+                <p className="text-xs text-slate-400">{t.filterBar.bulkPassModalSubtitle}</p>
               </div>
             </div>
             <p className="text-sm text-slate-300 mb-5 leading-relaxed">
-              Вы действительно хотите отметить оставшиеся <strong className="text-emerald-400">{pendingCount}</strong> непроверенных пунктов статусом <strong className="text-emerald-400">PASS (Соответствует)</strong>?
+              {t.filterBar.bulkPassModalPrompt.replace('{count}', String(pendingCount))}
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowConfirmPassModal(false)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
               >
-                Отмена
+                {t.common.cancel}
               </button>
               <button
                 onClick={handleConfirmPass}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-950/50 flex items-center gap-1.5"
               >
                 <CheckCheck className="w-4 h-4" />
-                <span>Подтвердить (Все PASS)</span>
+                <span>{t.filterBar.bulkPassConfirmBtn}</span>
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2, XCircle, MinusCircle, Clock, AlertOctagon, AlertCircle, AlertTriangle } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface MetricsBarProps {
   metrics: InspectionMetrics;
@@ -14,6 +15,8 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
   onFilterStatus,
   activeStatusFilter = 'ALL',
 }) => {
+  const { t } = useLanguage();
+
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-emerald-400 border-emerald-500/40 bg-emerald-950/40';
     if (score >= 75) return 'text-amber-400 border-amber-500/40 bg-amber-950/40';
@@ -39,14 +42,14 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
               {metrics.scorePercentage}%
             </span>
             <span className="text-[10px] uppercase font-bold tracking-wider mt-1 text-slate-300">
-              EHS Score
+              {t.metrics.scoreLabel}
             </span>
           </div>
 
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm sm:text-base font-bold text-white">
-                Прогресс обхода: {metrics.completed} / {metrics.total}
+                {t.metrics.progress}: {metrics.completed} / {metrics.total}
               </span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
                 {Math.round((metrics.completed / metrics.total) * 100)}%
@@ -54,8 +57,8 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
               {metrics.pending === 0
-                ? 'Все 17 пунктов проверены и оценены'
-                : `Осталось проверить: ${metrics.pending} пунктов`}
+                ? t.metrics.allCompleted
+                : t.metrics.remainingPending.replace('{count}', String(metrics.pending))}
             </p>
 
             {/* P1 / P2 / P3 Pill Badges */}
@@ -64,19 +67,19 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
                 {metrics.criticalP1Count > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-600/90 text-white animate-pulse shadow-sm">
                     <AlertOctagon className="w-3 h-3" />
-                    P1 Critical: {metrics.criticalP1Count}
+                    {t.metrics.p1Critical}: {metrics.criticalP1Count}
                   </span>
                 )}
                 {metrics.shiftP2Count > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-600/80 text-white shadow-sm">
                     <AlertCircle className="w-3 h-3" />
-                    P2 Shift: {metrics.shiftP2Count}
+                    {t.metrics.p2Shift}: {metrics.shiftP2Count}
                   </span>
                 )}
                 {metrics.scheduledP3Count > 0 && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-600/80 text-white shadow-sm">
                     <AlertTriangle className="w-3 h-3" />
-                    P3 Plan: {metrics.scheduledP3Count}
+                    {t.metrics.p3Plan}: {metrics.scheduledP3Count}
                   </span>
                 )}
               </div>
@@ -102,7 +105,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
             <div className="text-left">
               <div className="text-base font-bold text-white leading-tight font-mono">{metrics.passed}</div>
-              <div className="text-[10px] uppercase font-semibold text-emerald-400">Соответствует</div>
+              <div className="text-[10px] uppercase font-semibold text-emerald-400">{t.metrics.statusPass}</div>
             </div>
           </button>
 
@@ -124,7 +127,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             <XCircle className="w-5 h-5 text-red-400 shrink-0" />
             <div className="text-left">
               <div className="text-base font-bold text-white leading-tight font-mono">{metrics.failed}</div>
-              <div className="text-[10px] uppercase font-semibold text-red-400">Замечания</div>
+              <div className="text-[10px] uppercase font-semibold text-red-400">{t.metrics.statusFail}</div>
             </div>
           </button>
 
@@ -140,7 +143,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             <MinusCircle className="w-5 h-5 text-slate-400 shrink-0" />
             <div>
               <div className="text-base font-bold text-white leading-tight font-mono">{metrics.na}</div>
-              <div className="text-[10px] uppercase font-semibold text-slate-400">N/A</div>
+              <div className="text-[10px] uppercase font-semibold text-slate-400">{t.metrics.statusNa}</div>
             </div>
           </button>
 
@@ -160,7 +163,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             <Clock className="w-5 h-5 text-amber-400 shrink-0" />
             <div className="text-left">
               <div className="text-base font-bold text-white leading-tight font-mono">{metrics.pending}</div>
-              <div className="text-[10px] uppercase font-semibold text-amber-400">Ожидают</div>
+              <div className="text-[10px] uppercase font-semibold text-amber-400">{t.metrics.statusPending}</div>
             </div>
           </button>
         </div>
@@ -172,22 +175,22 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
           <div
             className="bg-emerald-500 transition-all duration-300"
             style={{ width: `${passWidth}%` }}
-            title={`Пройдено: ${metrics.passed}`}
+            title={`${t.metrics.statusPass}: ${metrics.passed}`}
           />
           <div
             className="bg-red-500 transition-all duration-300"
             style={{ width: `${failWidth}%` }}
-            title={`Замечания: ${metrics.failed}`}
+            title={`${t.metrics.statusFail}: ${metrics.failed}`}
           />
           <div
             className="bg-slate-600 transition-all duration-300"
             style={{ width: `${naWidth}%` }}
-            title={`N/A: ${metrics.na}`}
+            title={`${t.metrics.statusNa}: ${metrics.na}`}
           />
           <div
             className="bg-slate-800 transition-all duration-300"
             style={{ width: `${pendingWidth}%` }}
-            title={`В ожидании: ${metrics.pending}`}
+            title={`${t.metrics.statusPending}: ${metrics.pending}`}
           />
         </div>
       </div>
