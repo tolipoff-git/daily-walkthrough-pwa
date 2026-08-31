@@ -19,6 +19,7 @@ import { ExportModal } from './components/ExportModal';
 import { ActionPlanView } from './components/ActionPlanView';
 import { HistoryModal } from './components/HistoryModal';
 import { PrintReportView } from './components/PrintReportView';
+import { PersonnelModal } from './components/PersonnelModal';
 
 // Icons
 import { 
@@ -68,6 +69,7 @@ export const App: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
   const [showActionPlanModal, setShowActionPlanModal] = useState<boolean>(false);
+  const [showPersonnelModal, setShowPersonnelModal] = useState<boolean>(false);
 
   // Photo Zoom Modal state
   const [previewPhotoData, setPreviewPhotoData] = useState<{
@@ -197,7 +199,11 @@ export const App: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
           {/* Top Session Details Bar */}
-          <InspectorBar session={session} onUpdateHeader={updateSessionHeader} />
+          <InspectorBar 
+            session={session} 
+            onUpdateHeader={updateSessionHeader}
+            onOpenPersonnel={() => setShowPersonnelModal(true)} 
+          />
 
           {/* Real-time KPI & Metrics Overview */}
           <MetricsBar
@@ -404,6 +410,22 @@ export const App: React.FC = () => {
           onLoadSession={loadSession}
           onDeleteSession={deleteFromHistory}
           onClearHistory={clearHistory}
+        />
+      )}
+
+      {/* Personnel Directory Modal */}
+      {showPersonnelModal && (
+        <PersonnelModal
+          onClose={() => setShowPersonnelModal(false)}
+          onSelectInspector={(person) => {
+            updateSessionHeader('inspectorName', person.name);
+            updateSessionHeader('inspectorRole', person.role);
+            updateSessionHeader('signatures', {
+              ...session.signatures,
+              inspector: person.name,
+              inspectorTitle: person.role,
+            });
+          }}
         />
       )}
 

@@ -2,6 +2,8 @@ import React from 'react';
 import { FileText, PenTool, UserCheck } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { useLanguage } from '../i18n/LanguageContext';
+import { usePersonnel } from '../hooks/usePersonnel';
+import { triggerHaptic } from '../utils/haptics';
 
 interface GeneralNotesProps {
   session: InspectionSession;
@@ -15,6 +17,19 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
   onUpdateSignatures,
 }) => {
   const { language, t } = useLanguage();
+  const { personnel } = usePersonnel();
+
+  const handleSelectApprover = (personId: string) => {
+    const person = personnel.find((p) => p.id === personId);
+    if (!person) return;
+    triggerHaptic();
+    const approverString = `${person.name} (${person.role})`;
+    onUpdateSignatures({
+      ...session.signatures,
+      reviewedBy: approverString,
+      reviewTimestamp: new Date().toISOString(),
+    });
+  };
 
   return (
     <div className="bg-slate-800/90 border border-slate-700/90 rounded-2xl p-4 sm:p-5 mb-6 shadow-lg backdrop-blur-sm">
@@ -69,6 +84,32 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
               </span>
               <span className="text-[10px] text-slate-400">{t.generalNotes.approvalLabel}</span>
             </div>
+
+            {/* Quick picker from saved staff */}
+            {personnel.length > 0 && (
+              <div className="mb-1.5">
+                <select
+                  aria-label={t.generalNotes.selectApprover}
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleSelectApprover(e.target.value);
+                    }
+                  }}
+                  className="w-full bg-slate-950/90 border border-slate-750 rounded-lg px-2 py-1 text-slate-400 hover:text-slate-200 text-xs focus:outline-none focus:border-blue-500 truncate"
+                >
+                  <option value="" disabled>
+                    {t.generalNotes.selectApprover}
+                  </option>
+                  {personnel.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      👤 {p.name} — {p.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <input
               type="text"
               value={session.signatures.reviewedBy || ''}
@@ -80,7 +121,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
                 });
               }}
               placeholder={t.generalNotes.approverPlaceholder}
-              className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
             />
           </div>
           <div className="text-[10px] text-slate-500 mt-2 font-mono">

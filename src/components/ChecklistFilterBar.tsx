@@ -37,10 +37,10 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
   const [showConfirmPassModal, setShowConfirmPassModal] = useState(false);
 
   const categories = [
-    { id: 'ALL', label: t.filterBar.allCategories, icon: ListFilter, count: 17 },
+    { id: 'ALL', label: t.filterBar.allCategories, icon: ListFilter, count: 16 },
     { id: 'cat1', label: t.filterBar.cat1, icon: Flame, count: 5 },
     { id: 'cat2', label: t.filterBar.cat2, icon: Factory, count: 4 },
-    { id: 'cat3', label: t.filterBar.cat3, icon: Warehouse, count: 4 },
+    { id: 'cat3', label: t.filterBar.cat3, icon: Warehouse, count: 3 },
     { id: 'cat4', label: t.filterBar.cat4, icon: Building2, count: 4 },
   ];
 
@@ -154,7 +154,11 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
 
       {/* Confirmation Modal for Bulk Pass */}
       {showConfirmPassModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in print:hidden"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <div className="flex items-center gap-3 text-emerald-400 mb-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-800 flex items-center justify-center">

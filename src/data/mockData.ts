@@ -121,12 +121,6 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
           : 'Haul-away pickup request submitted to regional recycling contractor.',
         resolutionStatus: 'Open',
       };
-    } else if (item.id === '3.4') {
-      // Pass with note
-      item.status = 'PASS';
-      item.itemNotes = isRu
-        ? 'Зарядная станция АКБ штабелеров в идеальном порядке. Фонтанчик для глаз протестирован.'
-        : 'Forklift battery charging area clean and ventilated. Emergency eyewash tested.';
     } else if (item.id === '4.3') {
       item.status = 'PASS';
       item.itemNotes = isRu

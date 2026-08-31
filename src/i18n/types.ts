@@ -30,6 +30,7 @@ export interface Translations {
     confirm: string;
     delete: string;
     save: string;
+    saved: string;
     search: string;
     copy: string;
     copied: string;
@@ -66,6 +67,11 @@ export interface Translations {
     facilityNamePlaceholder: string;
     facilityArea: string;
     facilityAreaPlaceholder: string;
+    selectInspector: string;
+    selectInspectorPlaceholder: string;
+    managePersonnel: string;
+    saveCurrentInspector: string;
+    inspectorSavedSuccess: string;
   };
   metrics: {
     scoreLabel: string;
@@ -113,6 +119,8 @@ export interface Translations {
     priorityP3: string;
     priorityP3Label: string;
     assignedToLabel: string;
+    assigneeGroupDepartments: string;
+    assigneeGroupPersonnel: string;
     locationLabel: string;
     locationPlaceholder: string;
     descriptionLabel: string;
@@ -167,6 +175,35 @@ export interface Translations {
     approvalLabel: string;
     approverPlaceholder: string;
     awaitingSign: string;
+    selectApprover: string;
+    approverFromList: string;
+  };
+  personnelModal: {
+    title: string;
+    subtitle: string;
+    addBtn: string;
+    addTitle: string;
+    editTitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    roleLabel: string;
+    rolePlaceholder: string;
+    deptLabel: string;
+    deptPlaceholder: string;
+    isDefaultLabel: string;
+    defaultBadge: string;
+    setDefaultBtn: string;
+    setDefaultTitle: string;
+    editBtn: string;
+    deleteBtn: string;
+    deleteConfirm: string;
+    searchPlaceholder: string;
+    noResults: string;
+    resetDefaultsBtn: string;
+    resetConfirm: string;
+    totalCount: string;
+    saveSuccess: string;
+    fillRequired: string;
   };
   exportModal: {
     title: string;

@@ -1,5 +1,6 @@
 import { CategoryGroup, ChecklistItem, InspectionSession } from '../types/inspection';
 import { Language } from '../i18n/types';
+import { getDefaultPerson } from '../utils/personnelStorage';
 
 export const INITIAL_CHECKLIST_DATA: Omit<CategoryGroup, 'items'>[] = [
   {
@@ -25,8 +26,8 @@ export const INITIAL_CHECKLIST_DATA: Omit<CategoryGroup, 'items'>[] = [
     number: 3,
     titleRu: 'Склад, стеллажи и доки',
     titleEn: 'Warehouse, Racking & Docks',
-    descriptionRu: 'Стойки и балки стеллажей, безопасность штабелирования, ворота доков, зарядная зона',
-    descriptionEn: 'Rack uprights & beam pins, pallet stacking stability, dock levelers & gates, battery charging stations',
+    descriptionRu: 'Стойки и балки стеллажей, безопасность штабелирования, ворота доков и рампы',
+    descriptionEn: 'Rack uprights & beam pins, pallet stacking stability, dock levelers & gates',
     iconName: 'Warehouse',
   },
   {
@@ -361,32 +362,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     ],
     status: 'PENDING',
   },
-  {
-    id: '3.4',
-    categoryId: 'cat3',
-    categoryTitleRu: 'Склад, стеллажи и доки',
-    categoryTitleEn: 'Warehouse, Racking & Docks',
-    titleRu: '3.4. Зарядная зона АКБ',
-    titleEn: '3.4. Battery Charging Station',
-    standardRu: 'Кабели зарядных станций целые, зона вентилируется, доступ свободен.',
-    standardEn: 'Charger cables intact without fraying, forced ventilation running, eyewash accessible.',
-    guidelinesRu: [
-      'Силовые кабели зарядных устройств подвешены, разъемы не лежат на полу',
-      'Аварийный душ/фонтанчик для промывки глаз свободен и проверен',
-      'Вытяжная вентиляция (водородная безопасность) включена и работает',
-    ],
-    guidelinesEn: [
-      'Heavy-duty charging cables hung on brackets; connectors off floor',
-      'Emergency eyewash station unobstructed, capped, and inspected',
-      'Forced hydrogen exhaust ventilation operational during active charging',
-    ],
-    guidelines: [
-      'Силовые кабели зарядных устройств подвешены, разъемы не лежат на полу',
-      'Аварийный душ/фонтанчик для промывки глаз свободен и проверен',
-      'Вытяжная вентиляция (водородная безопасность) включена и работает',
-    ],
-    status: 'PENDING',
-  },
 
   // --- Category 4: Facility, Grounds & Waste ---
   {
@@ -500,10 +475,11 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
   const dateStr = now.toISOString().split('T')[0];
   const timeStr = now.toTimeString().slice(0, 5);
 
-  const defaultInspectorRu = 'Иванов А. С.';
-  const defaultInspectorEn = 'Alex S. Ivanov';
-  const defaultRoleRu = 'Специалист по ОТ и ПБ / 5S Lead';
-  const defaultRoleEn = 'Lead EHS Specialist & 5S Lead';
+  const defaultPerson = typeof window !== 'undefined' ? getDefaultPerson() : undefined;
+  const defaultInspectorRu = defaultPerson?.name || 'Иванов А. С.';
+  const defaultInspectorEn = defaultPerson?.name || 'Alex S. Ivanov';
+  const defaultRoleRu = defaultPerson?.role || 'Специалист по ОТ и ПБ / 5S Lead';
+  const defaultRoleEn = defaultPerson?.role || 'Lead EHS Specialist & 5S Lead';
   const defaultFacilityRu = 'Основной производственно-логистический комплекс';
   const defaultFacilityEn = 'Main Manufacturing & Logistics Complex';
   const defaultAreaRu = 'Все зоны (Цех 1 & 2, Склад ГП, Доки, Периметр)';
@@ -515,8 +491,8 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
   const savedRole = typeof window !== 'undefined' ? localStorage.getItem('ehs_last_role') : null;
   const savedFacility = typeof window !== 'undefined' ? localStorage.getItem('ehs_last_facility') : null;
 
-  const inspector = savedInspector || (lang === 'ru' ? defaultInspectorRu : defaultInspectorEn);
-  const role = savedRole || (lang === 'ru' ? defaultRoleRu : defaultRoleEn);
+  const inspector = defaultPerson?.name || savedInspector || (lang === 'ru' ? defaultInspectorRu : defaultInspectorEn);
+  const role = defaultPerson?.role || savedRole || (lang === 'ru' ? defaultRoleRu : defaultRoleEn);
   const facility = savedFacility || (lang === 'ru' ? defaultFacilityRu : defaultFacilityEn);
   const area = lang === 'ru' ? defaultAreaRu : defaultAreaEn;
   const shift = lang === 'ru' ? defaultShiftRu : defaultShiftEn;

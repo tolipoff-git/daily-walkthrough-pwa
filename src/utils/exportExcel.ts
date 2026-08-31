@@ -226,7 +226,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
   XLSX.utils.book_append_sheet(
     workbook,
     fullAuditSheet,
-    isRu ? 'Полный чек-лист (17)' : 'Full Audit (17 Items)'
+    isRu ? `Полный чек-лист (${session.items.length})` : `Full Audit (${session.items.length} Items)`
   );
 
   // Generate binary XLSX file and trigger download

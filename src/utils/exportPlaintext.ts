@@ -81,8 +81,8 @@ export function generatePlaintextReport(session: InspectionSession, lang: Langua
   }
 
   out += isRu
-    ? `ПОЛНЫЙ ЧЕК-ЛИСТ ПРОВЕРКИ (17 ПУНКТОВ)\n`
-    : `FULL WALKTHROUGH CHECKLIST (17 ITEMS)\n`;
+    ? `ПОЛНЫЙ ЧЕК-ЛИСТ ПРОВЕРКИ (${session.items.length} ПУНКТОВ)\n`
+    : `FULL WALKTHROUGH CHECKLIST (${session.items.length} ITEMS)\n`;
   out += `${thinDivider}\n`;
   out += isRu
     ? `| ID  | Статус | Наименование пункта проверки                      | Примечание / Локация\n`

@@ -26,6 +26,7 @@ import {
 import { compressImage } from '../utils/imageCompressor';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { usePersonnel } from '../hooks/usePersonnel';
 
 interface ChecklistItemCardProps {
   item: ChecklistItem;
@@ -57,6 +58,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
     getAssignees,
     getTargetDateOptions
   } = useLanguage();
+  const { personnel } = usePersonnel();
 
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [showPassNoteInput, setShowPassNoteInput] = useState(Boolean(item.itemNotes));
@@ -324,11 +326,22 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                 onChange={(e) => onUpdateDefect(item.id, { assignedTo: e.target.value as Assignee })}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-slate-100 font-medium focus:outline-none focus:border-red-500"
               >
-                {assigneesList.map((a) => (
-                  <option key={a.value} value={a.value}>
-                    {a.label}
-                  </option>
-                ))}
+                <optgroup label={t.card.assigneeGroupDepartments}>
+                  {assigneesList.map((a) => (
+                    <option key={a.value} value={a.value}>
+                      {a.label}
+                    </option>
+                  ))}
+                </optgroup>
+                {personnel.length > 0 && (
+                  <optgroup label={t.card.assigneeGroupPersonnel}>
+                    {personnel.map((p) => (
+                      <option key={p.id} value={`${p.name} (${p.role})`}>
+                        👤 {p.name} — {p.role}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
