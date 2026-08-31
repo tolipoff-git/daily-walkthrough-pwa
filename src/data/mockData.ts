@@ -166,7 +166,7 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
       inspector: isRu ? 'Смирнов Д. В.' : 'J. Smith',
       inspectorTitle: isRu ? 'Ведущий инженер EHS' : 'Lead EHS Specialist',
       timestamp: new Date().toISOString(),
-      reviewedBy: isRu ? 'Ковалев М. Н. (Начальник производства)' : 'Mark Stevens (Operations Lead)',
+      reviewedBy: 'Rich Fitzgerald (Operations Manager)',
       reviewTimestamp: new Date().toISOString(),
     },
     createdAt: new Date(Date.now() - 3600000).toISOString(),

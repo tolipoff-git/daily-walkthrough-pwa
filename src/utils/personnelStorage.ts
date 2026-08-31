@@ -5,6 +5,13 @@ export const PERSONNEL_STORAGE_KEY = 'ehs_saved_personnel';
 
 export const DEFAULT_PERSONNEL_RU: Person[] = [
   {
+    id: 'pers-ru-rich',
+    name: 'Rich Fitzgerald',
+    role: 'Operations Manager',
+    department: 'Production',
+    isDefault: false,
+  },
+  {
     id: 'pers-ru-1',
     name: 'Смирнов Д. В.',
     role: 'Инженер по охране труда и ТБ',
@@ -35,6 +42,13 @@ export const DEFAULT_PERSONNEL_RU: Person[] = [
 ];
 
 export const DEFAULT_PERSONNEL_EN: Person[] = [
+  {
+    id: 'pers-en-rich',
+    name: 'Rich Fitzgerald',
+    role: 'Operations Manager',
+    department: 'Production',
+    isDefault: false,
+  },
   {
     id: 'pers-en-1',
     name: 'J. Smith',

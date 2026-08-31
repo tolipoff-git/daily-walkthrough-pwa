@@ -492,6 +492,7 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
       inspector: inspector,
       inspectorTitle: role,
       timestamp: new Date().toISOString(),
+      reviewedBy: 'Rich Fitzgerald (Operations Manager)',
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
