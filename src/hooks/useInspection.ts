@@ -1,16 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, DefectPhoto } from '../types/inspection';
-import { createNewInspectionSession } from '../data/checklistData';
+import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE } from '../data/checklistData';
 import { getSampleDemoSession } from '../data/mockData';
 import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
 import { Language } from '../i18n/types';
+
+function hydrateSession(s: InspectionSession): InspectionSession {
+  if (!s || !Array.isArray(s.items)) return s;
+  const updatedItems = s.items.map((item) => {
+    const t = CHECKLIST_ITEMS_TEMPLATE.find((temp) => temp.id === item.id);
+    if (!t) return item;
+    return {
+      ...item,
+      titleRu: t.titleRu,
+      titleEn: t.titleEn,
+      standardRu: t.standardRu,
+      standardEn: t.standardEn,
+      guidelinesRu: t.guidelinesRu,
+      guidelinesEn: t.guidelinesEn,
+      categoryTitleRu: t.categoryTitleRu,
+      categoryTitleEn: t.categoryTitleEn,
+      categoryId: t.categoryId,
+    };
+  });
+  return {
+    ...s,
+    items: updatedItems,
+  };
+}
 
 export function useInspection() {
   const [session, setSession] = useState<InspectionSession>(() => {
     try {
       const saved = localStorage.getItem('ehs_active_session_v1');
       if (saved) {
-        return JSON.parse(saved);
+        return hydrateSession(JSON.parse(saved));
       }
     } catch (e) {
       console.error('Error loading initial session from localStorage:', e);
@@ -25,7 +49,7 @@ export function useInspection() {
   useEffect(() => {
     getActiveSessionDb().then((dbSession) => {
       if (dbSession && isInitialMount.current) {
-        setSession(dbSession);
+        setSession(hydrateSession(dbSession));
       }
       isInitialMount.current = false;
     }).catch(() => {

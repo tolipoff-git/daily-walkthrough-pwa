@@ -4,17 +4,18 @@ import { ru } from './ru';
 import { en } from './en';
 import { Assignee, Priority } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
+import { CHECKLIST_ITEMS_TEMPLATE, INITIAL_CHECKLIST_DATA } from '../data/checklistData';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
   t: Translations;
-  getItemTitle: (item: { titleRu?: string; titleEn?: string; title?: string }) => string;
-  getItemStandard: (item: { standardRu?: string; standardEn?: string; standard?: string }) => string;
-  getCategoryTitle: (cat: { titleRu?: string; titleEn?: string; title?: string }) => string;
-  getCategoryDesc: (cat: { descriptionRu?: string; descriptionEn?: string; description?: string }) => string;
-  getItemGuidelines: (item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => string[];
+  getItemTitle: (item: { id?: string; titleRu?: string; titleEn?: string; title?: string }) => string;
+  getItemStandard: (item: { id?: string; standardRu?: string; standardEn?: string; standard?: string }) => string;
+  getCategoryTitle: (cat: { id?: string; categoryId?: string; titleRu?: string; titleEn?: string; title?: string }) => string;
+  getCategoryDesc: (cat: { id?: string; categoryId?: string; descriptionRu?: string; descriptionEn?: string; description?: string }) => string;
+  getItemGuidelines: (item: { id?: string; guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => string[];
   getPriorityInfo: (priority: Priority) => { label: string; short: string; badge: string; description: string };
   getAssigneeLabel: (assignee: Assignee | string) => string;
   getTargetDateLabel: (presetKey: string) => string;
@@ -62,31 +63,38 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const t = useMemo(() => (language === 'ru' ? ru : en), [language]);
 
-  const getItemTitle = (item: { titleRu?: string; titleEn?: string; title?: string }) => {
-    if (language === 'en') return item.titleEn || item.title || item.titleRu || '';
-    return item.titleRu || item.title || item.titleEn || '';
+  const getItemTitle = (item: { id?: string; titleRu?: string; titleEn?: string; title?: string }) => {
+    const template = item.id ? CHECKLIST_ITEMS_TEMPLATE.find(t => t.id === item.id) : null;
+    if (language === 'en') return template?.titleEn || item.titleEn || item.title || '';
+    return template?.titleRu || item.titleRu || item.title || '';
   };
 
-  const getItemStandard = (item: { standardRu?: string; standardEn?: string; standard?: string }) => {
-    if (language === 'en') return item.standardEn || item.standard || item.standardRu || '';
-    return item.standardRu || item.standard || item.standardEn || '';
+  const getItemStandard = (item: { id?: string; standardRu?: string; standardEn?: string; standard?: string }) => {
+    const template = item.id ? CHECKLIST_ITEMS_TEMPLATE.find(t => t.id === item.id) : null;
+    if (language === 'en') return template?.standardEn || item.standardEn || item.standard || '';
+    return template?.standardRu || item.standardRu || item.standard || '';
   };
 
-  const getCategoryTitle = (cat: { titleRu?: string; titleEn?: string; title?: string }) => {
-    if (language === 'en') return cat.titleEn || cat.title || cat.titleRu || '';
-    return cat.titleRu || cat.title || cat.titleEn || '';
+  const getCategoryTitle = (cat: { id?: string; categoryId?: string; titleRu?: string; titleEn?: string; title?: string }) => {
+    const catId = cat.id || cat.categoryId;
+    const catTemplate = catId ? INITIAL_CHECKLIST_DATA.find(c => c.id === catId) : null;
+    if (language === 'en') return catTemplate?.titleEn || cat.titleEn || cat.title || '';
+    return catTemplate?.titleRu || cat.titleRu || cat.title || '';
   };
 
-  const getCategoryDesc = (cat: { descriptionRu?: string; descriptionEn?: string; description?: string }) => {
-    if (language === 'en') return cat.descriptionEn || cat.description || cat.descriptionRu || '';
-    return cat.descriptionRu || cat.description || cat.descriptionEn || '';
+  const getCategoryDesc = (cat: { id?: string; categoryId?: string; descriptionRu?: string; descriptionEn?: string; description?: string }) => {
+    const catId = cat.id || cat.categoryId;
+    const catTemplate = catId ? INITIAL_CHECKLIST_DATA.find(c => c.id === catId) : null;
+    if (language === 'en') return catTemplate?.descriptionEn || cat.descriptionEn || cat.description || '';
+    return catTemplate?.descriptionRu || cat.descriptionRu || cat.description || '';
   };
 
-  const getItemGuidelines = (item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => {
+  const getItemGuidelines = (item: { id?: string; guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => {
+    const template = item.id ? CHECKLIST_ITEMS_TEMPLATE.find(t => t.id === item.id) : null;
     if (language === 'en') {
-      return item.guidelinesEn || item.guidelines || item.guidelinesRu || [];
+      return template?.guidelinesEn || item.guidelinesEn || [];
     }
-    return item.guidelinesRu || item.guidelines || item.guidelinesEn || [];
+    return template?.guidelinesRu || item.guidelinesRu || item.guidelines || [];
   };
 
   const getPriorityInfo = (priority: Priority) => {
