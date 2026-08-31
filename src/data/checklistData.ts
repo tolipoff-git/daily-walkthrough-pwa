@@ -462,8 +462,8 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
   const defaultFacilityEn = 'Main Manufacturing & Logistics Complex';
   const defaultAreaRu = 'Все зоны (Цех 1 & 2, Склад ГП, Доки, Периметр)';
   const defaultAreaEn = 'All Zones (Shop Floor 1 & 2, FG Warehouse, Loading Docks, Grounds)';
-  const defaultShiftRu = 'Смена 1 (Дневная / 08:00 - 20:00)';
-  const defaultShiftEn = 'Shift 1 (Day / 08:00 - 20:00)';
+  const defaultShiftRu = 'Дневная смена (06:00 - 14:40)';
+  const defaultShiftEn = 'Day Shift (06:00 - 14:40)';
 
   const savedInspector = typeof window !== 'undefined' ? localStorage.getItem('ehs_last_inspector') : null;
   const savedRole = typeof window !== 'undefined' ? localStorage.getItem('ehs_last_role') : null;

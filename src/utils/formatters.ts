@@ -2,34 +2,19 @@ import { Language } from '../i18n/types';
 
 export function formatShift(shift: string | undefined, lang: Language): string {
   if (!shift) {
-    return lang === 'ru' ? 'Смена 1 (Дневная / 08:00 - 20:00)' : 'Shift 1 (Day / 08:00 - 20:00)';
+    return lang === 'ru' ? 'Дневная смена (06:00 - 14:40)' : 'Day Shift (06:00 - 14:40)';
   }
 
   const s = shift.toLowerCase();
 
-  // Shift 1 / Day
-  if (s.includes('смена 1') || s.includes('shift 1') || s.includes('дневн') || s.includes('day shift') || s.includes('day /')) {
-    return lang === 'ru' ? 'Смена 1 (Дневная / 08:00 - 20:00)' : 'Shift 1 (Day / 08:00 - 20:00)';
+  // Overtime / Extended
+  if (s.includes('сверхуроч') || s.includes('overtime') || s.includes('16:30') || s.includes('extended')) {
+    return lang === 'ru' ? 'Сверхурочная / Продленная (06:00 - 16:30)' : 'Overtime / Extended (06:00 - 16:30)';
   }
 
-  // Shift 2 / Night
-  if (s.includes('смена 2') || s.includes('shift 2') || s.includes('ночн') || s.includes('night')) {
-    return lang === 'ru' ? 'Смена 2 (Ночная / 20:00 - 08:00)' : 'Shift 2 (Night / 20:00 - 08:00)';
-  }
-
-  // Shift A / Morning
-  if (s.includes('смена а') || s.includes('shift a') || s.includes('утренн') || s.includes('morning')) {
-    return lang === 'ru' ? 'Смена А (Утренняя / 07:00 - 15:30)' : 'Shift A (Morning / 07:00 - 15:30)';
-  }
-
-  // Shift B / Evening
-  if (s.includes('смена б') || s.includes('shift b') || s.includes('вечерн') || s.includes('evening')) {
-    return lang === 'ru' ? 'Смена Б (Вечерняя / 15:30 - 00:00)' : 'Shift B (Evening / 15:30 - 00:00)';
-  }
-
-  // Admin shift
-  if (s.includes('администр') || s.includes('admin')) {
-    return lang === 'ru' ? 'Административная / Дневная смена' : 'Administrative / Day Shift';
+  // Standard Day Shift (06:00 - 14:40)
+  if (s.includes('06:00') || s.includes('14:40') || s.includes('дневн') || s.includes('day') || s.includes('1') || s.includes('смена')) {
+    return lang === 'ru' ? 'Дневная смена (06:00 - 14:40)' : 'Day Shift (06:00 - 14:40)';
   }
 
   return shift;

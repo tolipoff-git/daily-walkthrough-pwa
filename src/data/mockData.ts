@@ -151,8 +151,8 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
       ? 'Цех металлообработки №1, Склад ГП, Доковая зона и Периметр'
       : 'Fabrication Shop 1, FG Warehouse, Loading Docks & Grounds',
     shift: isRu
-      ? 'Смена 1 (Дневная / 08:00 - 20:00)'
-      : 'Shift 1 (Day / 08:00 - 20:00)',
+      ? 'Дневная смена (06:00 - 14:40)'
+      : 'Day Shift (06:00 - 14:40)',
     inspectorName: isRu ? 'Смирнов Дмитрий Владимирович' : 'J. Smith',
     inspectorRole: isRu
       ? 'Ведущий инженер по ОТ, ПБ и 5S (EHS Lead)'

@@ -346,11 +346,8 @@ export const en: Translations = {
     'Perimeter & Security Gate',
   ],
   shifts: [
-    { value: 'Shift 1 (Day / 08:00 - 20:00)', label: 'Shift 1 (Day / 08:00 - 20:00)' },
-    { value: 'Shift 2 (Night / 20:00 - 08:00)', label: 'Shift 2 (Night / 20:00 - 08:00)' },
-    { value: 'Shift A (Morning / 07:00 - 15:30)', label: 'Shift A (Morning / 07:00 - 15:30)' },
-    { value: 'Shift B (Evening / 15:30 - 00:00)', label: 'Shift B (Evening / 15:30 - 00:00)' },
-    { value: 'Administrative / Day Shift', label: 'Administrative / Day Shift' },
+    { value: 'Day Shift (06:00 - 14:40)', label: 'Day Shift (06:00 AM - 2:40 PM)' },
+    { value: 'Overtime / Extended (06:00 - 16:30)', label: 'Overtime / Extended (06:00 AM - 4:30 PM)' },
   ],
   targetDates: {
     Today: 'Today (Immediate / End of Shift)',
