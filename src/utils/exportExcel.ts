@@ -5,6 +5,7 @@ import { Language } from '../i18n/types';
 import { ru } from '../i18n/ru';
 import { en } from '../i18n/en';
 import { APP_VERSION, COMMIT_HASH } from '../version';
+import { formatShift, formatArea, formatRole } from './formatters';
 
 export function exportInspectionToExcel(session: InspectionSession, lang: Language = 'ru'): void {
   const t = lang === 'ru' ? ru : en;
@@ -27,9 +28,9 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     [isRu ? 'Дата проведения' : 'Audit Date', session.date],
     [isRu ? 'Время начала / окончания' : 'Inspection Time', `${session.startTime} - ${session.endTime || (isRu ? 'В процессе' : 'In Progress')}`],
     [isRu ? 'Предприятие / Объект' : 'Facility / Campus', session.facilityName],
-    [isRu ? 'Зона / Участок' : 'Scope / Area', session.facilityArea],
-    [isRu ? 'Смена' : 'Work Shift', session.shift],
-    [isRu ? 'Инспектор (EHS)' : 'Auditor (EHS)', `${session.inspectorName} (${session.inspectorRole})`],
+    [isRu ? 'Зона / Участок' : 'Scope / Area', formatArea(session.facilityArea, lang)],
+    [isRu ? 'Смена' : 'Work Shift', formatShift(session.shift, lang)],
+    [isRu ? 'Инспектор (EHS)' : 'Auditor (EHS)', `${session.inspectorName} (${formatRole(session.inspectorRole, lang)})`],
     [isRu ? 'Статус аудита' : 'Audit Status', session.status === 'Completed' ? (isRu ? 'Завершен' : 'Completed') : (isRu ? 'В процессе' : 'In Progress')],
     [''],
     [isRu ? 'ПОКАЗАТЕЛИ ИНСПЕКЦИИ (KPI)' : 'EXECUTIVE METRICS (KPIs)', isRu ? 'КОЛИЧЕСТВО' : 'COUNT', isRu ? 'ДОЛЯ (%)' : 'SHARE (%)'],

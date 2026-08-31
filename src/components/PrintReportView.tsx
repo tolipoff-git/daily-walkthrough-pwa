@@ -2,6 +2,7 @@ import React from 'react';
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatShift, formatArea, formatRole } from '../utils/formatters';
 import { APP_VERSION, COMMIT_HASH } from '../version';
 
 interface PrintReportViewProps {
@@ -43,13 +44,13 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
       <div className="grid grid-cols-2 gap-3 text-xs mb-5 border border-slate-300 p-3 rounded-lg bg-slate-50 break-inside-avoid">
         <div>
           <p className="mb-1"><strong className="text-slate-800">{t.printView.facilityLabel}</strong> {session.facilityName}</p>
-          <p className="mb-1"><strong className="text-slate-800">{t.printView.areaLabel}</strong> {session.facilityArea}</p>
-          <p><strong className="text-slate-800">{t.printView.shiftLabel}</strong> {session.shift}</p>
+          <p className="mb-1"><strong className="text-slate-800">{t.printView.areaLabel}</strong> {formatArea(session.facilityArea, language)}</p>
+          <p><strong className="text-slate-800">{t.printView.shiftLabel}</strong> {formatShift(session.shift, language)}</p>
         </div>
         <div>
           <p className="mb-1"><strong className="text-slate-800">{t.printView.dateLabel}</strong> {session.date}</p>
           <p className="mb-1"><strong className="text-slate-800">{t.printView.timeLabel}</strong> {session.startTime} — {session.endTime || t.printView.completedTime}</p>
-          <p><strong className="text-slate-800">{t.printView.inspectorLabel}</strong> {session.inspectorName} ({session.inspectorRole})</p>
+          <p><strong className="text-slate-800">{t.printView.inspectorLabel}</strong> {session.inspectorName} ({formatRole(session.inspectorRole, language)})</p>
         </div>
       </div>
 

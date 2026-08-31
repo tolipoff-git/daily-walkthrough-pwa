@@ -14,6 +14,7 @@ import { InspectionSession } from '../types/inspection';
 import { usePersonnel } from '../hooks/usePersonnel';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatShift, formatArea, formatRole } from '../utils/formatters';
 
 interface InspectorBarProps {
   session: InspectionSession;
@@ -26,7 +27,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({
   onUpdateHeader,
   onOpenPersonnel 
 }) => {
-  const { t, getShifts } = useLanguage();
+  const { language, t, getShifts } = useLanguage();
   const { personnel, saveOrUpdateCurrent } = usePersonnel();
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [savedToast, setSavedToast] = useState<boolean>(false);
@@ -75,7 +76,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/80 border border-slate-700 rounded-xl text-slate-200">
             <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="font-semibold">{session.inspectorName || t.inspectorBar.noInspector}</span>
-            <span className="text-slate-400 text-xs hidden md:inline">({session.inspectorRole})</span>
+            <span className="text-slate-400 text-xs hidden md:inline">({formatRole(session.inspectorRole, language)})</span>
           </div>
 
           {/* Quick Inspector Selector Dropdown */}
@@ -119,7 +120,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({
             <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span>{session.date}</span>
             <span className="text-slate-500">•</span>
-            <span className="text-xs font-medium text-slate-300">{session.shift}</span>
+            <span className="text-xs font-medium text-slate-300">{formatShift(session.shift, language)}</span>
           </div>
 
           {/* Time tracker badge */}
@@ -133,7 +134,7 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({
           {/* Facility area */}
           <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/80 border border-slate-700 rounded-xl text-slate-400 text-xs">
             <Building className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="truncate max-w-xs">{session.facilityName}</span>
+            <span className="truncate max-w-xs">{formatArea(session.facilityArea, language)}</span>
           </div>
         </div>
 

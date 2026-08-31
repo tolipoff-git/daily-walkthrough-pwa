@@ -5,14 +5,20 @@ import { ru } from '../i18n/ru';
 import { en } from '../i18n/en';
 import { APP_VERSION, COMMIT_HASH } from '../version';
 
-export function generatePlaintextReport(session: InspectionSession, lang: Language = 'ru'): string {
+import { formatShift, formatArea, formatRole } from './formatters';
+
+export function generatePlaintextReport(
+  session: InspectionSession,
+  lang: Language = 'ru'
+): string {
   const t = lang === 'ru' ? ru : en;
   const isRu = lang === 'ru';
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
 
-  const divider = '='.repeat(78);
-  const thinDivider = '-'.repeat(78);
+  const width = 76;
+  const divider = '='.repeat(width);
+  const thinDivider = '-'.repeat(width);
 
   let out = '';
   out += `${divider}\n`;
@@ -29,9 +35,9 @@ export function generatePlaintextReport(session: InspectionSession, lang: Langua
   out += `${(isRu ? 'Дата:' : 'Date:').padEnd(20, ' ')}${session.date}\n`;
   out += `${(isRu ? 'Время обхода:' : 'Walkthrough Time:').padEnd(20, ' ')}${session.startTime} - ${session.endTime || (isRu ? 'В процессе' : 'In Progress')}\n`;
   out += `${(isRu ? 'Объект / Площадка:' : 'Facility / Campus:').padEnd(20, ' ')}${session.facilityName}\n`;
-  out += `${(isRu ? 'Зона инспекции:' : 'Inspection Area:').padEnd(20, ' ')}${session.facilityArea}\n`;
-  out += `${(isRu ? 'Смена:' : 'Work Shift:').padEnd(20, ' ')}${session.shift}\n`;
-  out += `${(isRu ? 'Инспектор (EHS):' : 'Auditor (EHS):').padEnd(20, ' ')}${session.inspectorName} (${session.inspectorRole})\n`;
+  out += `${(isRu ? 'Зона инспекции:' : 'Inspection Area:').padEnd(20, ' ')}${formatArea(session.facilityArea, lang)}\n`;
+  out += `${(isRu ? 'Смена:' : 'Work Shift:').padEnd(20, ' ')}${formatShift(session.shift, lang)}\n`;
+  out += `${(isRu ? 'Инспектор (EHS):' : 'Auditor (EHS):').padEnd(20, ' ')}${session.inspectorName} (${formatRole(session.inspectorRole, lang)})\n`;
   out += `${(isRu ? 'Статус аудита:' : 'Audit Status:').padEnd(20, ' ')}${session.status === 'Completed' ? (isRu ? 'ЗАВЕРШЕН' : 'COMPLETED') : (isRu ? 'В ПРОЦЕССЕ' : 'IN PROGRESS')}\n\n`;
 
   out += isRu
