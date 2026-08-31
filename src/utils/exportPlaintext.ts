@@ -3,6 +3,7 @@ import { calculateMetrics } from './metrics';
 import { Language } from '../i18n/types';
 import { ru } from '../i18n/ru';
 import { en } from '../i18n/en';
+import { APP_VERSION, COMMIT_HASH } from '../version';
 
 export function generatePlaintextReport(session: InspectionSession, lang: Language = 'ru'): string {
   const t = lang === 'ru' ? ru : en;
@@ -21,7 +22,7 @@ export function generatePlaintextReport(session: InspectionSession, lang: Langua
   out += `${divider}\n\n`;
 
   out += isRu
-    ? `ОБЩАЯ ИНФОРМАЦИЯ / GENERAL INFO\n`
+    ? `ОБЩАЯ ИНФОРМАЦИЯ\n`
     : `GENERAL AUDIT INFORMATION\n`;
   out += `${thinDivider}\n`;
   out += `${(isRu ? 'ID Обхода:' : 'Audit ID:').padEnd(20, ' ')}${session.id}\n`;
@@ -31,11 +32,11 @@ export function generatePlaintextReport(session: InspectionSession, lang: Langua
   out += `${(isRu ? 'Зона инспекции:' : 'Inspection Area:').padEnd(20, ' ')}${session.facilityArea}\n`;
   out += `${(isRu ? 'Смена:' : 'Work Shift:').padEnd(20, ' ')}${session.shift}\n`;
   out += `${(isRu ? 'Инспектор (EHS):' : 'Auditor (EHS):').padEnd(20, ' ')}${session.inspectorName} (${session.inspectorRole})\n`;
-  out += `${(isRu ? 'Статус аудита:' : 'Audit Status:').padEnd(20, ' ')}${session.status === 'Completed' ? (isRu ? 'ЗАВЕРШЕН' : 'COMPLETED') : session.status}\n\n`;
+  out += `${(isRu ? 'Статус аудита:' : 'Audit Status:').padEnd(20, ' ')}${session.status === 'Completed' ? (isRu ? 'ЗАВЕРШЕН' : 'COMPLETED') : (isRu ? 'В ПРОЦЕССЕ' : 'IN PROGRESS')}\n\n`;
 
   out += isRu
-    ? `СВОДНЫЕ МЕТРИКИ И ПОКАЗАТЕЛИ / EXECUTIVE METRICS\n`
-    : `EXECUTIVE SUMMARY & COMPLIANCE METRICS\n`;
+    ? `СВОДНЫЕ МЕТРИКИ И ПОКАЗАТЕЛИ (KPI)\n`
+    : `EXECUTIVE SUMMARY & COMPLIANCE METRICS (KPIs)\n`;
   out += `${thinDivider}\n`;
   out += `${(isRu ? 'Всего пунктов:' : 'Total Checklist Items:').padEnd(30, ' ')}${metrics.total}\n`;
   out += `${(isRu ? 'Соответствует (PASS):' : 'Compliant (PASS):').padEnd(30, ' ')}${metrics.passed} (${Math.round((metrics.passed / metrics.total) * 100)}%)\n`;
@@ -118,6 +119,8 @@ export function generatePlaintextReport(session: InspectionSession, lang: Langua
   } else {
     out += `${(isRu ? 'Руководитель:' : 'Reviewed By:').padEnd(14, ' ')}__________________________ / ${isRu ? 'Дата:' : 'Date:'} _____________\n`;
   }
+  out += `${thinDivider}\n`;
+  out += `Daily Facility & EHS Walkthrough PWA ${APP_VERSION} (Commit: ${COMMIT_HASH})\n`;
   out += `${divider}\n`;
 
   return out;

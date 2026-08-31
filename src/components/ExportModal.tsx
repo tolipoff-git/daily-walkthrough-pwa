@@ -8,7 +8,8 @@ import {
   Copy, 
   Check, 
   Upload, 
-  Database
+  Database,
+  Eye
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { generatePlaintextReport } from '../utils/exportPlaintext';
@@ -22,6 +23,7 @@ interface ExportModalProps {
   onClose: () => void;
   onRestoreSession: (session: InspectionSession) => void;
   onSaveToHistory: (session: InspectionSession) => void;
+  onOpenPrintPreview?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -29,6 +31,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onClose,
   onRestoreSession,
   onSaveToHistory,
+  onOpenPrintPreview,
 }) => {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'txt' | 'xlsx' | 'print' | 'json'>('txt');
@@ -85,7 +88,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleTriggerPrint = () => {
     triggerHaptic();
     onSaveToHistory(session);
-    window.print();
+    // Unmount modal from DOM before printing to ensure pristine print snapshot
+    onClose();
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const handleJsonUpload = async (file: File | undefined) => {
@@ -287,6 +294,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                         <Printer className="w-4 h-4" />
                         <span>{t.exportModal.printBtn}</span>
                       </button>
+
+                      {onOpenPrintPreview && (
+                        <button
+                          onClick={() => {
+                            onClose();
+                            onOpenPrintPreview();
+                          }}
+                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs sm:text-sm flex items-center gap-2 border border-slate-700 transition-all"
+                        >
+                          <Eye className="w-4 h-4 text-indigo-400" />
+                          <span>{language === 'ru' ? 'Предпросмотр на экране' : 'Preview Layout on Screen'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

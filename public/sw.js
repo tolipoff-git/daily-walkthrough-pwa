@@ -1,5 +1,5 @@
 // Service Worker for EHS & Facility Daily Walkthrough PWA
-const CACHE_NAME = 'ehs-walkthrough-v1';
+const CACHE_NAME = 'ehs-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -21,7 +21,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event: Clean up old caches
+// Activate event: Force-clear stale caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {

@@ -21,14 +21,14 @@ export function importInspectionFromJson(file: File): Promise<InspectionSession>
         const text = e.target?.result as string;
         const parsed = JSON.parse(text) as InspectionSession;
         if (!parsed.id || !parsed.items || !Array.isArray(parsed.items)) {
-          throw new Error('Некорректный формат файла инспекции');
+          throw new Error('Invalid inspection file structure / Некорректный формат файла инспекции');
         }
         resolve(parsed);
       } catch (err) {
         reject(err);
       }
     };
-    reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+    reader.onerror = () => reject(new Error('File read error / Ошибка чтения файла'));
     reader.readAsText(file);
   });
 }

@@ -4,6 +4,7 @@ import { calculateMetrics } from './metrics';
 import { Language } from '../i18n/types';
 import { ru } from '../i18n/ru';
 import { en } from '../i18n/en';
+import { APP_VERSION, COMMIT_HASH } from '../version';
 
 export function exportInspectionToExcel(session: InspectionSession, lang: Language = 'ru'): void {
   const t = lang === 'ru' ? ru : en;
@@ -29,7 +30,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     [isRu ? 'Зона / Участок' : 'Scope / Area', session.facilityArea],
     [isRu ? 'Смена' : 'Work Shift', session.shift],
     [isRu ? 'Инспектор (EHS)' : 'Auditor (EHS)', `${session.inspectorName} (${session.inspectorRole})`],
-    [isRu ? 'Статус аудита' : 'Audit Status', session.status],
+    [isRu ? 'Статус аудита' : 'Audit Status', session.status === 'Completed' ? (isRu ? 'Завершен' : 'Completed') : (isRu ? 'В процессе' : 'In Progress')],
     [''],
     [isRu ? 'ПОКАЗАТЕЛИ ИНСПЕКЦИИ (KPI)' : 'EXECUTIVE METRICS (KPIs)', isRu ? 'КОЛИЧЕСТВО' : 'COUNT', isRu ? 'ДОЛЯ (%)' : 'SHARE (%)'],
     [isRu ? 'Всего контрольных пунктов' : 'Total Audit Points', metrics.total, '100%'],
@@ -46,6 +47,8 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     [''],
     [isRu ? 'ОБЩИЕ ЗАМЕЧАНИЯ И 5S КОММЕНТАРИИ:' : 'GENERAL OBSERVATIONS & 5S COMMENTS:'],
     [session.generalNotes || (isRu ? 'Без дополнительных примечаний' : 'No additional observations recorded')],
+    [''],
+    [isRu ? 'ВЕРСИЯ ПРИЛОЖЕНИЯ' : 'APP VERSION', `PWA ${APP_VERSION} (Commit: ${COMMIT_HASH})`],
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -92,7 +95,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     const category = isRu ? d.categoryTitleRu : d.categoryTitleEn;
     const title = isRu ? d.titleRu : d.titleEn;
     const priorityLabel = details?.priority ? t.priorities[details.priority].short : 'P2';
-    const assigneeLabel = details?.assignedTo ? (t.assignees[details.assignedTo] || details.assignedTo) : '';
+    const assigneeLabel = details?.assignedTo ? (t.assignees[details.assignedTo] || details.assignedTo) : (isRu ? 'Не назначен' : 'Unassigned');
     const targetDateLabel = details?.targetDate === 'Custom'
       ? (details.customTargetDate || 'Custom')
       : details?.targetDate
@@ -147,7 +150,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     isRu ? 'Журнал дефектов (CAPA)' : 'Defects & CAPA Log'
   );
 
-  // --- SHEET 3: FULL 17 CHECKLIST ITEMS ---
+  // --- SHEET 3: FULL CHECKLIST ITEMS ---
   const fullAuditHeader = isRu
     ? [
         'ID',

@@ -9,11 +9,13 @@ import {
   AlertTriangle, 
   Sparkles, 
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  GitCommit
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from '../version';
 
 interface HeaderProps {
   metrics: InspectionMetrics;
@@ -76,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-md">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Brand & Logo */}
+          {/* Brand & Logo with Version Link */}
           <div className="flex items-center gap-2.5 sm:gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-950/40 text-white font-bold shrink-0">
               <ShieldCheck className="w-6 h-6" />
@@ -86,6 +88,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
                   {t.common.appName}
                 </h1>
+
+                {/* Clickable Version badge linking to GitHub commit */}
+                <a
+                  href={COMMIT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-indigo-200 border border-slate-700 hover:border-indigo-500 transition-colors"
+                  title={`GitHub Commit: ${COMMIT_HASH}`}
+                >
+                  <GitCommit className="w-2.5 h-2.5" />
+                  <span>{APP_VERSION} ({COMMIT_HASH})</span>
+                </a>
+
                 {/* Online/Offline status pill */}
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
@@ -129,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 scale-102'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="Переключить интерфейс на Русский язык"
+                title={language === 'ru' ? 'Переключить интерфейс на Русский язык' : 'Switch to Russian'}
               >
                 <span>RU</span>
               </button>
@@ -144,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 scale-102'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="Switch interface to English"
+                title={language === 'ru' ? 'Переключить интерфейс на Английский язык' : 'Switch to English'}
               >
                 <span>ENG</span>
               </button>

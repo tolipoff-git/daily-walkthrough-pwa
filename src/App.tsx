@@ -6,6 +6,7 @@ import { INITIAL_CHECKLIST_DATA } from './data/checklistData';
 import { DefectPhoto } from './types/inspection';
 import { triggerHaptic } from './utils/haptics';
 import { useLanguage } from './i18n/LanguageContext';
+import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from './version';
 
 // Components
 import { Header } from './components/Header';
@@ -31,7 +32,10 @@ import {
   ArrowUp, 
   CornerDownRight, 
   Sparkles,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Printer,
+  X,
+  GitCommit
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -70,6 +74,7 @@ export const App: React.FC = () => {
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
   const [showActionPlanModal, setShowActionPlanModal] = useState<boolean>(false);
   const [showPersonnelModal, setShowPersonnelModal] = useState<boolean>(false);
+  const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
 
   // Photo Zoom Modal state
   const [previewPhotoData, setPreviewPhotoData] = useState<{
@@ -164,6 +169,12 @@ export const App: React.FC = () => {
     if (nextPending) {
       handleScrollToItem(nextPending.id);
     }
+  };
+
+  const handleDirectPrint = () => {
+    triggerHaptic();
+    saveInspectionToHistory(session);
+    window.print();
   };
 
   const getCategoryIcon = (iconName: string) => {
@@ -363,13 +374,72 @@ export const App: React.FC = () => {
           </button>
         </div>
 
-        {/* Footer */}
+        {/* Footer with App Version and Commit Hash */}
         <footer className="border-t border-slate-800/80 py-4 px-4 text-center text-xs text-slate-400 bg-slate-950/60">
-          <p>
-            {t.bottomFooter.credits}
-          </p>
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>
+              {t.bottomFooter.credits}
+            </p>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+              <span>{APP_VERSION}</span>
+              <span>•</span>
+              <a
+                href={COMMIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 hover:text-indigo-400 transition-colors underline underline-offset-2 font-mono"
+              >
+                <GitCommit className="w-3 h-3" />
+                <span>commit {COMMIT_HASH}</span>
+              </a>
+            </div>
+          </div>
         </footer>
       </div>
+
+      {/* On-Screen Print Preview Modal / Overlay */}
+      {showPrintPreview && (
+        <div 
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 backdrop-blur-md p-3 sm:p-6 flex flex-col print:hidden"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="max-w-4xl w-full mx-auto flex flex-col flex-1">
+            {/* Top Toolbar */}
+            <div className="flex items-center justify-between gap-3 p-3 bg-slate-900 border border-slate-750 rounded-2xl mb-4 shadow-xl">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-400" />
+                <span className="text-sm font-bold text-white">
+                  {language === 'ru' ? 'Предпросмотр печатного отчета (US Letter 8.5" × 11")' : 'Print Preview (US Letter 8.5" × 11")'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDirectPrint}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>{t.exportModal.printBtn}</span>
+                </button>
+                <button
+                  onClick={() => setShowPrintPreview(false)}
+                  className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors"
+                  title={t.common.close}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Paper Container */}
+            <div className="bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-750 shadow-2xl flex-1 overflow-y-auto">
+              <div className="max-w-3xl mx-auto bg-white text-black rounded-lg shadow-2xl overflow-hidden">
+                <PrintReportView session={session} isScreenPreview={true} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Photo Fullscreen Zoom Modal */}
       <PhotoModal
@@ -386,6 +456,7 @@ export const App: React.FC = () => {
           onClose={() => setShowExportModal(false)}
           onRestoreSession={loadSession}
           onSaveToHistory={saveInspectionToHistory}
+          onOpenPrintPreview={() => setShowPrintPreview(true)}
         />
       )}
 
@@ -429,7 +500,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Print PDF View (Visible only during window.print()) */}
+      {/* Print PDF View (Visible during window.print()) */}
       <PrintReportView session={session} />
     </div>
   );

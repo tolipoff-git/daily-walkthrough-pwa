@@ -80,7 +80,7 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
       item.defectDetails = {
         location: isRu
           ? 'Склад готовой продукции, Ряд 04, Секция B (Bay 04-B)'
-          : 'Finished Goods Warehouse, Row 04, Bay B (Bay 04-B)',
+          : 'FG Warehouse, Row 04, Bay B (Bay 04-B)',
         zonePreset: isRu ? 'Склад ГП (Ряды 1-10)' : 'FG Warehouse (Aisles 1-10)',
         description: isRu
           ? 'След удара вилочного погрузчика на нижней части вертикальной стойки. Глубина деформации около 15 мм. Отсутствует один защитный штифт на втором ярусе.'
@@ -121,6 +121,11 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
           : 'Haul-away pickup request submitted to regional recycling contractor.',
         resolutionStatus: 'Open',
       };
+    } else if (item.id === '2.5') {
+      item.status = 'PASS';
+      item.itemNotes = isRu
+        ? 'Станция промывки глаз проверена, бирка осмотра подписана.'
+        : 'Eyewash station inspected and monthly tag signed; secondary containment clean.';
     } else if (item.id === '4.3') {
       item.status = 'PASS';
       item.itemNotes = isRu
@@ -144,11 +149,11 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
       : 'North Industrial & Logistics Complex',
     facilityArea: isRu
       ? 'Цех металлообработки №1, Склад ГП, Доковая зона и Периметр'
-      : 'Fabrication Shop 1, FG Warehouse, Loading Docks & Perimeter',
+      : 'Fabrication Shop 1, FG Warehouse, Loading Docks & Grounds',
     shift: isRu
       ? 'Смена 1 (Дневная / 08:00 - 20:00)'
       : 'Shift 1 (Day / 08:00 - 20:00)',
-    inspectorName: isRu ? 'Смирнов Дмитрий Владимирович' : 'David S. Miller',
+    inspectorName: isRu ? 'Смирнов Дмитрий Владимирович' : 'J. Smith',
     inspectorRole: isRu
       ? 'Ведущий инженер по ОТ, ПБ и 5S (EHS Lead)'
       : 'Lead EHS Specialist & 5S Auditor',
@@ -158,7 +163,7 @@ export function getSampleDemoSession(lang: Language = 'ru'): InspectionSession {
       : 'Overall 5S compliance assessed at 88%. 100% of shop floor personnel wearing safety glasses. 2 critical issues identified (P1: aisle obstruction and rack upright deformation); corrective containment initiated during the walk.',
     status: 'Completed',
     signatures: {
-      inspector: isRu ? 'Смирнов Д. В.' : 'David S. Miller',
+      inspector: isRu ? 'Смирнов Д. В.' : 'J. Smith',
       inspectorTitle: isRu ? 'Ведущий инженер EHS' : 'Lead EHS Specialist',
       timestamp: new Date().toISOString(),
       reviewedBy: isRu ? 'Ковалев М. Н. (Начальник производства)' : 'Mark Stevens (Operations Lead)',

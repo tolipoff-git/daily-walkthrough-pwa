@@ -48,6 +48,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
   onPreviewPhoto,
 }) => {
   const { 
+    language,
     t, 
     getItemTitle, 
     getItemStandard, 
@@ -112,7 +113,7 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
       triggerHaptic(30);
     } catch (err) {
       console.error('Photo compression error:', err);
-      alert('Error processing photo / Ошибка при обработке фотографии');
+      alert(language === 'en' ? 'Error processing photo' : 'Ошибка при обработке фотографии');
     } finally {
       setIsUploadingPhoto(false);
     }

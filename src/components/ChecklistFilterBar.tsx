@@ -37,9 +37,9 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
   const [showConfirmPassModal, setShowConfirmPassModal] = useState(false);
 
   const categories = [
-    { id: 'ALL', label: t.filterBar.allCategories, icon: ListFilter, count: 16 },
+    { id: 'ALL', label: t.filterBar.allCategories, icon: ListFilter, count: 17 },
     { id: 'cat1', label: t.filterBar.cat1, icon: Flame, count: 5 },
-    { id: 'cat2', label: t.filterBar.cat2, icon: Factory, count: 4 },
+    { id: 'cat2', label: t.filterBar.cat2, icon: Factory, count: 5 },
     { id: 'cat3', label: t.filterBar.cat3, icon: Warehouse, count: 3 },
     { id: 'cat4', label: t.filterBar.cat4, icon: Building2, count: 4 },
   ];

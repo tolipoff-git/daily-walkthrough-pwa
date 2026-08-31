@@ -2,19 +2,21 @@ import React from 'react';
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { APP_VERSION, COMMIT_HASH } from '../version';
 
 interface PrintReportViewProps {
   session: InspectionSession;
+  isScreenPreview?: boolean;
 }
 
-export const PrintReportView: React.FC<PrintReportViewProps> = ({ session }) => {
+export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScreenPreview = false }) => {
   const { language, t, getItemTitle, getItemStandard, getPriorityInfo, getAssigneeLabel, getTargetDateLabel } = useLanguage();
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
   const isRu = language === 'ru';
 
   return (
-    <div className="print-report-container hidden print:block bg-white text-black p-6 font-sans leading-normal">
+    <div className={`print-report-container ${isScreenPreview ? 'block' : 'hidden print:block'} bg-white text-black p-6 font-sans leading-normal`}>
       {/* Document Header */}
       <div className="border-b-2 border-slate-900 pb-3 mb-5 break-inside-avoid">
         <div className="flex items-center justify-between">
@@ -230,6 +232,16 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session }) => 
             {t.printView.datePrefix} {session.signatures.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '________________'}
           </p>
         </div>
+      </div>
+
+      {/* Print Footer Metadata with Version and Commit */}
+      <div className="mt-6 pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-500 break-inside-avoid">
+        <span>
+          Daily Facility & EHS Walkthrough PWA {APP_VERSION} (Commit: {COMMIT_HASH})
+        </span>
+        <span>
+          {isRu ? 'Сформировано:' : 'Generated on:'} {new Date().toLocaleString(isRu ? 'ru-RU' : 'en-US')}
+        </span>
       </div>
     </div>
   );

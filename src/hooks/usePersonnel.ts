@@ -3,8 +3,9 @@ import { Person } from '../types/personnel';
 import {
   getSavedPersonnel,
   savePersonnel,
-  DEFAULT_PERSONNEL,
+  getDefaultPersonnelForLang,
 } from '../utils/personnelStorage';
+import { Language } from '../i18n/types';
 
 export function usePersonnel() {
   const [personnel, setPersonnel] = useState<Person[]>(() => getSavedPersonnel());
@@ -79,9 +80,10 @@ export function usePersonnel() {
     });
   }, []);
 
-  const resetToDefaultPersonnel = useCallback(() => {
-    savePersonnel(DEFAULT_PERSONNEL);
-    setPersonnel(DEFAULT_PERSONNEL);
+  const resetToDefaultPersonnel = useCallback((lang: Language = 'ru') => {
+    const defaults = getDefaultPersonnelForLang(lang);
+    savePersonnel(defaults);
+    setPersonnel(defaults);
   }, []);
 
   const saveOrUpdateCurrent = useCallback((name: string, role: string, department?: string) => {

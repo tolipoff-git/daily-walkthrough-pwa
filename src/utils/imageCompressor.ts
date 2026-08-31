@@ -5,10 +5,10 @@
 export async function compressImage(file: File, maxDimension = 1024, quality = 0.75): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Не удалось прочитать файл изображения'));
+    reader.onerror = () => reject(new Error('Failed to read image file'));
     reader.onload = (e) => {
       const img = new Image();
-      img.onerror = () => reject(new Error('Не удалось загрузить изображение'));
+      img.onerror = () => reject(new Error('Failed to load image into memory'));
       img.onload = () => {
         let width = img.width;
         let height = img.height;
@@ -30,7 +30,7 @@ export async function compressImage(file: File, maxDimension = 1024, quality = 0
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          reject(new Error('Не удалось создать 2D контекст канваса'));
+          reject(new Error('Failed to create 2D canvas context'));
           return;
         }
 

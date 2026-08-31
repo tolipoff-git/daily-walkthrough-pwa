@@ -17,8 +17,8 @@ export const INITIAL_CHECKLIST_DATA: Omit<CategoryGroup, 'items'>[] = [
     number: 2,
     titleRu: 'Производственная зона и 5S',
     titleEn: 'Shop Floor & Workstations (5S)',
-    descriptionRu: 'Кабельные трассы, состояние полов, порядок на столах, оснастка, кожухи и аварийные кнопки',
-    descriptionEn: 'Cables, slip & trip hazards, floor conditions, 5S workstation order, machine guarding, and E-Stops',
+    descriptionRu: 'Кабельные трассы, состояние полов, порядок на столах, оснастка, кожухи, аварийные кнопки и химикаты',
+    descriptionEn: 'Cables, slip & trip hazards, floor conditions, 5S workstation order, machine guarding, E-Stops & chemicals',
     iconName: 'Factory',
   },
   {
@@ -42,13 +42,15 @@ export const INITIAL_CHECKLIST_DATA: Omit<CategoryGroup, 'items'>[] = [
 ];
 
 export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
-  // --- Category 1: Life Safety & Egress ---
+  // ==========================================
+  // --- Category 1: Life Safety & Egress (5 items) ---
+  // ==========================================
   {
     id: '1.1',
     categoryId: 'cat1',
     categoryTitleRu: 'Пути эвакуации и пожарная безопасность',
     categoryTitleEn: 'Life Safety & Egress',
-    titleRu: '1.1. Эвакуационные выходы',
+    titleRu: '1.1. Эвакуационные выходы и двери',
     titleEn: '1.1. Emergency Exits & Doors',
     standardRu: 'Двери открываются легко, замки и защелки исправны, выходы свободны снаружи и изнутри.',
     standardEn: 'Doors operate smoothly, hardware/latches intact, exits unobstructed from both interior and exterior.',
@@ -61,11 +63,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Verify no padlocks or unapproved locking devices during operational hours',
       'Ensure exterior landing is clear of snow, ice, pallets, or debris',
       'Test panic bars / exit hardware for smooth latch release',
-    ],
-    guidelines: [
-      'Проверить отсутствие навесных замков или блокировок в рабочее время',
-      'Убедиться, что наружная площадка перед дверью не завалена снегом/паллетами',
-      'Проверить работу нажимных штанг (panic bars / антипаника)',
     ],
     status: 'PENDING',
   },
@@ -88,11 +85,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Yellow floor striping / demarcation clearly visible and respected',
       'No staging buffers or temporary clutter blocking travel lanes',
     ],
-    guidelines: [
-      'Минимальная ширина основных проходов соблюдена (не менее 1.2 – 1.5 м)',
-      'Желтая демаркационная разметка видна и не заставлена грузами',
-      'Отсутствуют временные «буферные зоны» посреди проходов',
-    ],
     status: 'PENDING',
   },
   {
@@ -100,7 +92,7 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     categoryId: 'cat1',
     categoryTitleRu: 'Пути эвакуации и пожарная безопасность',
     categoryTitleEn: 'Life Safety & Egress',
-    titleRu: '1.3. Огнетушители',
+    titleRu: '1.3. Огнетушители и пожарные посты',
     titleEn: '1.3. Fire Extinguishers & Stations',
     standardRu: 'Доступ свободен (клиренс минимум 36" / 90 см), манометр в зеленой зоне, пломба/чека на месте, инспекционный таг подписан.',
     standardEn: 'Clear access (36" / 90cm minimum clearance), pressure gauge in green, safety seal/pin intact, monthly tag signed.',
@@ -115,12 +107,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Pressure gauge needle strictly in operable green zone',
       'Safety pin and tamper seal unbroken; nozzle/hose free of clogs',
       'Monthly inspection tag initialed for the current calendar month',
-    ],
-    guidelines: [
-      'Зона 90 см перед огнетушителем свободна от ящиков и тележек',
-      'Стрелка манометра строго в зеленом секторе',
-      'Пломба целая, раструб/шланг без трещин и засоров',
-      'Инспекционная бирка содержит актуальную отметку за текущий месяц',
     ],
     status: 'PENDING',
   },
@@ -143,11 +129,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Panel covers and doors latched; zero exposed live wiring',
       'Sprinkler control riser valves locked/sealed in open position',
     ],
-    guidelines: [
-      'Зона 1 метр перед электрощитами свободна и размечена желтой полосой',
-      'Дверцы щитков заперты/зафиксированы, нет открытых токоведущих частей',
-      'Спринклерные коллекторы и клапаны опломбированы в открытом положении',
-    ],
     status: 'PENDING',
   },
   {
@@ -169,15 +150,12 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Emergency light heads properly aimed at egress paths',
       'No fault indicator LEDs blinking on battery backup packs',
     ],
-    guidelines: [
-      'Все указатели «Выход / Exit» светятся равномерно',
-      'Аварийные светильники направлены на пути эвакуации',
-      'Нет разбитых плафонов или мигающих индикаторов неисправности',
-    ],
     status: 'PENDING',
   },
 
-  // --- Category 2: Shop Floor & Workstations ---
+  // ==========================================
+  // --- Category 2: Shop Floor & Workstations (5 items) ---
+  // ==========================================
   {
     id: '2.1',
     categoryId: 'cat2',
@@ -197,11 +175,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Zero daisy-chained power strips or makeshift extension cables',
       'Pneumatic coils retracted when not in active operation',
     ],
-    guidelines: [
-      'Все кабели и шланги убраны в кабельные мостики или подвешены',
-      'Отсутствуют скрутки и самодельные удлинители',
-      'Пневмошланги свернуты на катушках или подведены сверху',
-    ],
     status: 'PENDING',
   },
   {
@@ -209,7 +182,7 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     categoryId: 'cat2',
     categoryTitleRu: 'Производственная зона и 5S',
     categoryTitleEn: 'Shop Floor & Workstations (5S)',
-    titleRu: '2.2. Состояние полов',
+    titleRu: '2.2. Состояние полов и проливы',
     titleEn: '2.2. Floor Conditions & Cleanliness',
     standardRu: 'Поверхность сухая и чистая; нет пятен технологических жидкостей, выбоин, сколов или налипшей грязи.',
     standardEn: 'Floors dry and clean; free of oil/coolant spills, floor cracks, potholes, or heavy debris.',
@@ -222,11 +195,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'No standing puddles of coolant, hydraulic oil, or water around machines',
       'Wet floor caution cones placed immediately and absorbent applied to leaks',
       'Floor surface flat with no severe concrete spalls or potholes',
-    ],
-    guidelines: [
-      'Отсутствуют лужи СОЖ, масла, воды вокруг оборудования',
-      'При наличии проливов выставлены желтые таблички «Мокрый пол» и применен сорбент',
-      'Покрытие пола ровное, без опасных выбоин под колеса погрузчиков',
     ],
     status: 'PENDING',
   },
@@ -249,11 +217,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Scrap parts, dirty rags, and unused fixtures cleared off tables',
       'Tool bins and fixtures labeled according to 5S standards',
     ],
-    guidelines: [
-      'Инструмент разложен по ячейкам / оконтуренным местам',
-      'Лишние детали, ветошь и брак удалены с рабочего места',
-      'Шадоу-борды укомплектованы, бирки/ярлыки читаемы',
-    ],
     status: 'PENDING',
   },
   {
@@ -275,15 +238,33 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Mushroom-head E-Stops clear of parts/tote bins and reachable within arm length',
       'Optical light curtains and safety interlocks functional without bypasses',
     ],
-    guidelines: [
-      'Все защитные кожухи приводов, шпинделей и ремней зафиксированы',
-      'Грибовидные кнопки E-Stop ярко-красные на желтом фоне и не загорожены деталями',
-      'Световые завесы и концевики безопасности не заблокированы/не закорочены',
+    status: 'PENDING',
+  },
+  {
+    id: '2.5',
+    categoryId: 'cat2',
+    categoryTitleRu: 'Производственная зона и 5S',
+    categoryTitleEn: 'Shop Floor & Workstations (5S)',
+    titleRu: '2.5. Хранение химикатов, аптечки и промывка глаз',
+    titleEn: '2.5. Chemical Storage, Eyewash & Spill Kits',
+    standardRu: 'Химикаты маркированы и на поддонах-уловителях; аварийные души/промывки глаз и аптечки доступны и укомплектованы.',
+    standardEn: 'Secondary containment in place for chemicals; SDS available; eyewash stations unobstructed and inspection tags updated.',
+    guidelinesRu: [
+      'Все емкости с химикатами и маслами имеют читаемые этикетки и паспорта безопасности (SDS)',
+      'Поддоны для локализации проливов сухие и не заполнены отходами',
+      'Доступ к станциям промывки глаз и аптечкам первой помощи свободен (не менее 90 см)',
+    ],
+    guidelinesEn: [
+      'All chemical and oil containers clearly labeled with GHS pictograms and SDS accessible',
+      'Spill containment pallets clean, dry, and capable of holding volume capacity',
+      'Eyewash stations and first aid kits accessible within 10 seconds and unobstructed',
     ],
     status: 'PENDING',
   },
 
-  // --- Category 3: Warehouse, Racking & Docks ---
+  // ==========================================
+  // --- Category 3: Warehouse, Racking & Docks (3 items) ---
+  // ==========================================
   {
     id: '3.1',
     categoryId: 'cat3',
@@ -303,11 +284,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Every beam connector secured with approved locking safety pin',
       'Maximum load rating capacity plaques posted on aisle end frames',
     ],
-    guidelines: [
-      'Стойки стеллажей без вмятин и искривлений, отбойники на месте',
-      'Каждое замковое соединение балки имеет фиксатор/штифт',
-      'Таблички допустимой грузоподъемности (Load Capacity) на торцах стеллажей',
-    ],
     status: 'PENDING',
   },
   {
@@ -315,7 +291,7 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     categoryId: 'cat3',
     categoryTitleRu: 'Склад, стеллажи и доки',
     categoryTitleEn: 'Warehouse, Racking & Docks',
-    titleRu: '3.2. Укладка грузов',
+    titleRu: '3.2. Укладка грузов и стабильность паллет',
     titleEn: '3.2. Pallet Stacking & Load Stability',
     standardRu: 'Паллеты на полках стоят ровно, без перекосов и опасных свесов.',
     standardEn: 'Pallets placed uniformly on beams, shrink-wrapped, no dangerous overhangs or tilt.',
@@ -329,11 +305,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Pallet overhang across beam edges does not exceed 50 mm (2 inches)',
       'Bottom cartons on pallets not crushed by excessive top load weight',
     ],
-    guidelines: [
-      'Стретч-пленка не повреждена, верхние ярусы обмотаны надежно',
-      'Свес паллеты не превышает 50 мм за край балки',
-      'Нижние паллеты не раздавлены весом верхних уровней',
-    ],
     status: 'PENDING',
   },
   {
@@ -341,7 +312,7 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     categoryId: 'cat3',
     categoryTitleRu: 'Склад, стеллажи и доки',
     categoryTitleEn: 'Warehouse, Racking & Docks',
-    titleRu: '3.3. Зона доков (Loading Docks)',
+    titleRu: '3.3. Зона доков (Loading Docks & Gates)',
     titleEn: '3.3. Loading Docks & Gates',
     standardRu: 'Подъемные ворота исправны; защитные цепочки/шлагбаумы на открытых доках опущены; зона аппарелей чистая.',
     standardEn: 'Dock doors operational; safety chains/barriers latched when open; dock leveler pit clean.',
@@ -355,15 +326,12 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Dock leveler lip stored flush with floor level',
       'Dock pits swept clean of broken wood, shrink wrap, and water/ice',
     ],
-    guidelines: [
-      'На неиспользуемых открытых воротах натянута сигнальная цепь/барьер',
-      'Уравнительные платформы (левеллеры) установлены заподлицо с полом',
-      'В приямках доков нет мусора, снега и посторонних предметов',
-    ],
     status: 'PENDING',
   },
 
-  // --- Category 4: Facility, Grounds & Waste ---
+  // ==========================================
+  // --- Category 4: Facility, Grounds & Waste (4 items) ---
+  // ==========================================
   {
     id: '4.1',
     categoryId: 'cat4',
@@ -383,11 +351,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Waste segregation: scrap metal, wood pallets, cardboard, and hazardous waste isolated',
       'Oily shop rags stored strictly in self-closing metal safety cans',
     ],
-    guidelines: [
-      'Крышки контейнеров могут закрываться, нет переполнения свыше бортов',
-      'Раздельный сбор: металл, дерево, картон, опасные отходы не смешиваются',
-      'Масляная ветошь утилизируется исключительно в герметичные металлические баки',
-    ],
     status: 'PENDING',
   },
   {
@@ -395,7 +358,7 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
     categoryId: 'cat4',
     categoryTitleRu: 'Инфраструктура, территория и отходы',
     categoryTitleEn: 'Facility, Grounds & Waste',
-    titleRu: '4.2. Освещение объекта',
+    titleRu: '4.2. Освещение объекта и цеха',
     titleEn: '4.2. Facility & High-Bay Lighting',
     standardRu: 'Нет перегоревших ламп в цехе, на складе, над рабочими станциями и на рампе.',
     standardEn: 'No dead or flickering luminaires across shop floor, warehouse aisles, workbenches, or ramps.',
@@ -408,11 +371,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Adequate lux/foot-candles on precision assembly benches and inspection points',
       'Zero strobe or flickering LED high-bay fixtures',
       'Exterior dock floodlights and personnel walking paths brightly lit',
-    ],
-    guidelines: [
-      'Уровень освещенности на рабочих поверхностях достаточный для точных операций',
-      'Нет стробоскопического эффекта и мерцания LED светильников',
-      'Наружное освещение погрузочной рампы и дорожек исправно',
     ],
     status: 'PENDING',
   },
@@ -435,11 +393,6 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Fire lanes around perimeter completely unobstructed by parked vehicles',
       'Exterior stairs and entrance ramps free of ice, salt build-up, and cracks',
     ],
-    guidelines: [
-      'СКУД (считыватели пропусков) срабатывают без задержек и сбоев',
-      'Пожарные проезды вокруг здания свободны от припаркованного транспорта',
-      'Ступени и пандусы входных групп не имеют наледи и сколов',
-    ],
     status: 'PENDING',
   },
   {
@@ -461,29 +414,54 @@ export const CHECKLIST_ITEMS_TEMPLATE: ChecklistItem[] = [
       'Steel/composite-toe safety footwear worn across plant and warehouse',
       'Hearing protection used in posted high-noise machining/stamping zones',
     ],
-    guidelines: [
-      'Защитные очки надеты на всех сотрудниках и гостях в активной зоне',
-      'Защитная обувь с металлическим/композитным подноском',
-      'При повышенном уровне шума (станки, штампы) используются беруши/наушники',
-    ],
     status: 'PENDING',
   },
 ];
+
+// Helper functions for dynamic localization
+export function getItemTitle(item: { titleRu?: string; titleEn?: string; title?: string }, lang: Language = 'ru'): string {
+  if (lang === 'en') return item.titleEn || item.title || item.titleRu || '';
+  return item.titleRu || item.title || item.titleEn || '';
+}
+
+export function getItemStandard(item: { standardRu?: string; standardEn?: string; standard?: string }, lang: Language = 'ru'): string {
+  if (lang === 'en') return item.standardEn || item.standard || item.standardRu || '';
+  return item.standardRu || item.standard || item.standardEn || '';
+}
+
+export function getItemGuidelines(item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }, lang: Language = 'ru'): string[] {
+  if (lang === 'en') return item.guidelinesEn || item.guidelines || item.guidelinesRu || [];
+  return item.guidelinesRu || item.guidelines || item.guidelinesEn || [];
+}
+
+export function getItemGuideline(item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }, lang: Language = 'ru'): string[] {
+  return getItemGuidelines(item, lang);
+}
+
+export function getCategoryName(cat: { titleRu?: string; titleEn?: string; title?: string }, lang: Language = 'ru'): string {
+  if (lang === 'en') return cat.titleEn || cat.title || cat.titleRu || '';
+  return cat.titleRu || cat.title || cat.titleEn || '';
+}
+
+export function getCategoryDescription(cat: { descriptionRu?: string; descriptionEn?: string; description?: string }, lang: Language = 'ru'): string {
+  if (lang === 'en') return cat.descriptionEn || cat.description || cat.descriptionRu || '';
+  return cat.descriptionRu || cat.description || cat.descriptionEn || '';
+}
 
 export function createNewInspectionSession(lang: Language = 'ru'): InspectionSession {
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const timeStr = now.toTimeString().slice(0, 5);
 
-  const defaultPerson = typeof window !== 'undefined' ? getDefaultPerson() : undefined;
-  const defaultInspectorRu = defaultPerson?.name || 'Иванов А. С.';
-  const defaultInspectorEn = defaultPerson?.name || 'Alex S. Ivanov';
+  const defaultPerson = typeof window !== 'undefined' ? getDefaultPerson(lang) : undefined;
+  const defaultInspectorRu = defaultPerson?.name || 'Смирнов Д. В.';
+  const defaultInspectorEn = defaultPerson?.name || 'J. Smith';
   const defaultRoleRu = defaultPerson?.role || 'Специалист по ОТ и ПБ / 5S Lead';
-  const defaultRoleEn = defaultPerson?.role || 'Lead EHS Specialist & 5S Lead';
+  const defaultRoleEn = defaultPerson?.role || 'Lead EHS Specialist & 5S Auditor';
   const defaultFacilityRu = 'Основной производственно-логистический комплекс';
   const defaultFacilityEn = 'Main Manufacturing & Logistics Complex';
   const defaultAreaRu = 'Все зоны (Цех 1 & 2, Склад ГП, Доки, Периметр)';
-  const defaultAreaEn = 'All Zones (Shop Floor 1 & 2, Warehouse, Docks, Grounds)';
+  const defaultAreaEn = 'All Zones (Shop Floor 1 & 2, FG Warehouse, Loading Docks, Grounds)';
   const defaultShiftRu = 'Смена 1 (Дневная / 08:00 - 20:00)';
   const defaultShiftEn = 'Shift 1 (Day / 08:00 - 20:00)';
 

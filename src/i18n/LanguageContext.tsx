@@ -10,13 +10,13 @@ interface LanguageContextType {
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
   t: Translations;
-  getItemTitle: (item: { titleRu: string; titleEn: string }) => string;
-  getItemStandard: (item: { standardRu: string; standardEn: string }) => string;
-  getCategoryTitle: (cat: { titleRu: string; titleEn: string }) => string;
-  getCategoryDesc: (cat: { descriptionRu: string; descriptionEn?: string }) => string;
+  getItemTitle: (item: { titleRu?: string; titleEn?: string; title?: string }) => string;
+  getItemStandard: (item: { standardRu?: string; standardEn?: string; standard?: string }) => string;
+  getCategoryTitle: (cat: { titleRu?: string; titleEn?: string; title?: string }) => string;
+  getCategoryDesc: (cat: { descriptionRu?: string; descriptionEn?: string; description?: string }) => string;
   getItemGuidelines: (item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => string[];
   getPriorityInfo: (priority: Priority) => { label: string; short: string; badge: string; description: string };
-  getAssigneeLabel: (assignee: Assignee) => string;
+  getAssigneeLabel: (assignee: Assignee | string) => string;
   getTargetDateLabel: (presetKey: string) => string;
   getZonePresets: () => string[];
   getAssignees: () => { value: Assignee; label: string }[];
@@ -62,36 +62,39 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const t = useMemo(() => (language === 'ru' ? ru : en), [language]);
 
-  const getItemTitle = (item: { titleRu: string; titleEn: string }) => {
-    return language === 'ru' ? item.titleRu : item.titleEn;
+  const getItemTitle = (item: { titleRu?: string; titleEn?: string; title?: string }) => {
+    if (language === 'en') return item.titleEn || item.title || item.titleRu || '';
+    return item.titleRu || item.title || item.titleEn || '';
   };
 
-  const getItemStandard = (item: { standardRu: string; standardEn: string }) => {
-    return language === 'ru' ? item.standardRu : item.standardEn;
+  const getItemStandard = (item: { standardRu?: string; standardEn?: string; standard?: string }) => {
+    if (language === 'en') return item.standardEn || item.standard || item.standardRu || '';
+    return item.standardRu || item.standard || item.standardEn || '';
   };
 
-  const getCategoryTitle = (cat: { titleRu: string; titleEn: string }) => {
-    return language === 'ru' ? cat.titleRu : cat.titleEn;
+  const getCategoryTitle = (cat: { titleRu?: string; titleEn?: string; title?: string }) => {
+    if (language === 'en') return cat.titleEn || cat.title || cat.titleRu || '';
+    return cat.titleRu || cat.title || cat.titleEn || '';
   };
 
-  const getCategoryDesc = (cat: { descriptionRu: string; descriptionEn?: string }) => {
-    if (language === 'ru') return cat.descriptionRu;
-    return cat.descriptionEn || cat.descriptionRu;
+  const getCategoryDesc = (cat: { descriptionRu?: string; descriptionEn?: string; description?: string }) => {
+    if (language === 'en') return cat.descriptionEn || cat.description || cat.descriptionRu || '';
+    return cat.descriptionRu || cat.description || cat.descriptionEn || '';
   };
 
   const getItemGuidelines = (item: { guidelinesRu?: string[]; guidelinesEn?: string[]; guidelines?: string[] }) => {
-    if (language === 'ru') {
-      return item.guidelinesRu || item.guidelines || [];
+    if (language === 'en') {
+      return item.guidelinesEn || item.guidelines || item.guidelinesRu || [];
     }
-    return item.guidelinesEn || item.guidelines || item.guidelinesRu || [];
+    return item.guidelinesRu || item.guidelines || item.guidelinesEn || [];
   };
 
   const getPriorityInfo = (priority: Priority) => {
     return t.priorities[priority] || t.priorities.P2;
   };
 
-  const getAssigneeLabel = (assignee: Assignee) => {
-    return t.assignees[assignee] || assignee;
+  const getAssigneeLabel = (assignee: Assignee | string) => {
+    return (t.assignees as Record<string, string>)[assignee] || assignee;
   };
 
   const getTargetDateLabel = (presetKey: string) => {
