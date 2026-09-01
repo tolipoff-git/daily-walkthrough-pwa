@@ -7,7 +7,6 @@ import {
   FileSpreadsheet, 
   History, 
   AlertTriangle, 
-  Sparkles, 
   RotateCcw,
   CheckCircle2,
   GitCommit,
