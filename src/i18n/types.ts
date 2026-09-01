@@ -15,8 +15,6 @@ export interface Translations {
     actionPlanTitle: string;
     history: string;
     historyTitle: string;
-    demoData: string;
-    demoDataTitle: string;
     reset: string;
     resetTitle: string;
     export: string;

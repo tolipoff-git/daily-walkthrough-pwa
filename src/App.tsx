@@ -55,7 +55,6 @@ export const App: React.FC = () => {
     markAllUncheckedAsPass,
     markCategoryAsPass,
     resetWalkthrough,
-    loadDemoData,
     loadSession,
     finishWalkthrough,
   } = useInspection();
@@ -228,7 +227,6 @@ export const App: React.FC = () => {
           onOpenSync={() => setShowSyncModal(true)}
           syncStatus={syncStatus}
           syncRoom={syncRoom}
-          onLoadDemo={() => loadDemoData(language)}
           onReset={() => resetWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}

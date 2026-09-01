@@ -13,8 +13,6 @@ export const en: Translations = {
     actionPlanTitle: 'Action Plan & CAPA Defect Log',
     history: 'History',
     historyTitle: 'Saved Inspection History',
-    demoData: 'Demo Data',
-    demoDataTitle: 'Load realistic demo inspection data',
     reset: 'Reset',
     resetTitle: 'Reset current walkthrough',
     export: 'Report / Export',

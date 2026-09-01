@@ -33,7 +33,6 @@ interface HeaderProps {
   onOpenSync?: () => void;
   syncStatus?: SyncStatus;
   syncRoom?: string;
-  onLoadDemo: () => void;
   onReset: () => void;
   onFinish: () => void;
   isFinished: boolean;
@@ -49,7 +48,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSync,
   syncStatus = 'synced',
   syncRoom = 'FSE-MAIN',
-  onLoadDemo,
   onReset,
   onFinish,
   isFinished,
@@ -291,19 +289,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </button>
             )}
-
-            {/* Demo Data button */}
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onLoadDemo();
-              }}
-              className="px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-indigo-950 text-indigo-300 border border-indigo-900/60 hover:border-indigo-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
-              title={t.common.demoDataTitle}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden lg:inline">{t.common.demoData}</span>
-            </button>
 
             {/* Reset button */}
             <button

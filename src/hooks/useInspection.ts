@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, DefectPhoto } from '../types/inspection';
 import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE } from '../data/checklistData';
-import { getSampleDemoSession } from '../data/mockData';
 import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
 import { Language } from '../i18n/types';
 
@@ -283,11 +282,6 @@ export function useInspection() {
     setSession(newSession);
   }, []);
 
-  const loadDemoData = useCallback((lang: Language = 'ru') => {
-    const demo = getSampleDemoSession(lang);
-    setSession(demo);
-  }, []);
-
   const loadSession = useCallback((loaded: InspectionSession) => {
     setSession(loaded);
   }, []);
@@ -318,7 +312,6 @@ export function useInspection() {
     markAllUncheckedAsPass,
     markCategoryAsPass,
     resetWalkthrough,
-    loadDemoData,
     loadSession,
     finishWalkthrough,
   };

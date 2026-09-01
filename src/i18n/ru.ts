@@ -13,8 +13,6 @@ export const ru: Translations = {
     actionPlanTitle: 'Журнал выявленных замечаний и корректирующих мер (CAPA)',
     history: 'История',
     historyTitle: 'История сохраненных обходов',
-    demoData: 'Демо-данные',
-    demoDataTitle: 'Заполнить реалистичными демо-данными',
     reset: 'Сброс',
     resetTitle: 'Сбросить текущий обход',
     export: 'Отчет / Экспорт',
