@@ -165,7 +165,7 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
       {/* Full Checklist Table */}
       <div className="mb-5">
         <h2 className="text-xs font-bold uppercase tracking-wide text-slate-900 mb-2 border-b border-slate-300 pb-1">
-          {t.printView.auditSectionTitle.replace('17', String(session.items.length))}
+          {t.printView.auditSectionTitle.replace(/1[67]/, String(session.items.length))}
         </h2>
         <table className="w-full text-[10px] border-collapse border border-slate-300">
           <thead>

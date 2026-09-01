@@ -41,7 +41,6 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
    - **Anti-Pencil-Whipping & Bulk Ergonomics**:
      - Category-level batch pass (`Пройти раздел`).
      - Global batch pass with confirmation modal.
-     - Sample Demo Data filler for training and testing in RU or ENG.
      - Search & filter by keyword, category, and status (`Все`, `Замечания`, `Ожидают`).
 
 5. **Offline-First & Local Persistence**:
@@ -87,8 +86,7 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
 │   │   ├── PhotoModal.tsx         # High-res photo preview modal
 │   │   └── PrintReportView.tsx    # Clean US Letter printable report
 │   ├── data/
-│   │   ├── checklistData.ts       # All 16 items & categories (bilingual)
-│   │   └── mockData.ts            # Realistic demo walkthrough dataset (RU & ENG)
+│   │   └── checklistData.ts       # All 16 items & categories (bilingual)
 │   ├── hooks/
 │   │   ├── useHistory.ts          # History state & DB synchronization
 │   │   ├── useInspection.ts       # Core walkthrough state & IndexedDB auto-save

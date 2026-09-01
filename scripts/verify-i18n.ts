@@ -9,7 +9,6 @@ import {
   getCategoryDescription,
   createNewInspectionSession
 } from '../src/data/checklistData';
-import { getSampleDemoSession } from '../src/data/mockData';
 import { generatePlaintextReport } from '../src/utils/exportPlaintext';
 import { DEFAULT_PERSONNEL_EN } from '../src/utils/personnelStorage';
 
@@ -81,35 +80,40 @@ totalErrors.push(...checkNoCyrillic(newSessionEn.generalNotes, 'newSessionEn.gen
 totalErrors.push(...checkNoCyrillic(newSessionEn.signatures.inspector, 'newSessionEn.signatures.inspector'));
 totalErrors.push(...checkNoCyrillic(newSessionEn.signatures.inspectorTitle, 'newSessionEn.signatures.inspectorTitle'));
 
-// 5. Audit English demo data fields
-console.log('5. Auditing getSampleDemoSession("en") rendered fields...');
-const demoSessionEn = getSampleDemoSession('en');
-totalErrors.push(...checkNoCyrillic(demoSessionEn.facilityName, 'demoSessionEn.facilityName'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.facilityArea, 'demoSessionEn.facilityArea'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.shift, 'demoSessionEn.shift'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.inspectorName, 'demoSessionEn.inspectorName'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.inspectorRole, 'demoSessionEn.inspectorRole'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.generalNotes, 'demoSessionEn.generalNotes'));
-totalErrors.push(...checkNoCyrillic(demoSessionEn.signatures, 'demoSessionEn.signatures'));
+// 5. Audit English session with defect simulation
+console.log('5. Auditing simulated English session with defects & notes...');
+const testSessionEn = createNewInspectionSession('en');
+testSessionEn.items[0].status = 'PASS';
+testSessionEn.items[1].status = 'FAIL';
+testSessionEn.items[1].defectDetails = {
+  location: 'Shop Floor 1 - Bay 4',
+  zonePreset: 'Shop Floor 1',
+  description: 'Pallet jack blocking egress route',
+  priority: 'P1',
+  assignedTo: 'Logistics',
+  targetDate: 'Immediate',
+  photos: [],
+  isRepeatIssue: false,
+  resolutionStatus: 'Open',
+  notes: 'Moved immediately to designated staging buffer',
+};
+testSessionEn.generalNotes = 'Overall 5S discipline maintained across workcells.';
 
-demoSessionEn.items.forEach((item) => {
+testSessionEn.items.forEach((item) => {
   if (item.defectDetails) {
-    totalErrors.push(...checkNoCyrillic(item.defectDetails.location, `demoSessionEn item ${item.id} location`));
-    totalErrors.push(...checkNoCyrillic(item.defectDetails.zonePreset, `demoSessionEn item ${item.id} zonePreset`));
-    totalErrors.push(...checkNoCyrillic(item.defectDetails.description, `demoSessionEn item ${item.id} description`));
-    totalErrors.push(...checkNoCyrillic(item.defectDetails.notes, `demoSessionEn item ${item.id} notes`));
-    item.defectDetails.photos?.forEach((photo, pIdx) => {
-      totalErrors.push(...checkNoCyrillic(photo.caption, `demoSessionEn item ${item.id} photo ${pIdx} caption`));
-    });
+    totalErrors.push(...checkNoCyrillic(item.defectDetails.location, `testSessionEn item ${item.id} location`));
+    totalErrors.push(...checkNoCyrillic(item.defectDetails.zonePreset, `testSessionEn item ${item.id} zonePreset`));
+    totalErrors.push(...checkNoCyrillic(item.defectDetails.description, `testSessionEn item ${item.id} description`));
+    totalErrors.push(...checkNoCyrillic(item.defectDetails.notes, `testSessionEn item ${item.id} notes`));
   }
   if (item.itemNotes) {
-    totalErrors.push(...checkNoCyrillic(item.itemNotes, `demoSessionEn item ${item.id} itemNotes`));
+    totalErrors.push(...checkNoCyrillic(item.itemNotes, `testSessionEn item ${item.id} itemNotes`));
   }
 });
 
 // 6. Audit English plaintext export
-console.log('6. Auditing generatePlaintextReport(demoSessionEn, "en")...');
-const plaintextEn = generatePlaintextReport(demoSessionEn, 'en');
+console.log('6. Auditing generatePlaintextReport(testSessionEn, "en")...');
+const plaintextEn = generatePlaintextReport(testSessionEn, 'en');
 totalErrors.push(...checkNoCyrillic(plaintextEn, 'plaintextEn'));
 
 // 7. Audit DEFAULT_PERSONNEL_EN
