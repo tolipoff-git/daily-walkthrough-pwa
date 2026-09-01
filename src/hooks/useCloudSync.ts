@@ -6,8 +6,10 @@ import {
   setActiveSyncRoom as saveActiveSyncRoom,
   pushSessionToCloud, 
   pullSessionFromCloud, 
+  subscribeToLiveCloudStream,
   SyncPayload 
 } from '../utils/syncApi';
+import { saveActiveSessionDb } from '../utils/indexedDb';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 
@@ -32,6 +34,33 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
   // Keep latest session in ref for async functions
   sessionRef.current = session;
+
+  // Process incoming remote payload (from SSE stream or pull)
+  const handleRemotePayload = useCallback((remote: SyncPayload) => {
+    if (!remote || !remote.session) return;
+
+    // If change was made by this same device, ignore echo
+    if (remote.deviceId === deviceIdRef.current) {
+      return;
+    }
+
+    const localTime = new Date(sessionRef.current.updatedAt || 0).getTime();
+    const remoteTime = new Date(remote.updatedAt || 0).getTime();
+
+    // If remote has newer or equal data by timestamp
+    if (remoteTime >= localTime && remote.updatedAt !== lastReceivedTimestampRef.current) {
+      lastReceivedTimestampRef.current = remote.updatedAt;
+      setLastRemoteDevice(remote.deviceId);
+      setLastSyncedAt(new Date());
+      setSyncStatus('synced');
+
+      // Persist to IndexedDB immediately
+      saveActiveSessionDb(remote.session).catch(() => {});
+
+      // Notify React state
+      onRemoteUpdate(remote.session);
+    }
+  }, [onRemoteUpdate]);
 
   // Track online/offline browser state
   useEffect(() => {
@@ -59,30 +88,26 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     setSyncRoomState(clean);
     lastPushedTimestampRef.current = '';
     lastReceivedTimestampRef.current = '';
-    // Trigger initial pull for new room
-    setTimeout(() => {
-      triggerPull(clean);
-    }, 100);
   }, []);
 
   // Push local session to cloud
-  const pushToCloud = useCallback(async (currentRoom: string = syncRoom) => {
+  const pushToCloud = useCallback(async (currentRoom: string = syncRoom, explicitSession?: InspectionSession) => {
     if (!navigator.onLine) {
       setSyncStatus('offline');
-      return;
+      return false;
     }
 
-    const currentSession = sessionRef.current;
-    if (!currentSession) return;
+    const currentSession = explicitSession || sessionRef.current;
+    if (!currentSession) return false;
 
-    // Don't push if this state was just received from remote
-    if (currentSession.updatedAt === lastReceivedTimestampRef.current) {
-      return;
+    // Don't push if this state was just received from remote (unless explicit)
+    if (!explicitSession && currentSession.updatedAt === lastReceivedTimestampRef.current) {
+      return false;
     }
 
-    // Don't re-push identical timestamp
-    if (currentSession.updatedAt === lastPushedTimestampRef.current) {
-      return;
+    // Don't re-push identical timestamp (unless explicit)
+    if (!explicitSession && currentSession.updatedAt === lastPushedTimestampRef.current) {
+      return false;
     }
 
     setSyncStatus('syncing');
@@ -103,8 +128,10 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       lastPushedTimestampRef.current = payload.updatedAt;
       setLastSyncedAt(new Date());
       setSyncStatus('synced');
+      return true;
     } else {
       setSyncStatus('error');
+      return false;
     }
   }, [syncRoom]);
 
@@ -113,25 +140,10 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     if (!navigator.onLine || isSyncingRef.current) return;
 
     const remote = await pullSessionFromCloud(currentRoom);
-    if (!remote || !remote.session) return;
-
-    // If change was made by this same device, ignore
-    if (remote.deviceId === deviceIdRef.current) {
-      return;
+    if (remote) {
+      handleRemotePayload(remote);
     }
-
-    const localTime = new Date(sessionRef.current.updatedAt || 0).getTime();
-    const remoteTime = new Date(remote.updatedAt || 0).getTime();
-
-    // If remote has newer data by timestamp
-    if (remoteTime > localTime && remote.updatedAt !== lastReceivedTimestampRef.current) {
-      lastReceivedTimestampRef.current = remote.updatedAt;
-      setLastRemoteDevice(remote.deviceId);
-      setLastSyncedAt(new Date());
-      setSyncStatus('synced');
-      onRemoteUpdate(remote.session);
-    }
-  }, [syncRoom, onRemoteUpdate]);
+  }, [syncRoom, handleRemotePayload]);
 
   // Debounced auto-push on local session changes
   useEffect(() => {
@@ -142,10 +154,15 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     return () => clearTimeout(timer);
   }, [session, pushToCloud]);
 
-  // Periodic polling loop (every 2.5s when active) + on window focus & visibilitychange
+  // Real-time Live SSE Subscription + Background Polling Fallback
   useEffect(() => {
-    let intervalId: any;
+    // 1. Subscribe to Live SSE Broadcast
+    const unsubscribeSse = subscribeToLiveCloudStream(syncRoom, (payload) => {
+      handleRemotePayload(payload);
+    });
 
+    // 2. Periodic polling backup (every 2.5s when active)
+    let intervalId: any;
     const startPolling = () => {
       if (intervalId) clearInterval(intervalId);
       intervalId = setInterval(() => {
@@ -170,15 +187,16 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
-    // Initial pull on mount
+    // Initial pull on mount or room switch
     triggerPull();
 
     return () => {
+      unsubscribeSse();
       if (intervalId) clearInterval(intervalId);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [triggerPull]);
+  }, [syncRoom, triggerPull, handleRemotePayload]);
 
   return {
     syncRoom,
@@ -188,7 +206,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     isOnline,
     lastRemoteDevice,
     deviceId: deviceIdRef.current,
-    forcePush: () => pushToCloud(syncRoom),
+    forcePush: (explicitSession?: InspectionSession) => pushToCloud(syncRoom, explicitSession),
     forcePull: () => triggerPull(syncRoom),
   };
 }

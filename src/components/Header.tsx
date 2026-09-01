@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   Cloud,
   CloudRain,
-  RefreshCw
+  RefreshCw,
+  Camera
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
@@ -30,6 +31,7 @@ interface HeaderProps {
   onOpenPersonnel?: () => void;
   onOpenSafetyRef?: () => void;
   onOpenSync?: () => void;
+  onOpenQrScanner?: () => void;
   syncStatus?: SyncStatus;
   syncRoom?: string;
   onReset: () => void;
@@ -45,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPersonnel,
   onOpenSafetyRef,
   onOpenSync,
+  onOpenQrScanner,
   syncStatus = 'synced',
   syncRoom = 'FSE-MAIN',
   onReset,
@@ -286,6 +289,22 @@ export const Header: React.FC<HeaderProps> = ({
                     ? (language === 'ru' ? 'Синхронизация...' : 'Syncing...')
                     : `Sync • ${syncRoom}`}
                 </span>
+              </button>
+            )}
+
+            {/* Direct Mobile QR Scanner Shortcut Button */}
+            {onOpenQrScanner && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenQrScanner();
+                }}
+                className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white border border-cyan-400/40 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                title={language === 'ru' ? 'Сканировать QR-код с экрана для синхронизации' : 'Scan Live Sync QR Code from desktop'}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{language === 'ru' ? 'Скан QR' : 'Scan QR'}</span>
               </button>
             )}
 

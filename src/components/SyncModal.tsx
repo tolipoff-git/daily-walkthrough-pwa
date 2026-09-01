@@ -304,7 +304,10 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           onScanRoom={(room) => {
             onSetSyncRoom(room);
             setRoomInput(room);
-            onForcePull();
+            onForcePush();
+            setTimeout(() => {
+              onForcePull();
+            }, 500);
           }}
         />
       )}

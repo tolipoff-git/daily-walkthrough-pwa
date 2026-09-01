@@ -23,6 +23,7 @@ import { PrintReportView } from './components/PrintReportView';
 import { PersonnelModal } from './components/PersonnelModal';
 import { SafetyReferenceModal } from './components/SafetyReferenceModal';
 import { SyncModal } from './components/SyncModal';
+import { QrScannerModal } from './components/QrScannerModal';
 import { useCloudSync } from './hooks/useCloudSync';
 
 // Icons
@@ -95,6 +96,7 @@ export const App: React.FC = () => {
   const [showPersonnelModal, setShowPersonnelModal] = useState<boolean>(false);
   const [showSafetyRefModal, setShowSafetyRefModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
+  const [showDirectQrScanner, setShowDirectQrScanner] = useState<boolean>(false);
   const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
 
   // Photo Zoom Modal state
@@ -225,6 +227,7 @@ export const App: React.FC = () => {
           onOpenPersonnel={() => setShowPersonnelModal(true)}
           onOpenSafetyRef={() => setShowSafetyRefModal(true)}
           onOpenSync={() => setShowSyncModal(true)}
+          onOpenQrScanner={() => setShowDirectQrScanner(true)}
           syncStatus={syncStatus}
           syncRoom={syncRoom}
           onReset={() => resetWalkthrough(language)}
@@ -544,6 +547,20 @@ export const App: React.FC = () => {
           onForcePull={forcePull}
           isOnline={isOnline}
           deviceId={deviceId}
+        />
+      )}
+
+      {/* Direct In-App QR Scanner */}
+      {showDirectQrScanner && (
+        <QrScannerModal
+          onClose={() => setShowDirectQrScanner(false)}
+          onScanRoom={(room) => {
+            setSyncRoom(room);
+            forcePush();
+            setTimeout(() => {
+              forcePull();
+            }, 500);
+          }}
         />
       )}
       </div>
