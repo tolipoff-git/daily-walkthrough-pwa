@@ -12,12 +12,16 @@ import {
   CheckCircle2,
   GitCommit,
   Users,
-  ShieldAlert
+  ShieldAlert,
+  Cloud,
+  CloudRain,
+  RefreshCw
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from '../version';
+import { SyncStatus } from '../hooks/useCloudSync';
 
 interface HeaderProps {
   metrics: InspectionMetrics;
@@ -26,6 +30,9 @@ interface HeaderProps {
   onOpenActionPlan: () => void;
   onOpenPersonnel?: () => void;
   onOpenSafetyRef?: () => void;
+  onOpenSync?: () => void;
+  syncStatus?: SyncStatus;
+  syncRoom?: string;
   onLoadDemo: () => void;
   onReset: () => void;
   onFinish: () => void;
@@ -39,6 +46,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenActionPlan,
   onOpenPersonnel,
   onOpenSafetyRef,
+  onOpenSync,
+  syncStatus = 'synced',
+  syncRoom = 'FSE-MAIN',
   onLoadDemo,
   onReset,
   onFinish,
@@ -247,6 +257,38 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
                 <span className="hidden md:inline">{language === 'ru' ? 'Справочник EHS' : 'FSE Safety'}</span>
+              </button>
+            )}
+
+            {/* Live Sync Status & Room Button */}
+            {onOpenSync && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenSync();
+                }}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                  syncStatus === 'syncing'
+                    ? 'bg-blue-950/60 text-blue-300 border-blue-800 animate-pulse'
+                    : syncStatus === 'offline'
+                    ? 'bg-amber-950/60 text-amber-300 border-amber-800'
+                    : 'bg-slate-800 hover:bg-cyan-950/50 text-cyan-300 border-slate-700 hover:border-cyan-700'
+                }`}
+                title={language === 'ru' ? `Онлайн-синхронизация активна (Комната: ${syncRoom}). Кликните для подключения телефона.` : `Live Cloud Sync Active (Room: ${syncRoom}). Click to connect phone.`}
+              >
+                {syncStatus === 'syncing' ? (
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+                ) : syncStatus === 'offline' ? (
+                  <CloudRain className="w-3.5 h-3.5 text-amber-400" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5 text-cyan-400" />
+                )}
+                <span className="hidden md:inline">
+                  {syncStatus === 'syncing' 
+                    ? (language === 'ru' ? 'Синхронизация...' : 'Syncing...')
+                    : `Sync • ${syncRoom}`}
+                </span>
               </button>
             )}
 

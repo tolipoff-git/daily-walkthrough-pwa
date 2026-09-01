@@ -22,6 +22,8 @@ import { HistoryModal } from './components/HistoryModal';
 import { PrintReportView } from './components/PrintReportView';
 import { PersonnelModal } from './components/PersonnelModal';
 import { SafetyReferenceModal } from './components/SafetyReferenceModal';
+import { SyncModal } from './components/SyncModal';
+import { useCloudSync } from './hooks/useCloudSync';
 
 // Icons
 import { 
@@ -65,6 +67,23 @@ export const App: React.FC = () => {
     clearHistory,
   } = useHistory();
 
+  // Cloud Live Synchronization Hook
+  const {
+    syncRoom,
+    setSyncRoom,
+    syncStatus,
+    lastSyncedAt,
+    isOnline,
+    deviceId,
+    forcePush,
+    forcePull,
+  } = useCloudSync({
+    session,
+    onRemoteUpdate: (remoteSession) => {
+      loadSession(remoteSession);
+    },
+  });
+
   // Navigation & Filtering State
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -75,6 +94,8 @@ export const App: React.FC = () => {
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
   const [showActionPlanModal, setShowActionPlanModal] = useState<boolean>(false);
   const [showPersonnelModal, setShowPersonnelModal] = useState<boolean>(false);
+  const [showSafetyRefModal, setShowSafetyRefModal] = useState<boolean>(false);
+  const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
 
   // Photo Zoom Modal state
@@ -204,6 +225,9 @@ export const App: React.FC = () => {
           onOpenActionPlan={() => setShowActionPlanModal(true)}
           onOpenPersonnel={() => setShowPersonnelModal(true)}
           onOpenSafetyRef={() => setShowSafetyRefModal(true)}
+          onOpenSync={() => setShowSyncModal(true)}
+          syncStatus={syncStatus}
+          syncRoom={syncRoom}
           onLoadDemo={() => loadDemoData(language)}
           onReset={() => resetWalkthrough(language)}
           onFinish={handleFinish}
@@ -507,6 +531,21 @@ export const App: React.FC = () => {
       {showSafetyRefModal && (
         <SafetyReferenceModal
           onClose={() => setShowSafetyRefModal(false)}
+        />
+      )}
+
+      {/* Cloud Live Synchronization Modal */}
+      {showSyncModal && (
+        <SyncModal
+          onClose={() => setShowSyncModal(false)}
+          syncStatus={syncStatus}
+          lastSyncedAt={lastSyncedAt}
+          syncRoom={syncRoom}
+          onSetSyncRoom={setSyncRoom}
+          onForcePush={forcePush}
+          onForcePull={forcePull}
+          isOnline={isOnline}
+          deviceId={deviceId}
         />
       )}
       </div>
