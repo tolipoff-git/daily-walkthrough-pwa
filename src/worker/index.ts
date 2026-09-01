@@ -19,15 +19,19 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // Cross-Origin Resource Sharing (CORS) headers
-    const corsHeaders = {
+    // Security & Privacy Headers (Anti-indexing & strict isolation)
+    const securityHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device-ID',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet, noimageindex',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'Referrer-Policy': 'no-referrer',
     };
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders, status: 204 });
+      return new Response(null, { headers: securityHeaders, status: 204 });
     }
 
     // Health & Info Endpoint
@@ -39,7 +43,7 @@ export default {
           hasKv: Boolean(env.EHS_KV) 
         }), 
         {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...securityHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
@@ -51,7 +55,7 @@ export default {
       if (!key) {
         return new Response(JSON.stringify({ error: 'Missing sync key' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...securityHeaders, 'Content-Type': 'application/json' },
         });
       }
 
@@ -74,14 +78,14 @@ export default {
         if (!rawData) {
           return new Response(JSON.stringify({ notFound: true, key }), {
             status: 404,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...securityHeaders, 'Content-Type': 'application/json' },
           });
         }
 
         return new Response(rawData, {
           status: 200,
           headers: {
-            ...corsHeaders,
+            ...securityHeaders,
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, no-cache, must-revalidate',
           },
@@ -116,7 +120,7 @@ export default {
             }), 
             {
               status: 200,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              headers: { ...securityHeaders, 'Content-Type': 'application/json' },
             }
           );
         } catch (err: any) {
@@ -124,14 +128,24 @@ export default {
             JSON.stringify({ error: 'Invalid JSON body', details: err?.message }), 
             {
               status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              headers: { ...securityHeaders, 'Content-Type': 'application/json' },
             }
           );
         }
       }
     }
 
-    // Default: Static Asset Serving via Cloudflare Assets
-    return env.ASSETS.fetch(request);
+    // Default: Static Asset Serving via Cloudflare Assets with Security & Anti-Indexing Headers
+    const assetResponse = await env.ASSETS.fetch(request);
+    const assetHeaders = new Headers(assetResponse.headers);
+    assetHeaders.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex');
+    assetHeaders.set('X-Content-Type-Options', 'nosniff');
+    assetHeaders.set('X-Frame-Options', 'SAMEORIGIN');
+
+    return new Response(assetResponse.body, {
+      status: assetResponse.status,
+      statusText: assetResponse.statusText,
+      headers: assetHeaders,
+    });
   },
 };
