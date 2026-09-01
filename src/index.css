@@ -32,7 +32,7 @@
 /* Print Stylesheet Overrides (US Letter 8.5" x 11" Clean Output) */
 @media print {
   @page {
-    margin: 10mm 10mm 10mm 10mm;
+    margin: 10mm;
     size: letter portrait;
   }
 
@@ -46,25 +46,22 @@
     color: #000000 !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
   }
 
-  body > #root > *:not(.print-report-container),
-  #modal-root,
-  .modal-backdrop,
-  [role="dialog"],
+  /* Hide screen app shell, modals, buttons, and navigation */
   .print\:hidden,
-  header,
-  nav,
-  footer,
-  aside,
-  button {
+  [role="dialog"],
+  .modal-backdrop,
+  #modal-root {
     display: none !important;
     visibility: hidden !important;
   }
 
+  /* Force print report container to display with crisp vector styling */
   .print-report-container {
     display: block !important;
     visibility: visible !important;

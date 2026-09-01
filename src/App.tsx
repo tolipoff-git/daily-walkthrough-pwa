@@ -192,9 +192,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
+    <>
       {/* Screen App Shell (Hidden when printing) */}
-      <div className="print:hidden flex-1 flex flex-col">
+      <div className="print:hidden min-h-screen bg-slate-900 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
         {/* Navigation Bar */}
         <Header
           metrics={metrics}
@@ -397,7 +397,6 @@ export const App: React.FC = () => {
             </div>
           </div>
         </footer>
-      </div>
 
       {/* On-Screen Print Preview Modal / Overlay */}
       {showPrintPreview && (
@@ -501,9 +500,10 @@ export const App: React.FC = () => {
           }}
         />
       )}
+      </div>
 
-      {/* Print PDF View (Visible during window.print()) */}
+      {/* Print PDF View (Direct sibling, visible during window.print()) */}
       <PrintReportView session={session} />
-    </div>
+    </>
   );
 };
