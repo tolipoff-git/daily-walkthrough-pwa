@@ -7,11 +7,13 @@ import {
   X, 
   QrCode, 
   WifiOff, 
-  Radio
+  Radio,
+  Camera
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
 import { SyncStatus } from '../hooks/useCloudSync';
+import { QrScannerModal } from './QrScannerModal';
 
 interface SyncModalProps {
   onClose: () => void;
@@ -40,6 +42,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   const isRu = language === 'ru';
   const [roomInput, setRoomInput] = useState(syncRoom);
   const [copied, setCopied] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
   const syncUrl = `${baseUrl}/?room=${encodeURIComponent(syncRoom)}`;
@@ -178,6 +181,19 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                 <QrCode className="w-3.5 h-3.5 text-cyan-400" />
                 {isRu ? 'Наведите камеру смартфона для подключения' : 'Scan with your phone camera to connect'}
               </p>
+
+              {/* In-App Camera Scanner Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  setShowScanner(true);
+                }}
+                className="mt-3 w-full px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+              >
+                <Camera className="w-4 h-4" />
+                <span>{isRu ? '📷 Сканировать QR камерой PWA' : '📷 Scan QR with In-App Camera'}</span>
+              </button>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -280,6 +296,18 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* In-App QR Camera Scanner Modal */}
+      {showScanner && (
+        <QrScannerModal
+          onClose={() => setShowScanner(false)}
+          onScanRoom={(room) => {
+            onSetSyncRoom(room);
+            setRoomInput(room);
+            onForcePull();
+          }}
+        />
+      )}
     </div>
   );
 };
