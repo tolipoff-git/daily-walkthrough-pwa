@@ -5,11 +5,15 @@ import { LanguageProvider } from './i18n/LanguageContext';
 import './index.css';
 import { registerServiceWorker } from './utils/pwa';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <LanguageProvider>
-      <App />
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

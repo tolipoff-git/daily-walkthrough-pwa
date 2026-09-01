@@ -138,7 +138,7 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
             const parsed = JSON.parse(line);
             if (parsed.event === 'message' && parsed.message) {
               const payload = JSON.parse(parsed.message);
-              if (payload && payload.session && payload.updatedAt) {
+              if (payload && payload.session && typeof payload.session === 'object' && Array.isArray(payload.session.items) && payload.updatedAt) {
                 return payload as SyncPayload;
               }
             }
@@ -165,7 +165,7 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
 
     if (response.ok) {
       const data = await response.json();
-      if (data && data.session && data.updatedAt) {
+      if (data && data.session && typeof data.session === 'object' && Array.isArray(data.session.items) && data.updatedAt) {
         return data as SyncPayload;
       }
     }
@@ -197,7 +197,7 @@ export function subscribeToLiveCloudStream(
         const parsed = JSON.parse(event.data);
         if (parsed.event === 'message' && parsed.message) {
           const payload = JSON.parse(parsed.message);
-          if (payload && payload.session && payload.updatedAt) {
+          if (payload && payload.session && typeof payload.session === 'object' && Array.isArray(payload.session.items) && payload.updatedAt) {
             onPayload(payload as SyncPayload);
           }
         }

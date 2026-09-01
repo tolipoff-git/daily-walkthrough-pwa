@@ -93,7 +93,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
             <p className="text-slate-400 text-xs">{session.inspectorRole}</p>
           </div>
           <div className="text-[10px] text-slate-500 mt-2 font-mono">
-            {new Date(session.signatures.timestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')}
+            {session.signatures?.timestamp ? new Date(session.signatures.timestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US') : ''}
           </div>
         </div>
 
@@ -147,7 +147,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
             <div className="flex items-center gap-1">
               <input
                 type="text"
-                value={session.signatures.reviewedBy || ''}
+                value={session.signatures?.reviewedBy || ''}
                 onChange={(e) => {
                   onUpdateSignatures({
                     ...session.signatures,
@@ -159,7 +159,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
               />
 
-              {session.signatures.reviewedBy && (
+              {session.signatures?.reviewedBy && (
                 <button
                   type="button"
                   onClick={handleSaveCurrentApprover}
@@ -176,7 +176,7 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
             </div>
           </div>
           <div className="text-[10px] text-slate-500 mt-2 font-mono">
-            {session.signatures.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US') : t.generalNotes.awaitingSign}
+            {session.signatures?.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US') : t.generalNotes.awaitingSign}
           </div>
         </div>
       </div>

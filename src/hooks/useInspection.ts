@@ -4,41 +4,97 @@ import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE } from '../data/ch
 import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
 import { Language } from '../i18n/types';
 
-function hydrateSession(s: InspectionSession): InspectionSession {
-  if (!s || !Array.isArray(s.items)) return s;
-  const updatedItems = s.items.map((item) => {
-    const t = CHECKLIST_ITEMS_TEMPLATE.find((temp) => temp.id === item.id);
-    if (!t) return item;
-    return {
-      ...item,
-      titleRu: t.titleRu,
-      titleEn: t.titleEn,
-      standardRu: t.standardRu,
-      standardEn: t.standardEn,
-      guidelinesRu: t.guidelinesRu,
-      guidelinesEn: t.guidelinesEn,
-      categoryTitleRu: t.categoryTitleRu,
-      categoryTitleEn: t.categoryTitleEn,
-      categoryId: t.categoryId,
-    };
+function hydrateSession(s: any, fallbackLang: Language = 'ru'): InspectionSession {
+  const defaultSession = createNewInspectionSession(fallbackLang);
+  if (!s || typeof s !== 'object') {
+    return defaultSession;
+  }
+
+  // Ensure all template items exist in the hydrated session
+  const incomingItems: ChecklistItem[] = Array.isArray(s.items) ? s.items : [];
+  const updatedItems: ChecklistItem[] = CHECKLIST_ITEMS_TEMPLATE.map((t) => {
+    const existing = incomingItems.find((item) => item && item.id === t.id);
+    if (existing) {
+      const defectDetails: DefectDetails | undefined = existing.defectDetails ? {
+        location: existing.defectDetails.location || '',
+        zonePreset: existing.defectDetails.zonePreset || '',
+        description: existing.defectDetails.description || '',
+        priority: existing.defectDetails.priority || 'P2',
+        assignedTo: existing.defectDetails.assignedTo || 'Maintenance',
+        targetDate: existing.defectDetails.targetDate || 'Today',
+        photos: Array.isArray(existing.defectDetails.photos) ? existing.defectDetails.photos : [],
+        isRepeatIssue: Boolean(existing.defectDetails.isRepeatIssue),
+        resolutionStatus: existing.defectDetails.resolutionStatus || 'Open',
+      } : (existing.status === 'FAIL' ? {
+        location: '',
+        zonePreset: '',
+        description: '',
+        priority: 'P2',
+        assignedTo: 'Maintenance',
+        targetDate: 'Today',
+        photos: [],
+        isRepeatIssue: false,
+        resolutionStatus: 'Open',
+      } : undefined);
+
+      return {
+        ...t,
+        ...existing,
+        titleRu: t.titleRu,
+        titleEn: t.titleEn,
+        standardRu: t.standardRu,
+        standardEn: t.standardEn,
+        guidelinesRu: t.guidelinesRu,
+        guidelinesEn: t.guidelinesEn,
+        categoryTitleRu: t.categoryTitleRu,
+        categoryTitleEn: t.categoryTitleEn,
+        categoryId: t.categoryId,
+        status: existing.status || 'PENDING',
+        itemNotes: existing.itemNotes || '',
+        defectDetails,
+      };
+    }
+    return { ...t };
   });
+
+  const validSignatures = {
+    inspector: s.signatures?.inspector || s.inspectorName || defaultSession.signatures.inspector,
+    inspectorTitle: s.signatures?.inspectorTitle || s.inspectorRole || defaultSession.signatures.inspectorTitle,
+    timestamp: s.signatures?.timestamp || s.createdAt || new Date().toISOString(),
+    reviewedBy: s.signatures?.reviewedBy || defaultSession.signatures.reviewedBy,
+    reviewTimestamp: s.signatures?.reviewTimestamp,
+  };
+
   return {
-    ...s,
+    id: s.id || defaultSession.id,
+    date: s.date || defaultSession.date,
+    startTime: s.startTime || defaultSession.startTime,
+    endTime: s.endTime || '',
+    facilityName: s.facilityName || defaultSession.facilityName,
+    facilityArea: s.facilityArea || defaultSession.facilityArea,
+    shift: s.shift || defaultSession.shift,
+    inspectorName: s.inspectorName || defaultSession.inspectorName,
+    inspectorRole: s.inspectorRole || defaultSession.inspectorRole,
     items: updatedItems,
+    generalNotes: s.generalNotes || '',
+    status: s.status || defaultSession.status,
+    signatures: validSignatures,
+    createdAt: s.createdAt || defaultSession.createdAt,
+    updatedAt: s.updatedAt || defaultSession.updatedAt,
   };
 }
 
 export function useInspection() {
   const [session, setSession] = useState<InspectionSession>(() => {
+    const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     try {
       const saved = localStorage.getItem('ehs_active_session_v1');
       if (saved) {
-        return hydrateSession(JSON.parse(saved));
+        return hydrateSession(JSON.parse(saved), currentLang);
       }
     } catch (e) {
       console.error('Error loading initial session from localStorage:', e);
     }
-    const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     return createNewInspectionSession(currentLang);
   });
 
@@ -46,9 +102,10 @@ export function useInspection() {
 
   // Load from IndexedDB on mount if available (contains rich photos)
   useEffect(() => {
+    const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     getActiveSessionDb().then((dbSession) => {
       if (dbSession && isInitialMount.current) {
-        setSession(hydrateSession(dbSession));
+        setSession(hydrateSession(dbSession, currentLang));
       }
       isInitialMount.current = false;
     }).catch(() => {
@@ -283,7 +340,8 @@ export function useInspection() {
   }, []);
 
   const loadSession = useCallback((loaded: InspectionSession) => {
-    setSession(loaded);
+    const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
+    setSession(hydrateSession(loaded, currentLang));
   }, []);
 
   const finishWalkthrough = useCallback(() => {

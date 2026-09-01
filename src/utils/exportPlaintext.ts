@@ -118,9 +118,9 @@ export function generatePlaintextReport(
   out += isRu
     ? `ПОДПИСИ И СОГЛАСОВАНИЕ:\n`
     : `SIGNATURES & APPROVAL SIGN-OFF:\n`;
-  out += `${thinDivider}\n`;
-  out += `${(isRu ? 'Инспектор:' : 'Inspector:').padEnd(14, ' ')}${session.inspectorName} ____________ / ${isRu ? 'Дата:' : 'Date:'} ${new Date(session.signatures.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}\n`;
-  if (session.signatures.reviewedBy) {
+  const signTimeStr = session.signatures?.timestamp ? new Date(session.signatures.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '';
+  out += `${(isRu ? 'Инспектор:' : 'Inspector:').padEnd(14, ' ')}${session.inspectorName} ____________ / ${isRu ? 'Дата:' : 'Date:'} ${signTimeStr}\n`;
+  if (session.signatures?.reviewedBy) {
     out += `${(isRu ? 'Руководитель:' : 'Reviewed By:').padEnd(14, ' ')}${session.signatures.reviewedBy} ____________\n`;
   } else {
     out += `${(isRu ? 'Руководитель:' : 'Reviewed By:').padEnd(14, ' ')}__________________________ / ${isRu ? 'Дата:' : 'Date:'} _____________\n`;

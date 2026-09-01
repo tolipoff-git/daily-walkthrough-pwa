@@ -1,5 +1,5 @@
 // Service Worker for EHS & Facility Daily Walkthrough PWA
-const CACHE_NAME = 'ehs-pwa-v2';
+const CACHE_NAME = 'ehs-pwa-v2.0.2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -36,18 +36,28 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
-  // Skip non-GET requests and cross-origin requests
+  // Skip non-GET requests
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+
+  // Strictly skip cross-origin requests (e.g. ntfy.sh, qrserver, cdns)
+  if (url.origin !== self.location.origin) return;
+
+  // Skip dynamic API and Server-Sent Events (SSE)
+  if (url.pathname.startsWith('/api/') || request.headers.get('accept')?.includes('text/event-stream')) {
+    return;
+  }
 
   // Handle SPA navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
           return response;
         })
         .catch(() => {

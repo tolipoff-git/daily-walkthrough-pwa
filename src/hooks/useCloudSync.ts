@@ -37,14 +37,15 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
   // Process incoming remote payload (from SSE stream or pull)
   const handleRemotePayload = useCallback((remote: SyncPayload) => {
-    if (!remote || !remote.session) return;
+    if (!remote || !remote.session || typeof remote.session !== 'object') return;
+    if (!Array.isArray(remote.session.items)) return;
 
     // If change was made by this same device, ignore echo
     if (remote.deviceId === deviceIdRef.current) {
       return;
     }
 
-    const localTime = new Date(sessionRef.current.updatedAt || 0).getTime();
+    const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
     const remoteTime = new Date(remote.updatedAt || 0).getTime();
 
     // If remote has newer or equal data by timestamp

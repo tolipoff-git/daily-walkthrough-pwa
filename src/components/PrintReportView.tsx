@@ -217,7 +217,7 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
             <span className="text-[10px] text-slate-500 font-mono">{t.printView.signatureLine}</span>
           </div>
           <p className="text-[10px] text-slate-500 mt-1">
-            {t.printView.datePrefix} {new Date(session.signatures.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
+            {t.printView.datePrefix} {session.signatures?.timestamp ? new Date(session.signatures.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '________________'}
           </p>
         </div>
 
@@ -225,12 +225,12 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
           <p className="font-bold text-slate-900 mb-1">{t.printView.approverSignHeading}</p>
           <div className="mt-5 border-b border-slate-900 pb-1 flex justify-between items-end">
             <span className="font-medium text-slate-800">
-              {session.signatures.reviewedBy || '__________________________'}
+              {session.signatures?.reviewedBy || '__________________________'}
             </span>
             <span className="text-[10px] text-slate-500 font-mono">{t.printView.signatureLine}</span>
           </div>
           <p className="text-[10px] text-slate-500 mt-1">
-            {t.printView.datePrefix} {session.signatures.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '________________'}
+            {t.printView.datePrefix} {session.signatures?.reviewTimestamp ? new Date(session.signatures.reviewTimestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '________________'}
           </p>
         </div>
       </div>
