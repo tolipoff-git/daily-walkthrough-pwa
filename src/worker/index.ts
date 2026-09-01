@@ -1,6 +1,15 @@
+export interface WorkerFetcher {
+  fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+}
+
+export interface WorkerKVNamespace {
+  get: (key: string) => Promise<string | null>;
+  put: (key: string, value: string, options?: { expirationTtl?: number }) => Promise<void>;
+}
+
 export interface Env {
-  ASSETS: Fetcher;
-  EHS_KV?: KVNamespace;
+  ASSETS: WorkerFetcher;
+  EHS_KV?: WorkerKVNamespace;
 }
 
 // In-memory fallback cache across edge isolate invocations

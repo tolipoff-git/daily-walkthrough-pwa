@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Cloud, 
-  CloudRain, 
   RefreshCw, 
-  Smartphone, 
-  Monitor, 
   Copy, 
   Check, 
   X, 
   QrCode, 
-  Wifi, 
   WifiOff, 
-  ArrowRight,
-  ShieldCheck,
   Radio
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';

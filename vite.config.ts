@@ -13,7 +13,7 @@ const buildTime = new Date().toISOString();
 export default defineConfig({
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify('v1.2.0'),
+    __APP_VERSION__: JSON.stringify('v1.3.0'),
     __COMMIT_HASH__: JSON.stringify(commitHash),
     __BUILD_TIME__: JSON.stringify(buildTime),
     __REPO_URL__: JSON.stringify('https://github.com/tolipoff-git/daily-walkthrough-pwa'),
