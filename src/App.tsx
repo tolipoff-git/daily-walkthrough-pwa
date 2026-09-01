@@ -21,6 +21,7 @@ import { ActionPlanView } from './components/ActionPlanView';
 import { HistoryModal } from './components/HistoryModal';
 import { PrintReportView } from './components/PrintReportView';
 import { PersonnelModal } from './components/PersonnelModal';
+import { SafetyReferenceModal } from './components/SafetyReferenceModal';
 
 // Icons
 import { 
@@ -202,6 +203,7 @@ export const App: React.FC = () => {
           onOpenHistory={() => setShowHistoryModal(true)}
           onOpenActionPlan={() => setShowActionPlanModal(true)}
           onOpenPersonnel={() => setShowPersonnelModal(true)}
+          onOpenSafetyRef={() => setShowSafetyRefModal(true)}
           onLoadDemo={() => loadDemoData(language)}
           onReset={() => resetWalkthrough(language)}
           onFinish={handleFinish}
@@ -498,6 +500,13 @@ export const App: React.FC = () => {
               inspectorTitle: person.role,
             });
           }}
+        />
+      )}
+
+      {/* FSE Safety & HazCom Standards Reference Modal */}
+      {showSafetyRefModal && (
+        <SafetyReferenceModal
+          onClose={() => setShowSafetyRefModal(false)}
         />
       )}
       </div>

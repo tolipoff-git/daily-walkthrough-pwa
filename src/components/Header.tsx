@@ -11,7 +11,8 @@ import {
   RotateCcw,
   CheckCircle2,
   GitCommit,
-  Users
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
@@ -24,6 +25,7 @@ interface HeaderProps {
   onOpenHistory: () => void;
   onOpenActionPlan: () => void;
   onOpenPersonnel?: () => void;
+  onOpenSafetyRef?: () => void;
   onLoadDemo: () => void;
   onReset: () => void;
   onFinish: () => void;
@@ -36,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHistory,
   onOpenActionPlan,
   onOpenPersonnel,
+  onOpenSafetyRef,
   onLoadDemo,
   onReset,
   onFinish,
@@ -228,6 +231,22 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Users className="w-3.5 h-3.5 text-indigo-400" />
                 <span className="hidden md:inline">{language === 'ru' ? 'Персонал' : 'Staff'}</span>
+              </button>
+            )}
+
+            {/* FSE Safety Reference button */}
+            {onOpenSafetyRef && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenSafetyRef();
+                }}
+                className="px-2.5 sm:px-3 py-1.5 bg-slate-800 hover:bg-amber-950/60 text-amber-300 border border-amber-900/60 hover:border-amber-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
+                title={language === 'ru' ? 'Справочник стандартов безопасности FSE (HazCom, GHS 9 пиктограмм, СИЗ, SDS)' : 'FSE Safety Standards Guide (OSHA HazCom, 9 GHS Pictograms, PPE rules, SDS)'}
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden md:inline">{language === 'ru' ? 'Справочник EHS' : 'FSE Safety'}</span>
               </button>
             )}
 
