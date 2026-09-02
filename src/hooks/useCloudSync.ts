@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { InspectionSession } from '../types/inspection';
+import { InspectionSession, DefectPhoto } from '../types/inspection';
 import { 
   getOrCreateDeviceId, 
   getActiveSyncRoom, 
   setActiveSyncRoom as saveActiveSyncRoom,
   pushSessionToCloud, 
   pullSessionFromCloud, 
+  pushPhotoToCloud,
+  pullPhotoFromCloud,
   subscribeToLiveCloudStream,
   SyncPayload 
 } from '../utils/syncApi';
@@ -31,6 +33,10 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const versionRef = useRef<number>(1);
   const isSyncingRef = useRef<boolean>(false);
   const sessionRef = useRef<InspectionSession>(session);
+  // Photos already uploaded to / known to exist in the cloud (by photo id),
+  // plus a resolution cache so polling doesn't refetch the same photo
+  const pushedPhotoIdsRef = useRef<Set<string>>(new Set());
+  const photoCacheRef = useRef<Map<string, DefectPhoto>>(new Map());
 
   // Keep latest session in ref for async functions
   sessionRef.current = session;
@@ -89,6 +95,8 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     setSyncRoomState(clean);
     lastPushedTimestampRef.current = '';
     lastReceivedTimestampRef.current = '';
+    pushedPhotoIdsRef.current = new Set();
+    photoCacheRef.current = new Map();
   }, []);
 
   // Push local session to cloud
@@ -115,17 +123,38 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     isSyncingRef.current = true;
     versionRef.current += 1;
 
-    // Strip base64 photos from the sync payload: they are megabytes each and
-    // would be re-uploaded on every keystroke (and can exceed KV's 25 MB value
-    // limit). Photos stay on the device (IndexedDB) and in its exports.
-    const sessionForSync: InspectionSession = {
-      ...currentSession,
-      items: currentSession.items.map((i) =>
-        i.defectDetails?.photos?.length
-          ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
-          : i
-      ),
-    };
+    // Photos sync as separate KV keys (photo_<ROOM>_<id>), uploaded once per
+    // device; the session payload carries only id references (url: '').
+    // If a photo upload fails, the full photo is inlined as a fallback.
+    const itemsForSync = [] as InspectionSession['items'];
+    for (const item of currentSession.items) {
+      const photos = item.defectDetails?.photos;
+      if (!photos?.length) {
+        itemsForSync.push(item);
+        continue;
+      }
+      const refs: DefectPhoto[] = [];
+      for (const photo of photos) {
+        if (!photo.url) {
+          refs.push(photo); // already a reference
+          continue;
+        }
+        photoCacheRef.current.set(photo.id, photo);
+        if (!pushedPhotoIdsRef.current.has(photo.id)) {
+          const ok = await pushPhotoToCloud(currentRoom, photo);
+          if (ok) {
+            pushedPhotoIdsRef.current.add(photo.id);
+          } else {
+            refs.push(photo); // fallback: keep the photo inline
+            continue;
+          }
+        }
+        refs.push({ id: photo.id, url: '', caption: photo.caption, timestamp: photo.timestamp });
+      }
+      itemsForSync.push({ ...item, defectDetails: { ...item.defectDetails!, photos: refs } });
+    }
+
+    const sessionForSync: InspectionSession = { ...currentSession, items: itemsForSync };
 
     const payload: SyncPayload = {
       session: sessionForSync,
@@ -148,15 +177,56 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     }
   }, [syncRoom]);
 
+  // Resolve photo references (url: '') in a pulled payload: cache first,
+  // then local session, then fetch from the Worker API by photo id
+  const resolveRemotePhotos = useCallback(async (remote: SyncPayload, room: string): Promise<SyncPayload> => {
+    const localPhotosById = new Map<string, DefectPhoto>();
+    for (const item of sessionRef.current?.items ?? []) {
+      for (const p of item.defectDetails?.photos ?? []) {
+        if (p.url) localPhotosById.set(p.id, p);
+      }
+    }
+
+    const items = await Promise.all(remote.session.items.map(async (item) => {
+      const photos = item.defectDetails?.photos;
+      if (!photos?.length) return item;
+
+      const resolved = (await Promise.all(photos.map(async (p) => {
+        if (p.url) {
+          pushedPhotoIdsRef.current.add(p.id);
+          photoCacheRef.current.set(p.id, p);
+          return p;
+        }
+        const cached = photoCacheRef.current.get(p.id) || localPhotosById.get(p.id);
+        if (cached?.url) {
+          pushedPhotoIdsRef.current.add(p.id);
+          return cached;
+        }
+        const fetched = await pullPhotoFromCloud(room, p.id);
+        if (fetched?.url) {
+          pushedPhotoIdsRef.current.add(fetched.id);
+          photoCacheRef.current.set(fetched.id, fetched);
+          return fetched;
+        }
+        return null; // unresolvable ref — dropped rather than a broken image
+      }))).filter((p): p is DefectPhoto => Boolean(p));
+
+      return { ...item, defectDetails: { ...item.defectDetails!, photos: resolved } };
+    }));
+
+    return { ...remote, session: { ...remote.session, items } };
+  }, []);
+
   // Pull remote session from cloud
   const triggerPull = useCallback(async (currentRoom: string = syncRoom) => {
     if (!navigator.onLine || isSyncingRef.current) return;
 
     const remote = await pullSessionFromCloud(currentRoom);
     if (remote) {
-      handleRemotePayload(remote);
+      const resolved = await resolveRemotePhotos(remote, currentRoom);
+      handleRemotePayload(resolved);
     }
-  }, [syncRoom, handleRemotePayload]);
+  }, [syncRoom, handleRemotePayload, resolveRemotePhotos]);
 
   // Debounced auto-push on local session changes
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { InspectionSession } from '../types/inspection';
+import { InspectionSession, DefectPhoto } from '../types/inspection';
 
 export interface SyncPayload {
   session: InspectionSession;
@@ -166,6 +166,58 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
     }
   } catch {}
 
+  return null;
+}
+
+/**
+ * Uploads a single photo to the Worker API as its own KV key
+ * (photo_<ROOM>_<photoId>), so the session payload stays small and each
+ * photo travels over the network at most once per device.
+ */
+export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promise<boolean> {
+  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(
+      `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photo.id)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(photo),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fetches a single photo by id from the Worker API.
+ */
+export async function pullPhotoFromCloud(room: string, photoId: string): Promise<DefectPhoto | null> {
+  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(
+      `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photoId)}?t=${Date.now()}`,
+      { method: 'GET', headers: { 'Cache-Control': 'no-cache' }, signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.id === 'string' && typeof data.url === 'string' && data.url) {
+        return data as DefectPhoto;
+      }
+    }
+  } catch {}
   return null;
 }
 
