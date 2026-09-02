@@ -3,6 +3,17 @@
   "name": "daily-walkthrough-pwa",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-31",
+  // Sync persistence (Live Sync): create the namespace once with
+  //   npx wrangler kv namespace create EHS_KV
+  // (or in the dashboard: Workers & Pages → KV), paste the id below and
+  // uncomment the block. Until then the Worker uses a per-isolate in-memory
+  // fallback, so /api/sync data may not survive across requests.
+  // "kv_namespaces": [
+  //   {
+  //     "binding": "EHS_KV",
+  //     "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+  //   }
+  // ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"

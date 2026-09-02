@@ -1,5 +1,7 @@
 // Service Worker for EHS & Facility Daily Walkthrough PWA
-const CACHE_NAME = 'ehs-pwa-v2.0.2';
+// NOTE: __CACHE_STAMP__ is replaced at build time by vite.config.ts (stampSwCache plugin).
+// Never hardcode a version here — a stale cache name re-introduces stale-asset bugs.
+const CACHE_NAME = 'ehs-pwa-__CACHE_STAMP__';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

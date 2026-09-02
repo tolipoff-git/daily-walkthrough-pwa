@@ -120,9 +120,19 @@ export function useInspection() {
     // Save full data including photos to IndexedDB
     saveActiveSessionDb(session).catch((err) => console.warn('Failed to save to IndexedDB', err));
 
-    // Save lightweight copy to localStorage
+    // Save lightweight copy to localStorage (photos stripped — they live in
+    // IndexedDB only; stringifying multi-MB base64 on every keystroke freezes
+    // low-end phones)
     try {
-      localStorage.setItem('ehs_active_session_v1', JSON.stringify(session));
+      const lightweight: InspectionSession = {
+        ...session,
+        items: session.items.map((i) =>
+          i.defectDetails?.photos?.length
+            ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+            : i
+        ),
+      };
+      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
       if (session.inspectorName) {
         localStorage.setItem('ehs_last_inspector', session.inspectorName);
       }

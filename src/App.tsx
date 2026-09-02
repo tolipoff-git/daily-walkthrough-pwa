@@ -3,7 +3,7 @@ import { useInspection } from './hooks/useInspection';
 import { useHistory } from './hooks/useHistory';
 import { calculateMetrics } from './utils/metrics';
 import { INITIAL_CHECKLIST_DATA } from './data/checklistData';
-import { DefectPhoto } from './types/inspection';
+import { DefectPhoto, InspectionSession } from './types/inspection';
 import { triggerHaptic } from './utils/haptics';
 import { useLanguage } from './i18n/LanguageContext';
 import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from './version';
@@ -80,7 +80,22 @@ export const App: React.FC = () => {
   } = useCloudSync({
     session,
     onRemoteUpdate: (remoteSession) => {
-      loadSession(remoteSession);
+      // Remote payloads don't carry photos (stripped before push) — preserve
+      // local photos per item instead of wiping them
+      const localPhotos = new Map(
+        session.items.map((i) => [i.id, i.defectDetails?.photos ?? []])
+      );
+      const merged: InspectionSession = {
+        ...remoteSession,
+        items: remoteSession.items.map((ri) => {
+          const photos = localPhotos.get(ri.id);
+          if (photos?.length && ri.defectDetails && !ri.defectDetails.photos?.length) {
+            return { ...ri, defectDetails: { ...ri.defectDetails, photos } };
+          }
+          return ri;
+        }),
+      };
+      loadSession(merged);
     },
   });
 

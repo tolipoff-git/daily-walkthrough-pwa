@@ -115,8 +115,20 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     isSyncingRef.current = true;
     versionRef.current += 1;
 
+    // Strip base64 photos from the sync payload: they are megabytes each and
+    // would be re-uploaded on every keystroke (and can exceed KV's 25 MB value
+    // limit). Photos stay on the device (IndexedDB) and in its exports.
+    const sessionForSync: InspectionSession = {
+      ...currentSession,
+      items: currentSession.items.map((i) =>
+        i.defectDetails?.photos?.length
+          ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+          : i
+      ),
+    };
+
     const payload: SyncPayload = {
-      session: currentSession,
+      session: sessionForSync,
       deviceId: deviceIdRef.current,
       updatedAt: currentSession.updatedAt || new Date().toISOString(),
       version: versionRef.current,
@@ -157,9 +169,12 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
   // Real-time Live SSE Subscription + Background Polling Fallback
   useEffect(() => {
-    // 1. Subscribe to Live SSE Broadcast
-    const unsubscribeSse = subscribeToLiveCloudStream(syncRoom, (payload) => {
-      handleRemotePayload(payload);
+    // 1. Subscribe to Live Ping Broadcast: a ping means "pull from Worker API"
+    const unsubscribeSse = subscribeToLiveCloudStream(syncRoom, (ping) => {
+      // Ignore echoes of our own pushes
+      if (ping.deviceId === deviceIdRef.current) return;
+      if (ping.updatedAt === lastReceivedTimestampRef.current) return;
+      triggerPull();
     });
 
     // 2. Periodic polling backup (every 2.5s when active)
@@ -197,7 +212,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [syncRoom, triggerPull, handleRemotePayload]);
+  }, [syncRoom, triggerPull]);
 
   return {
     syncRoom,

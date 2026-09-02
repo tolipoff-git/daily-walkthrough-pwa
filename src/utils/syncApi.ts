@@ -15,6 +15,15 @@ export interface SyncResponse {
   error?: string;
 }
 
+// Ping broadcast over the public relay. Contains NO session data —
+// it only tells peers "room X changed at time T, pull from the Worker API".
+interface SyncPing {
+  ehsSyncPing: true;
+  room: string;
+  deviceId: string;
+  updatedAt: string;
+}
+
 // Generate or retrieve persistent local device ID
 export function getOrCreateDeviceId(): string {
   if (typeof window === 'undefined') return 'server';
@@ -43,7 +52,7 @@ export function setActiveSyncRoom(room: string): void {
   if (typeof window === 'undefined') return;
   const clean = (room || 'FSE-MAIN').trim().toUpperCase();
   localStorage.setItem('ehs_sync_room', clean);
-  
+
   // Update URL without reload for easy sharing/bookmarking
   const url = new URL(window.location.href);
   url.searchParams.set('room', clean);
@@ -55,107 +64,93 @@ function getCloudTopic(room: string): string {
   return `fse_ehs_sync_${clean}`;
 }
 
+function getWorkerSyncUrl(room: string): string {
+  const clean = (room || 'FSE-MAIN').trim().toUpperCase();
+  return `/api/sync/session_${encodeURIComponent(clean)}`;
+}
+
+function isValidPayload(payload: any): payload is SyncPayload {
+  return Boolean(
+    payload &&
+    payload.session &&
+    typeof payload.session === 'object' &&
+    Array.isArray(payload.session.items) &&
+    payload.updatedAt
+  );
+}
+
 /**
- * Pushes session state to persistent global cloud relay + Worker API
+ * Pushes session state to the Cloudflare Worker API (authoritative store),
+ * then broadcasts a data-free ping over the public relay so peers pull.
+ * Returns true only if the Worker API actually accepted the payload.
  */
 export async function pushSessionToCloud(room: string, payload: SyncPayload): Promise<boolean> {
   const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
-  const topic = getCloudTopic(cleanRoom);
   const payloadString = JSON.stringify(payload);
 
-  let anySuccess = false;
-
-  // 1. Push to High-Speed Global Pub/Sub Relay (ntfy.sh)
+  // 1. Authoritative write to the Cloudflare Worker API
+  let workerOk = false;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const relayPromise = fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
-      method: 'POST',
-      headers: {
-        'Title': `FSE Sync ${cleanRoom}`,
-        'Priority': 'urgent',
-        'X-Device-ID': payload.deviceId,
-      },
-      body: payloadString,
-      signal: controller.signal,
-    }).then((res) => {
-      clearTimeout(timeoutId);
-      if (res.ok) anySuccess = true;
-    }).catch(() => {});
-
-    // 2. Also Push to Cloudflare Worker API
-    const workerPromise = fetch(`/api/sync/session_${encodeURIComponent(cleanRoom)}`, {
+    const res = await fetch(getWorkerSyncUrl(cleanRoom), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Device-ID': payload.deviceId,
       },
       body: payloadString,
-    }).then((res) => {
-      if (res.ok) anySuccess = true;
-    }).catch(() => {});
-
-    await Promise.race([relayPromise, workerPromise]);
-    // Wait briefly for completion
-    await Promise.allSettled([relayPromise, workerPromise]);
-
-    return anySuccess || true;
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    workerOk = res.ok;
   } catch (err) {
-    console.warn('Sync push error:', err);
-    return false;
+    console.warn('Sync push to Worker API failed:', err);
   }
+
+  // 2. Broadcast a data-free ping so subscribed peers pull the new state.
+  //    Best-effort only — peers also poll, so a lost ping is not fatal.
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const ping: SyncPing = {
+      ehsSyncPing: true,
+      room: cleanRoom,
+      deviceId: payload.deviceId,
+      updatedAt: payload.updatedAt,
+    };
+
+    await fetch(`https://ntfy.sh/${encodeURIComponent(getCloudTopic(cleanRoom))}`, {
+      method: 'POST',
+      headers: {
+        'Title': `FSE Sync ${cleanRoom}`,
+        'Priority': 'default',
+        'X-Device-ID': payload.deviceId,
+      },
+      body: JSON.stringify(ping),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch {
+    // Ping relay unreachable — polling fallback covers this
+  }
+
+  return workerOk;
 }
 
 /**
- * Pulls latest session state from persistent global cloud relay + Worker API
+ * Pulls latest session state from the Cloudflare Worker API.
  */
 export async function pullSessionFromCloud(room: string): Promise<SyncPayload | null> {
   const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
-  const topic = getCloudTopic(cleanRoom);
 
-  // 1. Try pulling from global cloud relay (ntfy.sh cached message)
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}/json?poll=1`, {
-      method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      const text = await response.text();
-      const lines = text.trim().split('\n');
-      // Read latest line (newest message)
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i];
-        if (line) {
-          try {
-            const parsed = JSON.parse(line);
-            if (parsed.event === 'message' && parsed.message) {
-              const payload = JSON.parse(parsed.message);
-              if (payload && payload.session && typeof payload.session === 'object' && Array.isArray(payload.session.items) && payload.updatedAt) {
-                return payload as SyncPayload;
-              }
-            }
-          } catch {}
-        }
-      }
-    }
-  } catch (err) {
-    // Continue to Worker API fallback
-  }
-
-  // 2. Fallback to Cloudflare Worker API
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-    const response = await fetch(`/api/sync/session_${encodeURIComponent(cleanRoom)}?t=${Date.now()}`, {
+    const response = await fetch(`${getWorkerSyncUrl(cleanRoom)}?t=${Date.now()}`, {
       method: 'GET',
       headers: { 'Cache-Control': 'no-cache' },
       signal: controller.signal,
@@ -165,8 +160,8 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
 
     if (response.ok) {
       const data = await response.json();
-      if (data && data.session && typeof data.session === 'object' && Array.isArray(data.session.items) && data.updatedAt) {
-        return data as SyncPayload;
+      if (isValidPayload(data)) {
+        return data;
       }
     }
   } catch {}
@@ -175,17 +170,20 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
 }
 
 /**
- * Subscribes to live Server-Sent Events (SSE) for instant sub-second sync broadcasts
+ * Subscribes to live Server-Sent Events (SSE) for instant sync notifications.
+ * The stream carries data-free pings only; on a ping from another device
+ * the onPing callback fires and the caller pulls from the Worker API.
  */
 export function subscribeToLiveCloudStream(
-  room: string, 
-  onPayload: (payload: SyncPayload) => void
+  room: string,
+  onPing: (ping: SyncPing) => void
 ): () => void {
   if (typeof window === 'undefined' || !window.EventSource) {
     return () => {};
   }
 
-  const topic = getCloudTopic(room);
+  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const topic = getCloudTopic(cleanRoom);
   let eventSource: EventSource | null = null;
 
   try {
@@ -195,14 +193,15 @@ export function subscribeToLiveCloudStream(
       try {
         if (!event.data) return;
         const parsed = JSON.parse(event.data);
-        if (parsed.event === 'message' && parsed.message) {
-          const payload = JSON.parse(parsed.message);
-          if (payload && payload.session && typeof payload.session === 'object' && Array.isArray(payload.session.items) && payload.updatedAt) {
-            onPayload(payload as SyncPayload);
-          }
+        if (parsed.event !== 'message' || !parsed.message) return;
+        const ping = JSON.parse(parsed.message);
+        // Only well-formed pings for this room are accepted; anything else
+        // on the public topic is ignored silently.
+        if (ping && ping.ehsSyncPing === true && ping.room === cleanRoom && ping.deviceId) {
+          onPing(ping as SyncPing);
         }
-      } catch (e) {
-        console.warn('SSE parse error:', e);
+      } catch {
+        // Not a ping — ignore third-party noise on the public topic
       }
     };
 

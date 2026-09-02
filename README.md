@@ -147,3 +147,16 @@ This application is ready for Cloudflare Pages deployment:
 - **Build output directory**: `dist`
 - **Routing**: Client-side routing with `_routes.json`
 - **Headers**: Immutable asset caching and Content-Security-Policy configured in `_headers`.
+
+### Sync persistence (required for Live Sync)
+
+Live Sync stores session state in a Cloudflare KV namespace (`EHS_KV`). Create it once and bind it:
+
+```bash
+npx wrangler kv namespace create EHS_KV
+# paste the returned id into wrangler.jsonc -> kv_namespaces[0].id
+```
+
+Without the KV binding the Worker falls back to a per-isolate in-memory store, so `/api/sync` data does not survive across requests.
+
+**Sync architecture:** session data flows only through the same-origin Worker API (`/api/sync/:room`). The public ntfy.sh relay carries data-free *ping* notifications ("room X changed, pull now") — no inspection data ever leaves the Worker.
