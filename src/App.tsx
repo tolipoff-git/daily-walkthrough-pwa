@@ -504,7 +504,6 @@ export const App: React.FC = () => {
         <ExportModal
           session={session}
           onClose={() => setShowExportModal(false)}
-          onRestoreSession={loadSession}
           onSaveToHistory={saveInspectionToHistory}
           onOpenPrintPreview={() => setShowPrintPreview(true)}
         />

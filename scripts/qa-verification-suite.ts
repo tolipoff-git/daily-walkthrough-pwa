@@ -34,8 +34,8 @@ const suite1 = '1. Build & Dependency Verification';
 
 // Check package.json version
 const pkgJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
-assert(pkgJson.version === '3.4.0', suite1, 'package.json version is 3.4.0', `Found ${pkgJson.version}`);
-assert(APP_VERSION === 'v3.4.0', suite1, 'version.ts APP_VERSION is v3.4.0', `Found ${APP_VERSION}`);
+assert(pkgJson.version === '3.5.0', suite1, 'package.json version is 3.5.0', `Found ${pkgJson.version}`);
+assert(APP_VERSION === 'v3.5.0', suite1, 'version.ts APP_VERSION is v3.5.0', `Found ${APP_VERSION}`);
 
 // Check package-lock.json integrity
 const lockJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package-lock.json'), 'utf8'));

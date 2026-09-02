@@ -1,20 +1,17 @@
 import React from 'react';
-import { 
-  X, 
-  History, 
-  Trash2, 
-  FolderOpen, 
-  FileSpreadsheet, 
-  FileText, 
-  Calendar, 
-  Clock, 
+import {
+  X,
+  History,
+  Trash2,
+  FolderOpen,
+  FileSpreadsheet,
+  Calendar,
+  Clock,
   User
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
 import { exportInspectionToExcel } from '../utils/exportExcel';
-import { getReportFileName } from '../utils/formatters';
-import { generatePlaintextReport } from '../utils/exportPlaintext';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -34,20 +31,6 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   onClearHistory,
 }) => {
   const { language, t } = useLanguage();
-
-  const handleDownloadTxt = (session: InspectionSession) => {
-    triggerHaptic();
-    const text = generatePlaintextReport(session, language);
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = getReportFileName(session, 'txt');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   const handleDownloadXlsx = (session: InspectionSession) => {
     triggerHaptic();
@@ -173,14 +156,6 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                       title={t.historyModal.downloadXlsx}
                     >
                       <FileSpreadsheet className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => handleDownloadTxt(session)}
-                      className="p-1.5 bg-slate-700/80 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-lg transition-colors"
-                      title={t.historyModal.downloadTxt}
-                    >
-                      <FileText className="w-4 h-4" />
                     </button>
 
                     <button

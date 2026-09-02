@@ -203,7 +203,7 @@ export const ru: Translations = {
   },
   exportModal: {
     title: 'Центр экспорта и формирования отчетов',
-    subtitle: 'Excel (.xlsx), Текстовый ASCII, Печать / PDF (US Letter), JSON Backup',
+    subtitle: 'Excel (.xlsx), Печать / PDF (US Letter)',
     tabTxt: 'Текстовый отчет (ASCII)',
     tabXlsx: 'Excel (.xlsx)',
     tabPrint: 'Печать / PDF (US Letter)',

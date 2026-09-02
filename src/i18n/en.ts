@@ -203,7 +203,7 @@ export const en: Translations = {
   },
   exportModal: {
     title: 'Export & Reporting Center',
-    subtitle: 'Excel (.xlsx), Plaintext ASCII, Print / PDF (US Letter), JSON Backup',
+    subtitle: 'Excel (.xlsx), Print / PDF (US Letter)',
     tabTxt: 'Plaintext (ASCII)',
     tabXlsx: 'Excel (.xlsx)',
     tabPrint: 'Print / PDF (US Letter)',
