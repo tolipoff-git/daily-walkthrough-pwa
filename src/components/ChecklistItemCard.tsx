@@ -27,6 +27,7 @@ import { compressImage } from '../utils/imageCompressor';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { usePersonnel } from '../hooks/usePersonnel';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface ChecklistItemCardProps {
   item: ChecklistItem;
@@ -64,9 +65,9 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
   const [showGuidelines, setShowGuidelines] = useState(false);
   const [showPassNoteInput, setShowPassNoteInput] = useState(Boolean(item.itemNotes));
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const defect = item.defectDetails || {
     location: '',
@@ -92,6 +93,17 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
   const handleStatusChange = (newStatus: InspectionStatus) => {
     triggerHaptic(newStatus === 'FAIL' ? [50, 50] : 25);
     onSetStatus(item.id, newStatus);
+  };
+
+  const addPhotoFromDataUrl = (dataUrl: string) => {
+    const newPhoto: DefectPhoto = {
+      id: `photo-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      url: dataUrl,
+      caption: `${item.id} - ${defect.location || itemTitle}`,
+      timestamp: new Date().toISOString(),
+    };
+    onAddPhoto(item.id, newPhoto);
+    triggerHaptic(30);
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -487,24 +499,19 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                   </div>
                 ))}
 
-                {/* Camera Capture Button */}
+                {/* Camera Capture Button (in-app camera — native camera hand-off crashes some phones) */}
                 <button
                   type="button"
                   disabled={isUploadingPhoto}
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => {
+                    triggerHaptic();
+                    setShowCameraModal(true);
+                  }}
                   className="w-20 h-20 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500 bg-slate-900/80 hover:bg-slate-900 flex flex-col items-center justify-center text-slate-400 hover:text-emerald-400 transition-all gap-1 text-[10px] font-medium"
                 >
                   <Camera className="w-5 h-5 text-emerald-400" />
                   <span>{t.card.cameraBtn}</span>
                 </button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  ref={cameraInputRef}
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                />
 
                 {/* Gallery Upload Button */}
                 <button
@@ -579,6 +586,14 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* In-App Camera Modal (replaces native camera intent) */}
+      {showCameraModal && (
+        <CameraCaptureModal
+          onClose={() => setShowCameraModal(false)}
+          onCapture={addPhotoFromDataUrl}
+        />
       )}
     </div>
   );

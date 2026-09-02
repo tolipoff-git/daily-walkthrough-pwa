@@ -110,3 +110,31 @@ function drawWatermark(ctx: CanvasRenderingContext2D, height: number): void {
   ctx.fillStyle = '#ffffff';
   ctx.fillText(`EHS ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 14, height - 10);
 }
+
+/**
+ * Capture the current frame of a getUserMedia <video> element as a compressed
+ * JPEG data URL (max 1024px). Used by the in-app camera so we never hand off
+ * to the native camera app (which crashes some phones at the driver level).
+ */
+export function captureVideoFrame(video: HTMLVideoElement, maxDimension = 1024, quality = 0.75): string {
+  const srcW = video.videoWidth;
+  const srcH = video.videoHeight;
+  if (!srcW || !srcH) {
+    throw new Error('Video stream is not ready');
+  }
+
+  const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
+  const width = Math.max(1, Math.round(srcW * scale));
+  const height = Math.max(1, Math.round(srcH * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to create 2D canvas context');
+
+  ctx.drawImage(video, 0, 0, width, height);
+  drawWatermark(ctx, height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
