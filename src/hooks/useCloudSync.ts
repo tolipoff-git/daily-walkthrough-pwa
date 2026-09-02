@@ -40,6 +40,8 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
   // Keep latest session in ref for async functions
   sessionRef.current = session;
+  const onRemoteUpdateRef = useRef(onRemoteUpdate);
+  onRemoteUpdateRef.current = onRemoteUpdate;
 
   // Process incoming remote payload (from SSE stream or pull)
   const handleRemotePayload = useCallback((remote: SyncPayload) => {
@@ -228,8 +230,61 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     }
   }, [syncRoom, handleRemotePayload, resolveRemotePhotos]);
 
-  // Debounced auto-push on local session changes
+  // A session the user hasn't really touched yet (fresh page load, no marks)
+  const isPristineSession = (s: InspectionSession | undefined): boolean => {
+    if (!s) return true;
+    if (s.status === 'Completed' || s.generalNotes) return false;
+    return s.items.every((i) => i.status === 'PENDING' && !i.itemNotes && !i.defectDetails);
+  };
+
+  // Initial sync: PULL FIRST, and only then allow pushes. This prevents the
+  // mount auto-push from clobbering a newer shared session in KV with a stale
+  // (or freshly-created empty) local one.
+  const initialSyncDoneRef = useRef(false);
   useEffect(() => {
+    let cancelled = false;
+    initialSyncDoneRef.current = false;
+
+    (async () => {
+      const remote = navigator.onLine ? await pullSessionFromCloud(syncRoom) : null;
+      if (cancelled) return;
+
+      if (remote) {
+        const resolved = await resolveRemotePhotos(remote, syncRoom);
+        handleRemotePayload(resolved);
+
+        const remoteTime = new Date(remote.updatedAt || 0).getTime();
+        const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
+
+        // Remote is older, but local is a pristine untouched session — take
+        // the remote one instead of publishing an empty session over it
+        if (remoteTime < localTime && isPristineSession(sessionRef.current)) {
+          lastReceivedTimestampRef.current = remote.updatedAt;
+          setLastRemoteDevice(remote.deviceId);
+          setLastSyncedAt(new Date());
+          setSyncStatus('synced');
+          saveActiveSessionDb(resolved.session).catch(() => {});
+          onRemoteUpdateRef.current(resolved.session);
+        } else if (localTime > remoteTime) {
+          // Local has genuine newer work (e.g. edited offline) — publish it
+          pushToCloud(syncRoom);
+        }
+      } else {
+        // Room empty (or offline) — publish local state
+        pushToCloud(syncRoom);
+      }
+
+      initialSyncDoneRef.current = true;
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncRoom]);
+
+  // Debounced auto-push on local session changes (only after the initial
+  // pull-first sync completed, so we never clobber a newer remote session)
+  useEffect(() => {
+    if (!initialSyncDoneRef.current) return;
     const timer = setTimeout(() => {
       pushToCloud();
     }, 450);
@@ -273,8 +328,8 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
-    // Initial pull on mount or room switch
-    triggerPull();
+    // NOTE: initial pull on mount/room switch happens in the dedicated
+    // pull-first initial-sync effect above
 
     return () => {
       unsubscribeSse();

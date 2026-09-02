@@ -464,8 +464,8 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
   const defaultRoleEn = defaultPerson?.role || 'Lead EHS Specialist & 5S Auditor';
   const defaultFacilityRu = 'Основной производственно-логистический комплекс';
   const defaultFacilityEn = 'Main Manufacturing & Logistics Complex';
-  const defaultAreaRu = 'Все зоны (Цех 1 & 2, Склад ГП, Доки, Периметр)';
-  const defaultAreaEn = 'All Zones (Shop Floor 1 & 2, FG Warehouse, Loading Docks, Grounds)';
+  const defaultAreaRu = 'Все зоны (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, доки, периметр)';
+  const defaultAreaEn = 'All Zones (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, Docks, Perimeter)';
   const defaultShiftRu = 'Дневная смена (06:00 - 14:40)';
   const defaultShiftEn = 'Day Shift (06:00 - 14:40)';
 

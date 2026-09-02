@@ -97,6 +97,10 @@ export const App: React.FC = () => {
         }),
       };
       loadSession(merged);
+      // A walkthrough finished on another device belongs in local history too
+      if (merged.status === 'Completed') {
+        saveInspectionToHistory(merged);
+      }
     },
   });
 

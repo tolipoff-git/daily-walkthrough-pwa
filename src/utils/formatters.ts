@@ -23,15 +23,15 @@ export function formatShift(shift: string | undefined, lang: Language): string {
 export function formatArea(area: string | undefined, lang: Language): string {
   if (!area) {
     return lang === 'ru'
-      ? 'Все зоны (Цех 1, Цех 2, Склад ГП, Рампа, Территория)'
-      : 'All Zones (Shop Floor 1 & 2, FG Warehouse, Loading Docks, Grounds)';
+      ? 'Все зоны (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, доки, периметр)'
+      : 'All Zones (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, Docks, Perimeter)';
   }
 
   const a = area.toLowerCase();
   if (a.includes('все зоны') || a.includes('all zones')) {
     return lang === 'ru'
-      ? 'Все зоны (Цех 1, Цех 2, Склад ГП, Рампа, Территория)'
-      : 'All Zones (Shop Floor 1 & 2, FG Warehouse, Loading Docks, Grounds)';
+      ? 'Все зоны (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, доки, периметр)'
+      : 'All Zones (USS, Wabtec, BAC, Warehouse, Tool Cage, Workshop, Office, QA, ESS, Knorr, Kalmar, Docks, Perimeter)';
   }
 
   return area;
