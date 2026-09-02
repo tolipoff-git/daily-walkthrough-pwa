@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useInspection } from './hooks/useInspection';
 import { useHistory } from './hooks/useHistory';
 import { calculateMetrics } from './utils/metrics';
@@ -6,6 +6,7 @@ import { INITIAL_CHECKLIST_DATA } from './data/checklistData';
 import { DefectPhoto, InspectionSession } from './types/inspection';
 import { triggerHaptic } from './utils/haptics';
 import { useLanguage } from './i18n/LanguageContext';
+import { getReportFileName } from './utils/formatters';
 import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from './version';
 
 // Components
@@ -123,6 +124,12 @@ export const App: React.FC = () => {
 
   // Metrics computation
   const metrics = useMemo(() => calculateMetrics(session.items), [session.items]);
+
+  // Keep document.title in sync so Print → Save as PDF suggests the report
+  // file name ("EHS Daily Walkthrough_<Inspector>_<dd.mm.yyyy>")
+  useEffect(() => {
+    document.title = getReportFileName(session);
+  }, [session.date, session.inspectorName]);
 
   // Filtered items logic
   const filteredItems = useMemo(() => {

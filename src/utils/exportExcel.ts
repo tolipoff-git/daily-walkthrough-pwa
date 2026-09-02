@@ -5,7 +5,7 @@ import { Language } from '../i18n/types';
 import { ru } from '../i18n/ru';
 import { en } from '../i18n/en';
 import { APP_VERSION, COMMIT_HASH } from '../version';
-import { formatShift, formatArea, formatRole } from './formatters';
+import { formatShift, formatArea, formatRole, getReportFileName } from './formatters';
 
 // Helper to apply wrapText, vertical alignment and font styling across worksheet cells
 function styleWorksheet(
@@ -360,8 +360,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
   // =========================================================================
   // 4. WRITE & DOWNLOAD WORKBOOK
   // =========================================================================
-  const cleanDate = (session.date || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
-  const filename = `EHS_Walkthrough_Report_${cleanDate}_${session.id}.xlsx`;
+  const filename = getReportFileName(session, 'xlsx');
   XLSX.writeFile(workbook, filename);
 }
 

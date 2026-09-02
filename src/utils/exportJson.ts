@@ -1,4 +1,5 @@
 import { InspectionSession } from '../types/inspection';
+import { getReportFileName } from './formatters';
 
 export function exportInspectionToJson(session: InspectionSession): void {
   const jsonStr = JSON.stringify(session, null, 2);
@@ -6,7 +7,7 @@ export function exportInspectionToJson(session: InspectionSession): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `EHS_Walkthrough_Backup_${session.date}_${session.id}.json`;
+  a.download = getReportFileName(session, 'json');
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

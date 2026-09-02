@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { generatePlaintextReport } from '../utils/exportPlaintext';
+import { getReportFileName } from '../utils/formatters';
 import { exportInspectionToExcel } from '../utils/exportExcel';
 import { exportInspectionToJson, importInspectionFromJson } from '../utils/exportJson';
 import { triggerHaptic } from '../utils/haptics';
@@ -67,7 +68,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `EHS_Walkthrough_${session.date}_${session.id}.txt`;
+    a.download = getReportFileName(session, 'txt');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -13,6 +13,7 @@ import {
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
 import { exportInspectionToExcel } from '../utils/exportExcel';
+import { getReportFileName } from '../utils/formatters';
 import { generatePlaintextReport } from '../utils/exportPlaintext';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -41,7 +42,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `EHS_Report_${session.date}_${session.id}.txt`;
+    a.download = getReportFileName(session, 'txt');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

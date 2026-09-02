@@ -53,3 +53,29 @@ export function formatRole(role: string | undefined, lang: Language): string {
 
   return role;
 }
+
+/**
+ * Unified report file name: "EHS Daily Walkthrough_<Inspector>_<dd.mm.yyyy>.<ext>"
+ * (slashes are illegal in file names, so the date uses dots).
+ * With extension omitted returns just the base (used for document.title so
+ * Print → Save as PDF suggests the same name).
+ */
+export function getReportFileName(
+  session: { inspectorName?: string; date?: string },
+  extension?: string
+): string {
+  let datePart: string;
+  if (session.date && /^\d{4}-\d{2}-\d{2}$/.test(session.date)) {
+    const [y, m, d] = session.date.split('-');
+    datePart = `${d}.${m}.${y}`;
+  } else {
+    const now = new Date();
+    datePart = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+  }
+
+  const inspector =
+    (session.inspectorName || '').replace(/[\\/:*?"<>|]/g, '').trim() || 'Inspector';
+
+  const base = `EHS Daily Walkthrough_${inspector}_${datePart}`;
+  return extension ? `${base}.${extension}` : base;
+}
