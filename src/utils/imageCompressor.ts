@@ -19,33 +19,38 @@ export async function compressImage(file: File, maxDimension = 1024, quality = 0
 }
 
 async function compressViaBitmap(file: File, maxDimension: number, quality: number): Promise<string> {
-  // Probe dimensions first (transient decode), then re-decode with native resize
-  const probe = await createImageBitmap(file);
-  const srcW = probe.width;
-  const srcH = probe.height;
-  probe.close();
-
-  const scale = Math.min(1, maxDimension / Math.max(srcW, srcH));
-  const width = Math.max(1, Math.round(srcW * scale));
-  const height = Math.max(1, Math.round(srcH * scale));
-
-  const bitmap = await createImageBitmap(file, {
-    resizeWidth: width,
-    resizeHeight: height,
-    resizeQuality: 'high',
+  // Single scaled decode. Passing only ONE resize dimension lets the decoder
+  // preserve aspect ratio and (for JPEG) downscale DURING decode via DCT
+  // scaling — no full-resolution bitmap is ever allocated (a 50 MP photo
+  // would otherwise need ~200 MB of RGBA and can OOM/reboot a phone).
+  // NOTE: never "probe" with createImageBitmap(file) without resize options —
+  // that IS a full-res decode.
+  let bitmap = await createImageBitmap(file, {
+    resizeWidth: maxDimension,
+    resizeQuality: 'medium', // 'high' can force a GPU scaling path that hangs buggy mobile drivers
     imageOrientation: 'from-image',
   });
 
+  // Portrait shots: a width-constrained decode can leave height above the cap
+  if (bitmap.height > maxDimension) {
+    bitmap.close();
+    bitmap = await createImageBitmap(file, {
+      resizeHeight: maxDimension,
+      resizeQuality: 'medium',
+      imageOrientation: 'from-image',
+    });
+  }
+
   try {
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Failed to create 2D canvas context');
 
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    drawWatermark(ctx, height);
+    ctx.drawImage(bitmap, 0, 0);
+    drawWatermark(ctx, canvas.height);
     return canvas.toDataURL('image/jpeg', quality);
   } finally {
     bitmap.close();

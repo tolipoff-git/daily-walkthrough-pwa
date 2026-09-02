@@ -148,6 +148,7 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
                             <img
                               src={photo.url}
                               alt={`Defect ${pIdx + 1}`}
+                              loading="lazy"
                               className="h-14 w-20 object-cover"
                             />
                           </div>

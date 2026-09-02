@@ -461,6 +461,8 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
                     <img
                       src={photo.url}
                       alt={photo.caption || 'Thumbnail'}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
                       onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
                     />
