@@ -202,6 +202,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       style={{
         width: '100%',
         maxWidth: isScreenPreview ? '210mm' : '100%',
+        minWidth: isScreenPreview ? '320px' : undefined,
         boxSizing: 'border-box',
       }}
     >
@@ -252,7 +253,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
 
       {/* 2. Executive 5-Second Status Bar */}
       <div
-        className="grid grid-cols-4 gap-2 mb-2 p-1.5 rounded-lg border border-slate-300"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 p-1.5 rounded-lg border border-slate-300"
         style={{ backgroundColor: '#f8fafc' }}
       >
         {/* Compliance Score Gauge */}
@@ -340,7 +341,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 3. Visual Trends & Anti-Rating Grid (Side-by-Side Charts) */}
-      <div className="grid grid-cols-2 gap-2.5 mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2">
         {/* Chart 1: Pulse of the Week */}
         <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
           <div className="flex items-center justify-between mb-1">
@@ -489,7 +490,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         <div className="text-[9.5px] font-bold uppercase text-slate-700 mb-1">
           {t.weeklyReport.chartDomainsTitle}
         </div>
-        <div className="grid grid-cols-4 gap-1.5 text-center text-[9px]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[9px]">
           {data.domainBreakdown.map((d) => (
             <div key={d.id} className="bg-white border border-slate-200 rounded p-1">
               <div className="font-bold text-slate-800 text-[9px] truncate">
@@ -514,7 +515,8 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-900 mb-1 border-b border-slate-300 pb-0.5">
           {t.weeklyReport.matrixTitle}
         </h3>
-        <table className="w-full text-[9px] text-left border-collapse border border-slate-300">
+        <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-[9px] text-left border-collapse border border-slate-300" style={{ minWidth: '420px' }}>
           <thead>
             <tr className="bg-slate-200 text-slate-900 font-bold">
               <th className="border border-slate-300 p-1 w-[22%]">{t.weeklyReport.thSignal}</th>
@@ -574,6 +576,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
             })}
           </tbody>
         </table>
+        </div>{/* end overflow-x-auto */}
       </div>
 
       {/* 6. Strategic Executive Narrative Briefing */}
@@ -581,7 +584,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         <div className="font-bold uppercase tracking-wider text-slate-800 text-[9.5px] mb-1">
           {t.weeklyReport.briefingTitle}
         </div>
-        <div className="grid grid-cols-2 gap-2 text-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800">
           <div>
             <p className="mb-1 leading-snug">
               <strong className="text-slate-900">• {t.weeklyReport.briefingTakeaway}:</strong>{' '}

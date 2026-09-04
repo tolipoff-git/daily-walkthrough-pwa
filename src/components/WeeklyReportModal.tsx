@@ -357,9 +357,11 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-950/60">
           {viewMode === 'printPreview' ? (
-            /* Print Preview Mode */
-            <div className="flex justify-center">
-              <PrintWeeklyReportView data={reportData} isScreenPreview={true} />
+            /* Print Preview Mode — horizontally scrollable on mobile */
+            <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+              <div className="flex justify-center min-w-[320px]">
+                <PrintWeeklyReportView data={reportData} isScreenPreview={true} />
+              </div>
             </div>
           ) : (
             /* Interactive Dashboard Mode */
