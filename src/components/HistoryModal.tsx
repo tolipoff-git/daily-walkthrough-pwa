@@ -7,7 +7,8 @@ import {
   FileSpreadsheet,
   Calendar,
   Clock,
-  User
+  User,
+  TrendingUp,
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
@@ -21,6 +22,7 @@ interface HistoryModalProps {
   onLoadSession: (session: InspectionSession) => void;
   onDeleteSession: (id: string) => void;
   onClearHistory: () => void;
+  onOpenWeeklyReport?: () => void;
 }
 
 export const HistoryModal: React.FC<HistoryModalProps> = ({
@@ -29,6 +31,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   onLoadSession,
   onDeleteSession,
   onClearHistory,
+  onOpenWeeklyReport,
 }) => {
   const { language, t } = useLanguage();
 
@@ -192,12 +195,30 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               {t.historyModal.clearAllBtn}
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="ml-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"
-          >
-            {t.common.close}
-          </button>
+
+          <div className="ml-auto flex items-center gap-2">
+            {onOpenWeeklyReport && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onClose();
+                  onOpenWeeklyReport();
+                }}
+                className="px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>{t.weeklyReport.btnCeoReport}</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"
+            >
+              {t.common.close}
+            </button>
+          </div>
         </div>
       </div>
     </div>

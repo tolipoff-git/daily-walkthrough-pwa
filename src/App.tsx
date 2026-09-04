@@ -21,6 +21,9 @@ import { ExportModal } from './components/ExportModal';
 import { ActionPlanView } from './components/ActionPlanView';
 import { HistoryModal } from './components/HistoryModal';
 import { PrintReportView } from './components/PrintReportView';
+import { PrintWeeklyReportView } from './components/PrintWeeklyReportView';
+import { WeeklyReportModal } from './components/WeeklyReportModal';
+import { WeeklyExecutiveReportData } from './utils/weeklyReport';
 import { PersonnelModal } from './components/PersonnelModal';
 import { SafetyReferenceModal } from './components/SafetyReferenceModal';
 import { SyncModal } from './components/SyncModal';
@@ -118,6 +121,9 @@ export const App: React.FC = () => {
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showDirectQrScanner, setShowDirectQrScanner] = useState<boolean>(false);
   const [showPrintPreview, setShowPrintPreview] = useState<boolean>(false);
+  const [showWeeklyReportModal, setShowWeeklyReportModal] = useState<boolean>(false);
+  const [activePrintMode, setActivePrintMode] = useState<'daily' | 'weekly'>('daily');
+  const [weeklyPrintData, setWeeklyPrintData] = useState<WeeklyExecutiveReportData | null>(null);
 
   // Photo Zoom Modal state
   const [previewPhotoData, setPreviewPhotoData] = useState<{
@@ -132,8 +138,20 @@ export const App: React.FC = () => {
   // Keep document.title in sync so Print → Save as PDF suggests the report
   // file name ("EHS Daily Walkthrough_<Inspector>_<dd.mm.yyyy>")
   useEffect(() => {
-    document.title = getReportFileName(session);
-  }, [session.date, session.inspectorName]);
+    if (activePrintMode === 'daily') {
+      document.title = getReportFileName(session);
+    }
+  }, [session.date, session.inspectorName, activePrintMode]);
+
+  // After print event listener to restore default daily mode & title
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setActivePrintMode('daily');
+      document.title = getReportFileName(session);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, [session]);
 
   // Filtered items logic
   const filteredItems = useMemo(() => {
@@ -222,8 +240,19 @@ export const App: React.FC = () => {
 
   const handleDirectPrint = () => {
     triggerHaptic();
+    setActivePrintMode('daily');
     saveInspectionToHistory(session);
     window.print();
+  };
+
+  const handleTriggerWeeklyPrint = (data: WeeklyExecutiveReportData) => {
+    setActivePrintMode('weekly');
+    setWeeklyPrintData(data);
+    setShowWeeklyReportModal(false);
+    document.title = `EHS_Weekly_Executive_Report_${data.period.startDate}_${data.period.endDate}`;
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const getCategoryIcon = (iconName: string) => {
@@ -249,6 +278,7 @@ export const App: React.FC = () => {
           metrics={metrics}
           onOpenExport={() => setShowExportModal(true)}
           onOpenHistory={() => setShowHistoryModal(true)}
+          onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
           onOpenActionPlan={() => setShowActionPlanModal(true)}
           onOpenPersonnel={() => setShowPersonnelModal(true)}
           onOpenSafetyRef={() => setShowSafetyRefModal(true)}
@@ -510,6 +540,7 @@ export const App: React.FC = () => {
           onClose={() => setShowExportModal(false)}
           onSaveToHistory={saveInspectionToHistory}
           onOpenPrintPreview={() => setShowPrintPreview(true)}
+          onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
         />
       )}
 
@@ -534,6 +565,7 @@ export const App: React.FC = () => {
           onLoadSession={loadSession}
           onDeleteSession={deleteFromHistory}
           onClearHistory={clearHistory}
+          onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
         />
       )}
 
@@ -588,10 +620,24 @@ export const App: React.FC = () => {
           }}
         />
       )}
+
+      {/* Weekly Executive Report Modal (CEO One-Pager) */}
+      {showWeeklyReportModal && (
+        <WeeklyReportModal
+          history={history}
+          currentSession={session}
+          onClose={() => setShowWeeklyReportModal(false)}
+          onTriggerPrint={handleTriggerWeeklyPrint}
+        />
+      )}
       </div>
 
       {/* Print PDF View (Direct sibling, visible during window.print()) */}
-      <PrintReportView session={session} />
+      {activePrintMode === 'weekly' && weeklyPrintData ? (
+        <PrintWeeklyReportView data={weeklyPrintData} />
+      ) : (
+        <PrintReportView session={session} />
+      )}
     </>
   );
 };

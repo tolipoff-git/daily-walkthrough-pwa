@@ -4,7 +4,8 @@ import {
   FileSpreadsheet,
   Printer,
   Download,
-  Eye
+  Eye,
+  TrendingUp,
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import { exportInspectionToExcel } from '../utils/exportExcel';
@@ -16,6 +17,7 @@ interface ExportModalProps {
   onClose: () => void;
   onSaveToHistory: (session: InspectionSession) => void;
   onOpenPrintPreview?: () => void;
+  onOpenWeeklyReport?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -23,6 +25,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onClose,
   onSaveToHistory,
   onOpenPrintPreview,
+  onOpenWeeklyReport,
 }) => {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'xlsx' | 'print'>('xlsx');
@@ -101,6 +104,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <Printer className="w-4 h-4" />
             <span>{t.exportModal.tabPrint}</span>
           </button>
+
+          {onOpenWeeklyReport && (
+            <button
+              onClick={() => {
+                triggerHaptic();
+                onClose();
+                onOpenWeeklyReport();
+              }}
+              className="ml-auto mb-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-900/60 to-indigo-900/60 hover:from-blue-800 hover:to-indigo-800 text-blue-200 hover:text-white border border-blue-600/60 flex items-center gap-1.5 transition-all text-xs font-bold"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+              <span>{t.weeklyReport.btnCeoReport}</span>
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}

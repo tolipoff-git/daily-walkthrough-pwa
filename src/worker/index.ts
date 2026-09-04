@@ -48,6 +48,94 @@ export default {
       );
     }
 
+    // Weekly Executive Aggregation API: /api/reports/weekly
+    if (url.pathname === '/api/reports/weekly') {
+      try {
+        let sessions: any[] = [];
+        const start = url.searchParams.get('start') || '';
+        const end = url.searchParams.get('end') || '';
+        const room = url.searchParams.get('room') || 'FSE-MAIN';
+
+        if (request.method === 'POST') {
+          const body = (await request.json()) as any;
+          sessions = Array.isArray(body?.sessions) ? body.sessions : [];
+        } else if (request.method === 'GET') {
+          // Attempt to pull latest session snapshot from KV room
+          let rawData: string | null = null;
+          if (env.EHS_KV) {
+            try {
+              rawData = await env.EHS_KV.get(`room:${room}`);
+            } catch (e) {
+              console.error('KV read error:', e);
+            }
+          }
+          if (!rawData) {
+            rawData = memoryStore.get(`room:${room}`) || null;
+          }
+          if (rawData) {
+            try {
+              const parsed = JSON.parse(rawData);
+              sessions = Array.isArray(parsed) ? parsed : [parsed];
+            } catch {}
+          }
+        }
+
+        // Calculate aggregated metrics
+        const totalDays = sessions.length;
+        let totalScore = 0;
+        let totalDefects = 0;
+        const defectsByArea: Record<string, number> = {};
+        const defectsByCategory: Record<string, number> = {};
+        const criticalRegulatoryRisks: string[] = [];
+
+        for (const s of sessions) {
+          let pass = 0;
+          let fail = 0;
+          for (const item of s.items || []) {
+            if (item.status === 'PASS') pass++;
+            else if (item.status === 'FAIL') {
+              fail++;
+              totalDefects++;
+              const loc = item.defectDetails?.zonePreset || item.defectDetails?.location || 'Floor';
+              defectsByArea[loc] = (defectsByArea[loc] || 0) + 1;
+              const cat = item.categoryId || 'cat2';
+              defectsByCategory[cat] = (defectsByCategory[cat] || 0) + 1;
+
+              if (cat === 'cat1' || item.defectDetails?.priority === 'P1') {
+                criticalRegulatoryRisks.push(`[${s.date}] ${item.titleEn || item.id}: ${item.defectDetails?.description || ''}`);
+              }
+            }
+          }
+          const dayScore = pass + fail > 0 ? Math.round((pass / (pass + fail)) * 100) : 100;
+          totalScore += dayScore;
+        }
+
+        const avgScore = totalDays > 0 ? Math.round(totalScore / totalDays) : 100;
+
+        return new Response(
+          JSON.stringify({
+            period: { start, end },
+            auditedDaysCount: totalDays,
+            averageComplianceScore: avgScore,
+            ragStatus: avgScore >= 85 ? 'GREEN' : avgScore >= 70 ? 'AMBER' : 'RED',
+            totalDefects,
+            defectsByArea,
+            defectsByCategory,
+            criticalRegulatoryRisks,
+            timestamp: new Date().toISOString(),
+          }),
+          {
+            headers: { ...securityHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      } catch (err: any) {
+        return new Response(JSON.stringify({ error: 'Failed to aggregate weekly report', details: err?.message }), {
+          status: 400,
+          headers: { ...securityHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Real-time Sync API: /api/sync/:key
     if (url.pathname.startsWith('/api/sync/')) {
       const key = decodeURIComponent(url.pathname.replace('/api/sync/', '')).trim();

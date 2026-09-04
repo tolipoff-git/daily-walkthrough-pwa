@@ -56,6 +56,17 @@ A high-performance, offline-first Progressive Web App (PWA) built with **React 1
    - 💾 **JSON Backup & Restore**: One-click full database export and import.
    - 🗂️ **Offline History Log**: Local audit archive with instant reload and export.
 
+7. **Weekly Executive Dashboard & Auto-Report for CEO (One-Pager)**:
+   - 🎯 **Executive 5-Second RAG Status**: High-level traffic light index (🟢 Normal >85%, 🟡 Attention 70-84%, 🔴 Intervention <70%), Week-over-Week delta trend vector (`↗` / `↘`), and immediate OSHA/NFPA statutory exposure counter.
+   - 📈 **Daily Compliance Pulse**: Vector SVG line chart mapping Monday-to-Friday compliance trajectory against the 85% norm threshold corridor.
+   - 🗺️ **Facility Area Anti-Rating**: Heatmap ranking facility zones (Wabtec, Warehouse, Build 2, Workshop, QA, Docks) by defect density and severity (P1/P2/P3), instantly surfacing root bottlenecks.
+   - 📊 **Operational Domains Breakdown**: Defect categorization across 4 core domains (Life Safety & Egress, 5S & Housekeeping, Warehouse & Racking, Facility & PPE).
+   - 📋 **Actionable Executive Matrix (3-Tier)**: Concentrated decision table connecting Critical/Regulatory risks, Process Bottlenecks, and Culture/PPE enforcement directly to administrative actions, accountable owners, and SLAs.
+   - 🤖 **Smart Executive Narrative & LLM Prompt**: Auto-synthesized C-suite briefing (Takeaway, Legal Exposure, Bottlenecks, Leadership Actions) plus 1-click prompt generator for Gemini / Claude / Workers AI.
+   - 🖨️ **Print Executive One-Pager (A4 PDF)**: Precision `@media print` layout engineered strictly for a 1-page A4 executive handout with CEO approval sign-off block.
+   - 📊 **Weekly Excel Export**: Multi-sheet workbook (`.xlsx`) containing executive summary, daily pulse log, and zone anti-rating breakdown.
+   - 🌐 **Edge API Endpoint (`/api/reports/weekly`)**: Cloudflare Worker endpoint for server-side aggregation and sync queries.
+
 ---
 
 ## 📁 Project Structure

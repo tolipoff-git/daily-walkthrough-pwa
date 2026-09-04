@@ -15,7 +15,8 @@ import {
   Cloud,
   CloudRain,
   RefreshCw,
-  Camera
+  Camera,
+  TrendingUp,
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
@@ -27,6 +28,7 @@ interface HeaderProps {
   metrics: InspectionMetrics;
   onOpenExport: () => void;
   onOpenHistory: () => void;
+  onOpenWeeklyReport?: () => void;
   onOpenActionPlan: () => void;
   onOpenPersonnel?: () => void;
   onOpenSafetyRef?: () => void;
@@ -43,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   metrics,
   onOpenExport,
   onOpenHistory,
+  onOpenWeeklyReport,
   onOpenActionPlan,
   onOpenPersonnel,
   onOpenSafetyRef,
@@ -227,6 +230,22 @@ export const Header: React.FC<HeaderProps> = ({
               <History className="w-3.5 h-3.5 text-blue-400" />
               <span className="hidden md:inline">{t.common.history}</span>
             </button>
+
+            {/* Weekly CEO Report button */}
+            {onOpenWeeklyReport && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onOpenWeeklyReport();
+                }}
+                className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-blue-900/60 to-indigo-900/60 hover:from-blue-800/80 hover:to-indigo-800/80 text-blue-200 hover:text-white border border-blue-600/60 hover:border-blue-500 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
+                title={t.weeklyReport.modalSubtitle}
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+                <span className="hidden sm:inline">{t.weeklyReport.btnCeoReport}</span>
+              </button>
+            )}
 
             {/* Personnel Directory button */}
             {onOpenPersonnel && (
