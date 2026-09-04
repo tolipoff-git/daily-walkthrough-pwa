@@ -319,7 +319,6 @@ export interface Translations {
     sessionsCount: string;
     noSessionsFound: string;
     noSessionsTip: string;
-    loadDemoData: string;
     includeCurrentSession: string;
     kpiSectionTitle: string;
     complianceScore: string;

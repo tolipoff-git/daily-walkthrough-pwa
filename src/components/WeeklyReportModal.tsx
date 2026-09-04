@@ -19,14 +19,12 @@ import {
   Eye,
   Check,
   ShieldCheck,
-  Zap,
 } from 'lucide-react';
 import { InspectionSession } from '../types/inspection';
 import {
   aggregateWeeklyExecutiveReport,
   getWeekDateRange,
   getLastNDaysRange,
-  generateDemoSessions,
   WeeklyExecutiveReportData,
 } from '../utils/weeklyReport';
 import { exportWeeklyReportToExcel } from '../utils/exportWeeklyExcel';
@@ -56,8 +54,6 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
   const [startDate, setStartDate] = useState<string>(defaultCurrentRange.startDate);
   const [endDate, setEndDate] = useState<string>(defaultCurrentRange.endDate);
 
-  // Demo sessions state (if user clicks "Generate Sample Week Data")
-  const [demoSessions, setDemoSessions] = useState<InspectionSession[] | null>(null);
   const [includeActive, setIncludeActive] = useState<boolean>(true);
 
   // View Mode: 'dashboard' vs 'printPreview'
@@ -89,19 +85,14 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
     }
   };
 
-  // Compile combined session pool
+  // Compile combined session pool strictly from real inspection history
   const sessionsPool = useMemo(() => {
-    const list: InspectionSession[] = [];
-    if (demoSessions) {
-      list.push(...demoSessions);
-    } else {
-      list.push(...history);
-      if (includeActive && currentSession && !list.some((s) => s.id === currentSession.id)) {
-        list.push(currentSession);
-      }
+    const list: InspectionSession[] = [...history];
+    if (includeActive && currentSession && !list.some((s) => s.id === currentSession.id)) {
+      list.push(currentSession);
     }
     return list;
-  }, [history, currentSession, includeActive, demoSessions]);
+  }, [history, currentSession, includeActive]);
 
   // Aggregate report data
   const reportData: WeeklyExecutiveReportData = useMemo(() => {
@@ -155,16 +146,6 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
     } catch (e) {
       console.error('Failed to copy briefing', e);
     }
-  };
-
-  const handleGenerateDemo = () => {
-    triggerHaptic();
-    const demo = generateDemoSessions();
-    setDemoSessions(demo);
-    const r = getWeekDateRange(0);
-    setStartDate(r.startDate);
-    setEndDate(r.endDate);
-    setPeriodPreset('current');
   };
 
   // Domain icon resolver
@@ -283,17 +264,6 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
             >
               {t.weeklyReport.presetAll}
             </button>
-            <button
-              onClick={handleGenerateDemo}
-              className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 ${
-                demoSessions
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-slate-800 text-purple-300 hover:bg-slate-750'
-              }`}
-            >
-              <Zap className="w-3 h-3 text-purple-400" />
-              <span>{isRu ? 'Демо-неделя' : 'Demo Week'}</span>
-            </button>
             <label className="ml-2 flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -347,22 +317,13 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
           </div>
         </div>
 
-        {/* Info Banner if 0 or 1 sessions */}
+        {/* Info Banner if 0 sessions */}
         {reportData.auditedDaysCount === 0 && (
-          <div className="px-6 py-3 bg-amber-950/60 border-b border-amber-800/80 flex items-center justify-between gap-3 text-xs text-amber-300">
-            <div className="flex items-center gap-2">
-              <AlertOctagon className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>
-                <b>{t.weeklyReport.noSessionsFound}</b> {t.weeklyReport.noSessionsTip}
-              </span>
-            </div>
-            <button
-              onClick={handleGenerateDemo}
-              className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg shrink-0 flex items-center gap-1 shadow"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              {t.weeklyReport.loadDemoData}
-            </button>
+          <div className="px-6 py-3 bg-amber-950/60 border-b border-amber-800/80 flex items-center gap-2 text-xs text-amber-300">
+            <AlertOctagon className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <b>{t.weeklyReport.noSessionsFound}</b> {t.weeklyReport.noSessionsTip}
+            </span>
           </div>
         )}
 
