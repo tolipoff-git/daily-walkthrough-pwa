@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { language, t, getCategoryTitle } = useLanguage();
+  const { language, t, getCategoryTitle, getCategoryDesc } = useLanguage();
 
   const {
     session,
@@ -342,7 +342,6 @@ export const App: React.FC = () => {
             categoriesWithItems.map((catGroup) => {
               const pendingInCat = catGroup.items.filter((i) => i.status === 'PENDING').length;
               const catTitle = getCategoryTitle(catGroup);
-              const catSub = language === 'ru' ? catGroup.titleEn : (catGroup.descriptionEn || catGroup.descriptionRu);
 
               return (
                 <section key={catGroup.id} className="mb-6">
@@ -357,7 +356,7 @@ export const App: React.FC = () => {
                           {catGroup.number}. {catTitle}
                         </h2>
                         <span className="text-[11px] text-slate-400">
-                          {catSub}
+                          {getCategoryDesc(catGroup)}
                         </span>
                       </div>
                     </div>

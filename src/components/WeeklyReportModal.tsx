@@ -100,10 +100,11 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
     return list;
   }, [history, currentSession, includeActive]);
 
-  // Aggregate report data
+  // Aggregate report data. The active language is passed so the generator
+  // never inlines Cyrillic zone/inspector text into the English export.
   const reportData: WeeklyExecutiveReportData = useMemo(() => {
-    return aggregateWeeklyExecutiveReport(sessionsPool, startDate, endDate);
-  }, [sessionsPool, startDate, endDate]);
+    return aggregateWeeklyExecutiveReport(sessionsPool, startDate, endDate, language);
+  }, [sessionsPool, startDate, endDate, language]);
 
   // Notify parent of reportData for synchronized print/PDF readiness
   useEffect(() => {

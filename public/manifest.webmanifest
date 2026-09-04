@@ -3,11 +3,15 @@
   "short_name": "EHS Walkthrough",
   "description": "Итоговый чек-лист ежедневного обхода предприятия: безопасность, 5S, склад и инфраструктура",
   "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "categories": ["business", "productivity", "utilities"],
+  "lang": "ru",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icon.svg",
@@ -19,13 +23,34 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новый обход",
+      "short_name": "Новый",
+      "description": "Начать новый ежедневный обход предприятия",
+      "url": "/?action=new",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

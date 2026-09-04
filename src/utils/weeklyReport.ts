@@ -13,6 +13,8 @@ export interface DailyPoint {
 
 export interface ZoneAntiRating {
   zone: string;
+  zoneLabelEn: string;
+  zoneLabelRu: string;
   totalDefects: number;
   p1Count: number;
   p2Count: number;
@@ -434,7 +436,8 @@ export function filterSessionsByRange(
 export function aggregateWeeklyExecutiveReport(
   sessions: InspectionSession[],
   startDate: string,
-  endDate: string
+  endDate: string,
+  language: 'ru' | 'en' = 'ru'
 ): WeeklyExecutiveReportData {
   const filtered = filterSessionsByRange(sessions, startDate, endDate);
 
@@ -466,8 +469,11 @@ export function aggregateWeeklyExecutiveReport(
     cat4: { count: 0, p1: 0 },
   };
 
-  // Zone map
-  const zoneMap = new Map<string, { p1: number; p2: number; p3: number; samples: string[] }>();
+  // Zone map. We key on the canonical UPPERCASE Latin id (e.g. "WABTEC",
+  // "WAREHOUSE", "DOCKS") so that report language switching never inlines
+  // Cyrillic into an English narrative. The per-language label is stored
+  // alongside so the report can switch language safely.
+  const zoneMap = new Map<string, { p1: number; p2: number; p3: number; samples: string[]; labelEn: string; labelRu: string }>();
 
   // Regulatory risks tracker
   const criticalRegulatoryItems: Array<{
@@ -542,7 +548,7 @@ export function aggregateWeeklyExecutiveReport(
           totalDefectsCount++;
           const p = item.defectDetails?.priority || 'P2';
           const zoneInfo = resolveCanonicalZone(item, session);
-          const zone = zoneInfo.zoneLabelRu;
+          const zone = zoneInfo.zoneKey;
           const desc = item.defectDetails?.description || item.titleRu;
           const resStatus = item.defectDetails?.resolutionStatus || 'Open';
           const currentInspector = session.inspectorName || 'Inspector';
@@ -558,8 +564,9 @@ export function aggregateWeeklyExecutiveReport(
             if (p === 'P1') domainDefects[catId].p1++;
           }
 
-          // Zone tracking using canonical zone - zero "Floor / Unassigned"
-          const zData = zoneMap.get(zone) || { p1: 0, p2: 0, p3: 0, samples: [] };
+          // Zone tracking using canonical zone key (Latin). Both localized
+          // labels are stored so the report can switch language safely.
+          const zData = zoneMap.get(zone) || { p1: 0, p2: 0, p3: 0, samples: [], labelEn: zoneInfo.zoneLabelEn, labelRu: zoneInfo.zoneLabelRu };
           if (p === 'P1') zData.p1++;
           else if (p === 'P2') zData.p2++;
           else zData.p3++;
@@ -684,6 +691,8 @@ export function aggregateWeeklyExecutiveReport(
       const percentage = totalDefectsCount > 0 ? Math.round((totalDefects / totalDefectsCount) * 100) : 0;
       return {
         zone,
+        zoneLabelEn: data.labelEn,
+        zoneLabelRu: data.labelRu,
         totalDefects,
         p1Count: data.p1,
         p2Count: data.p2,
@@ -719,7 +728,12 @@ export function aggregateWeeklyExecutiveReport(
   });
 
   // Actionable Executive Matrix (3 tiers strictly matching the architecture)
-  const topTroubleZone = zonesAntiRating[0]?.zone || 'Facility Floor';
+  // topZoneEntry is the raw antiRating row; the human-readable label is
+  // resolved per language so narrative never carries the wrong alphabet.
+  const topZoneEntry = zonesAntiRating[0];
+  const topTroubleZoneLabel = topZoneEntry
+    ? (language === 'en' ? topZoneEntry.zoneLabelEn : topZoneEntry.zoneLabelRu)
+    : (language === 'en' ? 'Facility Floor' : 'Основной цех');
   const actionableMatrix: ActionableMatrixRow[] = [];
 
   // Tier 1: Critical Regulatory
@@ -843,8 +857,8 @@ export function aggregateWeeklyExecutiveReport(
   const trendWordRu = trendDirection === 'UP' ? 'позитивная' : trendDirection === 'DOWN' ? 'негативная' : 'стабильная';
 
   const narrative = {
-    takeawayEn: `Plant safety compliance is at ${overallScore}% (${ragStatus === 'GREEN' ? 'Normal Operating' : ragStatus === 'AMBER' ? 'Attention Required' : 'Executive Intervention Needed'}) with a ${trendWordEn} trend (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Primary operational exposure centers on ${topTroubleZone}, representing ${zonesAntiRating[0]?.percentage || 0}% of all recorded defects.`,
-    takeawayRu: `Индекс безопасности завода составляет ${overallScore}% (${ragStatus === 'GREEN' ? 'Нормальный режим' : ragStatus === 'AMBER' ? 'Требует внимания' : 'Требуется вмешательство руководства'}) с динамикой: ${trendWordRu} (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Основная концентрация рисков сосредоточена на участке ${topTroubleZone} (${zonesAntiRating[0]?.percentage || 0}% от всех дефектов).`,
+    takeawayEn: `Plant safety compliance is at ${overallScore}% (${ragStatus === 'GREEN' ? 'Normal Operating' : ragStatus === 'AMBER' ? 'Attention Required' : 'Executive Intervention Needed'}) with a ${trendWordEn} trend (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Primary operational exposure centers on ${topTroubleZoneLabel}, representing ${zonesAntiRating[0]?.percentage || 0}% of all recorded defects.`,
+    takeawayRu: `Индекс безопасности завода составляет ${overallScore}% (${ragStatus === 'GREEN' ? 'Нормальный режим' : ragStatus === 'AMBER' ? 'Требует внимания' : 'Требуется вмешательство руководства'}) с динамикой: ${trendWordRu} (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Основная концентрация рисков сосредоточена на участке ${topTroubleZoneLabel} (${zonesAntiRating[0]?.percentage || 0}% от всех дефектов).`,
     regulatoryEn:
       criticalRegulatoryCount > 0
         ? `Identified ${criticalRegulatoryCount} OSHA/NFPA regulatory stop-factors (clearances, fire protection, or egress lanes). Direct exposure to statutory citations and plant liability; executive sign-off required for immediate remediation.`
@@ -853,10 +867,10 @@ export function aggregateWeeklyExecutiveReport(
       criticalRegulatoryCount > 0
         ? `Зафиксировано ${criticalRegulatoryCount} регуляторных стоп-факторов OSHA/NFPA (эвакуация, пожарные посты или электрощиты). Прямой риск предписаний регулятора; требуется распоряжение руководства на устранение.`
         : 'Критических несоответствий OSHA/NFPA не выявлено. Пути эвакуации, пожарные посты и электрощиты соответствуют нормам.',
-    bottlenecksEn: `Systemic 5S and physical layout bottlenecks persist in ${topTroubleZone}. Repetitive findings relate to unorganized cable drops, pallet buffer overflow, and tooling return delays.`,
-    bottlenecksRu: `Системные узкие места 5S и планировки сохраняются на участке ${topTroubleZone}. Повторяющиеся замечания: незакрепленные кабели, переполнение буферных зон и задержки возврата инструмента.`,
-    actionsEn: `Instruct Operations and Facility Leads to execute the 3-row Actionable Matrix: prioritize 24-hour clearance of critical items, execute 5S re-audit at ${topTroubleZone}, and hold Shift Leads accountable for PPE adherence.`,
-    actionsRu: `Поручить руководителям производства и службы эксплуатации исполнение матрицы решений: устранить критические замечания за 24 ч, провести аудит 5S на участке ${topTroubleZone} и закрепить персональную ответственность за СИЗ.`,
+    bottlenecksEn: `Systemic 5S and physical layout bottlenecks persist in ${topTroubleZoneLabel}. Repetitive findings relate to unorganized cable drops, pallet buffer overflow, and tooling return delays.`,
+    bottlenecksRu: `Системные узкие места 5S и планировки сохраняются на участке ${topTroubleZoneLabel}. Повторяющиеся замечания: незакрепленные кабели, переполнение буферных зон и задержки возврата инструмента.`,
+    actionsEn: `Instruct Operations and Facility Leads to execute the 3-row Actionable Matrix: prioritize 24-hour clearance of critical items, execute 5S re-audit at ${topTroubleZoneLabel}, and hold Shift Leads accountable for PPE adherence.`,
+    actionsRu: `Поручить руководителям производства и службы эксплуатации исполнение матрицы решений: устранить критические замечания за 24 ч, провести аудит 5S на участке ${topTroubleZoneLabel} и закрепить персональную ответственность за СИЗ.`,
   };
 
   // Structured LLM prompt for external Gemini / Workers AI call
@@ -871,11 +885,14 @@ export function aggregateWeeklyExecutiveReport(
     resolvedCount,
     dailyScores: dailyPoints.map((d) => ({ date: d.date, day: d.dayLabel, score: d.score, defects: d.defectsCount })),
     topFailingZones: zonesAntiRating.slice(0, 5).map((z) => ({
-      zone: z.zone,
+      zone: language === 'en' ? z.zoneLabelEn : z.zoneLabelRu,
       totalDefects: z.totalDefects,
       p1: z.p1Count,
       percentage: z.percentage,
-      samples: z.sampleIssues,
+      // Sample issue text is whatever the inspector typed. In the EN
+      // executive export we mask Cyrillic characters so the LLM prompt
+      // and any downstream English text never contain mixed alphabets.
+      samples: z.sampleIssues.map((s) => language === 'en' ? maskCyrillicForEnglish(s) : s),
     })),
     domainBreakdown: domainBreakdown.map((d) => ({
       domain: d.titleEn,
@@ -904,7 +921,13 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
         .filter((name): name is string => Boolean(name && name.length > 0))
     )
   );
-  const auditorsFormatted = uniqueAuditors.length > 0 ? uniqueAuditors.join(', ') : 'EHS Inspection Team';
+  // In the English export we mask any Cyrillic inspector names so the
+  // English CEO narrative stays single-alphabet; the user can identify
+  // staff by session ids in the annex anyway.
+  const auditorsForEnglish = uniqueAuditors.map((n) => maskCyrillicForEnglish(n));
+  const auditorsFormatted = uniqueAuditors.length > 0
+    ? (language === 'en' ? auditorsForEnglish.join(', ') : uniqueAuditors.join(', '))
+    : (language === 'en' ? 'EHS Inspection Team' : 'EHS Inspection Team');
   const auditorsFormattedRu = uniqueAuditors.length > 0 ? uniqueAuditors.join(', ') : 'Инспекционная группа EHS';
 
   const daysCount = auditedDaysCount > 0 ? auditedDaysCount : 5;
@@ -1125,5 +1148,23 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
     llmPrompt,
     defectRegister,
   };
+}
+
+/**
+ * Replaces Cyrillic characters in a string with a stable Roman placeholder
+ * so that English-language exports (CEO narrative, LLM prompt, Gemini copy)
+ * never carry mixed alphabets. We keep the original length hint and ASCII
+ * fallback instead of trying to transliterate (transliteration is lossy and
+ * a future i18n improvement can swap this for a proper translation pass).
+ */
+export function maskCyrillicForEnglish(input: string | null | undefined): string {
+  if (!input) return '';
+  // Detect any Cyrillic character
+  if (!/[\u0400-\u04FF]/.test(input)) return input;
+  // Mask: collapse runs of Cyrillic into a bracketed placeholder
+  return input.replace(/[\u0400-\u04FF]+/g, (match) => {
+    if (match.length <= 2) return '[ru]';
+    return '[ru-text]';
+  });
 }
 
