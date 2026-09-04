@@ -94,7 +94,7 @@ export function exportWeeklyReportToExcel(
       isRu ? 'Примеры проблем' : 'Sample Issues',
     ],
     ...data.zonesAntiRating.map((z) => [
-      z.zone,
+      isRu ? z.zoneLabelRu : z.zoneLabelEn,
       z.totalDefects,
       `${z.percentage}%`,
       z.p1Count,

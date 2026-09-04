@@ -317,11 +317,14 @@ export function resolveCanonicalZone(
       }
     }
     // Custom specific zone entered at session level
-    const cleanCustom = sessionArea.toUpperCase();
+    // We force the zoneKey to a Latin/ASCII slug so it is safe to use as a
+    // map key and to display in any language. Both labels preserve the
+    // original user input.
+    const cleanCustom = zoneKeyToLatinSlug(sessionArea);
     return {
       zoneKey: cleanCustom,
       zoneLabelRu: sessionArea,
-      zoneLabelEn: sessionArea,
+      zoneLabelEn: cleanCustom,
       rawLocation: rawLoc || sessionArea,
     };
   }
@@ -479,12 +482,12 @@ export function aggregateWeeklyExecutiveReport(
   const criticalRegulatoryItems: Array<{
     date: string;
     item: ChecklistItem;
-    zone: string;
+    zoneInfo: ReturnType<typeof resolveCanonicalZone>;
   }> = [];
 
   // 5S / Housekeeping / Bottlenecks tracker
   const bottleneckIssues: Array<{
-    zone: string;
+    zoneInfo: ReturnType<typeof resolveCanonicalZone>;
     desc: string;
     assignee: string;
   }> = [];
@@ -492,7 +495,7 @@ export function aggregateWeeklyExecutiveReport(
   // Safety culture / PPE issues tracker
   const cultureIssues: Array<{
     desc: string;
-    zone: string;
+    zoneInfo: ReturnType<typeof resolveCanonicalZone>;
   }> = [];
 
   // Map key: `${checkpointId}::${canonicalZoneKey}`
@@ -582,13 +585,13 @@ export function aggregateWeeklyExecutiveReport(
 
           if (isCat1 || isP1 || isRegulatoryKeyword) {
             criticalRegulatoryCount++;
-            criticalRegulatoryItems.push({ date, item, zone });
+            criticalRegulatoryItems.push({ date, item, zoneInfo });
           }
 
           // Bottlenecks detection (repetitive 5S, cabling, clutter)
           if (catId === 'cat2' || catId === 'cat3') {
             bottleneckIssues.push({
-              zone,
+              zoneInfo,
               desc,
               assignee: item.defectDetails?.assignedTo || 'Facilities',
             });
@@ -599,7 +602,7 @@ export function aggregateWeeklyExecutiveReport(
             item.id === '4.4' ||
             /(ppe|glasses|goggles|boots|vest|ear|culture|очки|сиз|обувь|жилет)/i.test(desc + ' ' + item.titleEn)
           ) {
-            cultureIssues.push({ desc, zone });
+            cultureIssues.push({ desc, zoneInfo });
           }
 
           // Smart Chronological Deduplication tracking
@@ -731,24 +734,25 @@ export function aggregateWeeklyExecutiveReport(
   // topZoneEntry is the raw antiRating row; the human-readable label is
   // resolved per language so narrative never carries the wrong alphabet.
   const topZoneEntry = zonesAntiRating[0];
-  const topTroubleZoneLabel = topZoneEntry
-    ? (language === 'en' ? topZoneEntry.zoneLabelEn : topZoneEntry.zoneLabelRu)
-    : (language === 'en' ? 'Facility Floor' : 'Основной цех');
+  const topTroubleZoneLabelEn = topZoneEntry ? topZoneEntry.zoneLabelEn : 'Facility Floor';
+  const topTroubleZoneLabelRu = topZoneEntry ? topZoneEntry.zoneLabelRu : 'Основной цех';
   const actionableMatrix: ActionableMatrixRow[] = [];
 
   // Tier 1: Critical Regulatory
   if (criticalRegulatoryItems.length > 0) {
     const topReg = criticalRegulatoryItems[0];
-    const regDesc = topReg.item.defectDetails?.description || topReg.item.titleEn;
+    const rawDesc = topReg.item.defectDetails?.description || topReg.item.titleEn;
+    const regDescRu = rawDesc;
+    const regDescEn = maskCyrillicForEnglish(rawDesc);
     actionableMatrix.push({
       tier: 'CRITICAL',
       badgeColor: 'red',
       signalTitleEn: 'CRITICAL / REGULATORY',
       signalTitleRu: 'КРИТИЧНО / РЕГУЛЯТОР',
-      issueEn: `Regulatory Exposure: ${regDesc} (${topReg.item.titleEn}). Non-compliance with OSHA 1910 / NFPA 101 standards.`,
-      issueRu: `Риск штрафов регулятора: ${regDesc}. Нарушение стандартов OSHA 1910 / NFPA 101.`,
-      riskAreaEn: topReg.zone,
-      riskAreaRu: topReg.zone,
+      issueEn: `Regulatory Exposure: ${regDescEn} (${topReg.item.titleEn}). Non-compliance with OSHA 1910 / NFPA 101 standards.`,
+      issueRu: `Риск штрафов регулятора: ${regDescRu}. Нарушение стандартов OSHA 1910 / NFPA 101.`,
+      riskAreaEn: topReg.zoneInfo.zoneLabelEn,
+      riskAreaRu: topReg.zoneInfo.zoneLabelRu,
       actionEn: 'Administrative: Immediate executive sign-off for contractor inspection / clear egress corridor within 24h.',
       actionRu: 'Административное: Срочное заключение договора на аудит / освобождение проходов в течение 24 ч.',
       actionTypeEn: 'Administrative',
@@ -784,10 +788,10 @@ export function aggregateWeeklyExecutiveReport(
       badgeColor: 'amber',
       signalTitleEn: 'PROCESS BOTTLENECK',
       signalTitleRu: 'ОПЕРАЦИОННОЕ УЗКОЕ МЕСТО',
-      issueEn: `Repetitive failures in ${topZoneInfo.zone}: ${topIssue} (${topZoneInfo.totalDefects} defects, ${topZoneInfo.percentage}% of plant total).`,
-      issueRu: `Системные дефекты на участке ${topZoneInfo.zone}: ${topIssue} (${topZoneInfo.totalDefects} замечаний, ${topZoneInfo.percentage}% от завода).`,
-      riskAreaEn: topZoneInfo.zone,
-      riskAreaRu: topZoneInfo.zone,
+      issueEn: `Repetitive failures in ${topZoneInfo.zoneLabelEn}: ${maskCyrillicForEnglish(topIssue)} (${topZoneInfo.totalDefects} defects, ${topZoneInfo.percentage}% of plant total).`,
+      issueRu: `Системные дефекты на участке ${topZoneInfo.zoneLabelRu}: ${topIssue} (${topZoneInfo.totalDefects} замечаний, ${topZoneInfo.percentage}% от завода).`,
+      riskAreaEn: topZoneInfo.zoneLabelEn,
+      riskAreaRu: topZoneInfo.zoneLabelRu,
       actionEn: 'Process: Mandatory 5S audit with Area Lead, install cable routing channels & re-demarcate floor buffers.',
       actionRu: 'Процессное: Аудит начальника участка, внедрение кабель-каналов и переразметка буферных зон.',
       actionTypeEn: 'Process',
@@ -822,10 +826,10 @@ export function aggregateWeeklyExecutiveReport(
       badgeColor: 'blue',
       signalTitleEn: 'SAFETY CULTURE GAP',
       signalTitleRu: 'КУЛЬТУРА БЕЗОПАСНОСТИ',
-      issueEn: `Discipline non-compliance: ${cIssue.desc} in ${cIssue.zone}. Risk of eye/foot injury and liability claims.`,
-      issueRu: `Нарушение трудовой дисциплины: ${cIssue.desc} на участке ${cIssue.zone}. Риск травматизма и претензий.`,
-      riskAreaEn: cIssue.zone,
-      riskAreaRu: cIssue.zone,
+      issueEn: `Discipline non-compliance: ${maskCyrillicForEnglish(cIssue.desc)} in ${cIssue.zoneInfo.zoneLabelEn}. Risk of eye/foot injury and liability claims.`,
+      issueRu: `Нарушение трудовой дисциплины: ${cIssue.desc} на участке ${cIssue.zoneInfo.zoneLabelRu}. Риск травматизма и претензий.`,
+      riskAreaEn: cIssue.zoneInfo.zoneLabelEn,
+      riskAreaRu: cIssue.zoneInfo.zoneLabelRu,
       actionEn: 'Leadership: Briefing at management stand-up; mandate team leads enforce 100% PPE compliance under personal accountability.',
       actionRu: 'Управленческое: Разбор на планерке с лид-инженерами о персональной ответственности за ношение СИЗ.',
       actionTypeEn: 'Leadership',
@@ -857,8 +861,8 @@ export function aggregateWeeklyExecutiveReport(
   const trendWordRu = trendDirection === 'UP' ? 'позитивная' : trendDirection === 'DOWN' ? 'негативная' : 'стабильная';
 
   const narrative = {
-    takeawayEn: `Plant safety compliance is at ${overallScore}% (${ragStatus === 'GREEN' ? 'Normal Operating' : ragStatus === 'AMBER' ? 'Attention Required' : 'Executive Intervention Needed'}) with a ${trendWordEn} trend (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Primary operational exposure centers on ${topTroubleZoneLabel}, representing ${zonesAntiRating[0]?.percentage || 0}% of all recorded defects.`,
-    takeawayRu: `Индекс безопасности завода составляет ${overallScore}% (${ragStatus === 'GREEN' ? 'Нормальный режим' : ragStatus === 'AMBER' ? 'Требует внимания' : 'Требуется вмешательство руководства'}) с динамикой: ${trendWordRu} (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Основная концентрация рисков сосредоточена на участке ${topTroubleZoneLabel} (${zonesAntiRating[0]?.percentage || 0}% от всех дефектов).`,
+    takeawayEn: `Plant safety compliance is at ${overallScore}% (${ragStatus === 'GREEN' ? 'Normal Operating' : ragStatus === 'AMBER' ? 'Attention Required' : 'Executive Intervention Needed'}) with a ${trendWordEn} trend (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Primary operational exposure centers on ${topTroubleZoneLabelEn}, representing ${zonesAntiRating[0]?.percentage || 0}% of all recorded defects.`,
+    takeawayRu: `Индекс безопасности завода составляет ${overallScore}% (${ragStatus === 'GREEN' ? 'Нормальный режим' : ragStatus === 'AMBER' ? 'Требует внимания' : 'Требуется вмешательство руководства'}) с динамикой: ${trendWordRu} (${trendDelta >= 0 ? '+' : ''}${trendDelta}%). Основная концентрация рисков сосредоточена на участке ${topTroubleZoneLabelRu} (${zonesAntiRating[0]?.percentage || 0}% от всех дефектов).`,
     regulatoryEn:
       criticalRegulatoryCount > 0
         ? `Identified ${criticalRegulatoryCount} OSHA/NFPA regulatory stop-factors (clearances, fire protection, or egress lanes). Direct exposure to statutory citations and plant liability; executive sign-off required for immediate remediation.`
@@ -867,10 +871,10 @@ export function aggregateWeeklyExecutiveReport(
       criticalRegulatoryCount > 0
         ? `Зафиксировано ${criticalRegulatoryCount} регуляторных стоп-факторов OSHA/NFPA (эвакуация, пожарные посты или электрощиты). Прямой риск предписаний регулятора; требуется распоряжение руководства на устранение.`
         : 'Критических несоответствий OSHA/NFPA не выявлено. Пути эвакуации, пожарные посты и электрощиты соответствуют нормам.',
-    bottlenecksEn: `Systemic 5S and physical layout bottlenecks persist in ${topTroubleZoneLabel}. Repetitive findings relate to unorganized cable drops, pallet buffer overflow, and tooling return delays.`,
-    bottlenecksRu: `Системные узкие места 5S и планировки сохраняются на участке ${topTroubleZoneLabel}. Повторяющиеся замечания: незакрепленные кабели, переполнение буферных зон и задержки возврата инструмента.`,
-    actionsEn: `Instruct Operations and Facility Leads to execute the 3-row Actionable Matrix: prioritize 24-hour clearance of critical items, execute 5S re-audit at ${topTroubleZoneLabel}, and hold Shift Leads accountable for PPE adherence.`,
-    actionsRu: `Поручить руководителям производства и службы эксплуатации исполнение матрицы решений: устранить критические замечания за 24 ч, провести аудит 5S на участке ${topTroubleZoneLabel} и закрепить персональную ответственность за СИЗ.`,
+    bottlenecksEn: `Systemic 5S and physical layout bottlenecks persist in ${topTroubleZoneLabelEn}. Repetitive findings relate to unorganized cable drops, pallet buffer overflow, and tooling return delays.`,
+    bottlenecksRu: `Системные узкие места 5S и планировки сохраняются на участке ${topTroubleZoneLabelRu}. Повторяющиеся замечания: незакрепленные кабели, переполнение буферных зон и задержки возврата инструмента.`,
+    actionsEn: `Instruct Operations and Facility Leads to execute the 3-row Actionable Matrix: prioritize 24-hour clearance of critical items, execute 5S re-audit at ${topTroubleZoneLabelEn}, and hold Shift Leads accountable for PPE adherence.`,
+    actionsRu: `Поручить руководителям производства и службы эксплуатации исполнение матрицы решений: устранить критические замечания за 24 ч, провести аудит 5S на участке ${topTroubleZoneLabelRu} и закрепить персональную ответственность за СИЗ.`,
   };
 
   // Structured LLM prompt for external Gemini / Workers AI call
@@ -985,8 +989,9 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
         const dateFormatted = parts.length === 3 ? `${parts[1]}/${parts[2]}` : o.date;
         const shortId = formatShortSessionId(o.sessionId, o.date);
         const inspLastName = o.inspectorName ? o.inspectorName.split(' ')[0] : 'Inspector';
-        let text = `• [${dateFormatted} ${o.dayLabel} • ${shortId} • ${inspLastName}]: ${o.description}`;
-        if (o.notes) text += ` (${o.notes})`;
+        const dayEn = getWeekdayName(o.date, 'en');
+        let text = `• [${dateFormatted} ${dayEn} • ${shortId} • ${maskCyrillicForEnglish(inspLastName)}]: ${maskCyrillicForEnglish(o.description)}`;
+        if (o.notes) text += ` (${maskCyrillicForEnglish(o.notes)})`;
         return text;
       })
       .join('\n');
@@ -1166,5 +1171,30 @@ export function maskCyrillicForEnglish(input: string | null | undefined): string
     if (match.length <= 2) return '[ru]';
     return '[ru-text]';
   });
+}
+
+/**
+ * Normalize a free-form zone string into a Latin/ASCII map key.
+ * Used as the canonical zoneKey for custom user-entered facility areas so
+ * the zoneMap and ZoneAntiRating.zone stay single-alphabet regardless of
+ * the inspector's input language. Non-ASCII characters are replaced with
+ * a length-stable hash-like tag (e.g. "ZONE-A3F2") so we never leak
+ * Cyrillic into English UI or log keys.
+ */
+export function zoneKeyToLatinSlug(input: string): string {
+  const cleaned = (input || '').trim().toUpperCase();
+  if (!cleaned) return 'UNZONED';
+  // Already ASCII (letters/digits/spaces/dashes/underscores)
+  if (/^[\x20-\x7E]+$/.test(cleaned) && !/[\u0400-\u04FF]/.test(cleaned)) {
+    return cleaned.replace(/\s+/g, '_');
+  }
+  // Otherwise generate a stable tag from a 32-bit FNV-1a hash of the input.
+  // This keeps keys short, deterministic, and ASCII-only.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < cleaned.length; i++) {
+    hash ^= cleaned.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `ZONE-${hash.toString(16).toUpperCase().padStart(8, '0').slice(0, 6)}`;
 }
 

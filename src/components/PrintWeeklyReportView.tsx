@@ -462,7 +462,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                   <div key={z.zone}>
                     <div className="flex items-center justify-between text-[9px] mb-0.5">
                       <span className="font-bold text-slate-800 truncate max-w-[130px]">
-                        {idx + 1}. {z.zone}
+                        {idx + 1}. {isRu ? z.zoneLabelRu : z.zoneLabelEn}
                       </span>
                       <span className="text-slate-600 font-mono text-[8.5px]">
                         <b>{z.totalDefects}</b> ({z.percentage}%)

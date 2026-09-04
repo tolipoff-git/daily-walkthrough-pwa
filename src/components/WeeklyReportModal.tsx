@@ -706,7 +706,7 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                               >
                                 {idx + 1}
                               </span>
-                              <span className="font-bold text-white">{z.zone}</span>
+                              <span className="font-bold text-white">{isRu ? z.zoneLabelRu : z.zoneLabelEn}</span>
                               {isTopProblem && (
                                 <span className="bg-red-950 text-red-400 border border-red-800 text-[9px] px-1.5 py-0.2 rounded font-black uppercase">
                                   Top Risk
