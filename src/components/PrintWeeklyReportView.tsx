@@ -28,9 +28,9 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
 
   // SVG Line Chart coordinates for Weekly Pulse
   const svgWidth = 280;
-  const svgHeight = 90;
-  const paddingX = 25;
-  const paddingY = 15;
+  const svgHeight = 75;
+  const paddingX = 22;
+  const paddingY = 10;
   const plotWidth = svgWidth - paddingX * 2;
   const plotHeight = svgHeight - paddingY * 2;
 
@@ -54,40 +54,45 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
     <div
       className={`print-weekly-container ${
         isScreenPreview ? 'block shadow-2xl my-6 border border-slate-300' : 'hidden print:block'
-      } bg-white text-slate-900 p-5 font-sans text-xs leading-tight mx-auto`}
+      } bg-white text-slate-900 p-3.5 font-sans text-xs leading-tight mx-auto`}
       style={{
         width: '100%',
-        maxWidth: '210mm',
-        minHeight: isScreenPreview ? 'auto' : '296mm',
+        maxWidth: isScreenPreview ? '210mm' : '100%',
         boxSizing: 'border-box',
       }}
     >
       {/* 1. Header Bar */}
-      <div className="border-b-2 border-slate-900 pb-2 mb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-slate-900 text-white font-black px-1.5 py-0.5 rounded text-[10px] tracking-wider uppercase">
-                EXECUTIVE ONE-PAGER
+      <div className="border-b-2 border-slate-900 pb-1.5 mb-2">
+        <div className="flex items-start justify-between">
+          <div className="max-w-[76%]">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="bg-slate-900 text-white font-black px-1.5 py-0.5 rounded text-[9px] tracking-wider uppercase">
+                {isRu ? 'АВТОМАТИЧЕСКИЙ СВОДНЫЙ ONE-PAGER' : 'AUTOMATED EXECUTIVE SYNTHESIS'}
               </span>
-              <span className="text-[10px] font-mono text-slate-500">
+              <span className="text-[9px] font-mono text-slate-500">
                 CF-PWA • {APP_VERSION} ({COMMIT_HASH})
               </span>
             </div>
-            <h1 className="text-lg font-black tracking-tight text-slate-900 uppercase mt-0.5">
-              {isRu ? 'Еженедельный отчет EHS и 5S для CEO' : 'Weekly EHS & Facility Executive Report'}
+            <h1 className="text-base font-black tracking-tight text-slate-900 uppercase mt-0.5 leading-snug">
+              {isRu ? 'Еженедельный сводный отчет EHS и 5S для CEO' : 'Weekly EHS & Facility Executive Report'}
             </h1>
-            <p className="text-[11px] font-medium text-slate-600">
+            <p className="text-[10px] font-bold text-slate-800 mt-0.5">
               {data.facilityName} • {isRu ? data.period.labelRu : data.period.labelEn}
+            </p>
+            <p className="text-[9px] font-medium text-slate-600 mt-0.5 leading-snug">
+              {isRu ? data.summaryNoteRu : data.summaryNoteEn}
             </p>
           </div>
 
-          <div className="text-right">
-            <div className="text-xs font-bold font-mono text-slate-900">
-              {isRu ? 'ОБХОДОВ ЗА НЕДЕЛЮ:' : 'SESSIONS AUDITED:'} {data.auditedDaysCount}
+          <div className="text-right shrink-0">
+            <div className="text-xs font-black font-mono text-slate-900">
+              {isRu ? 'ОБХОДОВ ЗА ПЕРИОД:' : 'AUDITED SESSIONS:'} {data.auditedDaysCount}
             </div>
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[9px] text-slate-500 mt-0.5">
               {isRu ? 'Сформирован:' : 'Generated:'} {new Date().toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}
+            </div>
+            <div className="text-[8px] font-mono font-bold text-slate-400 mt-0.5">
+              A4 ONE-PAGER
             </div>
           </div>
         </div>
@@ -95,32 +100,32 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
 
       {/* 2. Executive 5-Second Status Bar */}
       <div
-        className="grid grid-cols-4 gap-2 mb-3 p-2.5 rounded-lg border border-slate-300"
+        className="grid grid-cols-4 gap-2 mb-2 p-1.5 rounded-lg border border-slate-300"
         style={{ backgroundColor: '#f8fafc' }}
       >
         {/* Compliance Score Gauge */}
         <div
-          className="border rounded p-2 text-center flex flex-col justify-center"
+          className="border rounded p-1.5 text-center flex flex-col justify-center"
           style={{ backgroundColor: ragBg, borderColor: ragColor }}
         >
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-700">
             {t.weeklyReport.complianceScore}
           </div>
-          <div className="text-2xl font-black my-0.5" style={{ color: ragColor }}>
+          <div className="text-xl font-black my-0.5" style={{ color: ragColor }}>
             {data.overallScore}%
           </div>
-          <div className="text-[9px] font-bold" style={{ color: ragColor }}>
+          <div className="text-[8.5px] font-bold" style={{ color: ragColor }}>
             {ragLabel}
           </div>
         </div>
 
         {/* Trend Vector */}
-        <div className="border border-slate-200 rounded p-2 text-center bg-white flex flex-col justify-center">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="border border-slate-200 rounded p-1.5 text-center bg-white flex flex-col justify-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
             {t.weeklyReport.trendVector}
           </div>
           <div
-            className={`text-xl font-black my-0.5 ${
+            className={`text-lg font-black my-0.5 ${
               data.trendDirection === 'UP'
                 ? 'text-emerald-700'
                 : data.trendDirection === 'DOWN'
@@ -131,29 +136,29 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
             {data.trendDirection === 'UP' ? '↗ +' : data.trendDirection === 'DOWN' ? '↘ ' : '→ '}
             {data.trendDelta}%
           </div>
-          <div className="text-[9px] text-slate-500">
+          <div className="text-[8.5px] text-slate-500">
             {isRu ? 'Динамика к Пн' : 'W-o-W trajectory'}
           </div>
         </div>
 
         {/* Regulatory Exposure Counter */}
         <div
-          className={`border rounded p-2 text-center flex flex-col justify-center ${
+          className={`border rounded p-1.5 text-center flex flex-col justify-center ${
             data.criticalRegulatoryCount > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-slate-200'
           }`}
         >
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
             {t.weeklyReport.regulatoryFlag}
           </div>
           <div
-            className={`text-xl font-black my-0.5 ${
+            className={`text-lg font-black my-0.5 ${
               data.criticalRegulatoryCount > 0 ? 'text-red-700' : 'text-emerald-700'
             }`}
           >
             {data.criticalRegulatoryCount}
           </div>
           <div
-            className={`text-[9px] font-bold ${
+            className={`text-[8.5px] font-bold ${
               data.criticalRegulatoryCount > 0 ? 'text-red-600' : 'text-emerald-600'
             }`}
           >
@@ -168,14 +173,14 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         </div>
 
         {/* Total Defect & Resolution Ratio */}
-        <div className="border border-slate-200 rounded p-2 text-center bg-white flex flex-col justify-center">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        <div className="border border-slate-200 rounded p-1.5 text-center bg-white flex flex-col justify-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
             {isRu ? 'Дефекты / Устранение' : 'Defects / Resolution'}
           </div>
-          <div className="text-xl font-black my-0.5 text-slate-800">
+          <div className="text-lg font-black my-0.5 text-slate-800">
             {data.totalDefectsCount}
           </div>
-          <div className="text-[9px] text-slate-600 font-medium">
+          <div className="text-[8.5px] text-slate-600 font-medium">
             {isRu ? 'Решено:' : 'Done:'} <b className="text-emerald-700">{data.resolvedCount}</b> |{' '}
             {isRu ? 'Открыто:' : 'Open:'} <b className="text-red-700">{data.openCount}</b>
           </div>
@@ -183,20 +188,20 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 3. Visual Trends & Anti-Rating Grid (Side-by-Side Charts) */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-2.5 mb-2">
         {/* Chart 1: Pulse of the Week */}
-        <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
-          <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-[11px] font-bold uppercase text-slate-800">
+        <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[10px] font-bold uppercase text-slate-800">
               {t.weeklyReport.chartPulseTitle}
             </h3>
-            <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
+            <span className="text-[8.5px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
               {isRu ? 'Норма ≥85%' : 'Norm ≥85%'}
             </span>
           </div>
 
           <div className="flex items-center justify-center">
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-20 overflow-visible">
+            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-[66px] overflow-visible">
               {/* Norm corridor background (>85%) */}
               <rect
                 x={paddingX}
@@ -251,9 +256,9 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                   />
                   <text
                     x={pt.x}
-                    y={pt.y - 6}
+                    y={pt.y - 5}
                     textAnchor="middle"
-                    fontSize="8"
+                    fontSize="7.5"
                     fontWeight="bold"
                     fill="#1e293b"
                   >
@@ -261,9 +266,9 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                   </text>
                   <text
                     x={pt.x}
-                    y={svgHeight - 3}
+                    y={svgHeight - 2}
                     textAnchor="middle"
-                    fontSize="8"
+                    fontSize="7.5"
                     fontWeight="600"
                     fill="#64748b"
                   >
@@ -276,19 +281,19 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         </div>
 
         {/* Chart 2: Zone Anti-Rating Heatmap */}
-        <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
-          <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-[11px] font-bold uppercase text-slate-800">
+        <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[10px] font-bold uppercase text-slate-800">
               {t.weeklyReport.chartHeatmapTitle}
             </h3>
-            <span className="text-[9px] text-slate-500">
+            <span className="text-[8.5px] text-slate-500">
               {isRu ? 'Топ участков по рискам' : 'Highest risk concentration'}
             </span>
           </div>
 
           <div className="space-y-1.5">
             {topZones.length === 0 ? (
-              <p className="text-[10px] text-slate-400 italic py-3 text-center">
+              <p className="text-[9px] text-slate-400 italic py-2 text-center">
                 {isRu ? 'Дефекты отсутствуют' : 'No recorded defects'}
               </p>
             ) : (
@@ -302,18 +307,18 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                     : '#3b82f6';
                 return (
                   <div key={z.zone}>
-                    <div className="flex items-center justify-between text-[10px] mb-0.5">
+                    <div className="flex items-center justify-between text-[9px] mb-0.5">
                       <span className="font-bold text-slate-800 truncate max-w-[130px]">
                         {idx + 1}. {z.zone}
                       </span>
-                      <span className="text-slate-600 font-mono">
+                      <span className="text-slate-600 font-mono text-[8.5px]">
                         <b>{z.totalDefects}</b> ({z.percentage}%)
                         {z.p1Count > 0 && (
                           <span className="ml-1 text-red-600 font-bold">P1:{z.p1Count}</span>
                         )}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden flex">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${barWidth}%`, backgroundColor: barColor }}
@@ -328,22 +333,22 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 4. Operational Domains Breakdown Row */}
-      <div className="mb-3 border border-slate-200 rounded-lg p-2 bg-slate-50">
-        <div className="text-[10px] font-bold uppercase text-slate-700 mb-1.5">
+      <div className="mb-2 border border-slate-200 rounded-lg p-1.5 bg-slate-50">
+        <div className="text-[9.5px] font-bold uppercase text-slate-700 mb-1">
           {t.weeklyReport.chartDomainsTitle}
         </div>
-        <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
+        <div className="grid grid-cols-4 gap-1.5 text-center text-[9px]">
           {data.domainBreakdown.map((d) => (
-            <div key={d.id} className="bg-white border border-slate-200 rounded p-1.5">
-              <div className="font-bold text-slate-800 text-[10px] truncate">
+            <div key={d.id} className="bg-white border border-slate-200 rounded p-1">
+              <div className="font-bold text-slate-800 text-[9px] truncate">
                 {isRu ? d.titleRu : d.titleEn}
               </div>
-              <div className="text-sm font-black text-slate-900 mt-0.5">
+              <div className="text-xs font-black text-slate-900 mt-0.5">
                 {d.defectCount}{' '}
-                <span className="text-[9px] font-normal text-slate-500">({d.percentage}%)</span>
+                <span className="text-[8px] font-normal text-slate-500">({d.percentage}%)</span>
               </div>
               {d.p1Count > 0 && (
-                <span className="inline-block bg-red-100 text-red-700 text-[8px] font-bold px-1 rounded border border-red-300">
+                <span className="inline-block bg-red-100 text-red-700 text-[7.5px] font-bold px-1 rounded border border-red-300">
                   {d.p1Count} P1 Critical
                 </span>
               )}
@@ -353,16 +358,16 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 5. Actionable Executive Matrix (The 3-Row Decision Table) */}
-      <div className="mb-3">
-        <h3 className="text-[11px] font-black uppercase tracking-wide text-slate-900 mb-1 border-b border-slate-300 pb-0.5">
+      <div className="mb-2">
+        <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-900 mb-1 border-b border-slate-300 pb-0.5">
           {t.weeklyReport.matrixTitle}
         </h3>
-        <table className="w-full text-[10px] text-left border-collapse border border-slate-300">
+        <table className="w-full text-[9px] text-left border-collapse border border-slate-300">
           <thead>
             <tr className="bg-slate-200 text-slate-900 font-bold">
-              <th className="border border-slate-300 p-1 w-[16%]">{t.weeklyReport.thSignal}</th>
-              <th className="border border-slate-300 p-1 w-[38%]">{t.weeklyReport.thIssue}</th>
-              <th className="border border-slate-300 p-1 w-[14%]">{t.weeklyReport.thRiskArea}</th>
+              <th className="border border-slate-300 p-1 w-[22%]">{t.weeklyReport.thSignal}</th>
+              <th className="border border-slate-300 p-1 w-[34%]">{t.weeklyReport.thIssue}</th>
+              <th className="border border-slate-300 p-1 w-[12%]">{t.weeklyReport.thRiskArea}</th>
               <th className="border border-slate-300 p-1 w-[22%]">{t.weeklyReport.thAction}</th>
               <th className="border border-slate-300 p-1 w-[10%]">{t.weeklyReport.thOwner}</th>
             </tr>
@@ -375,26 +380,34 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                   : row.tier === 'BOTTLENECK'
                   ? '#fffbeb'
                   : '#f8fafc';
-              const badgeClass =
+              const badgeBg =
                 row.tier === 'CRITICAL'
-                  ? 'bg-red-700 text-white'
+                  ? '#dc2626'
                   : row.tier === 'BOTTLENECK'
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-blue-700 text-white';
+                  ? '#d97706'
+                  : '#2563eb';
               return (
                 <tr key={idx} style={{ backgroundColor: bgRow }}>
                   <td className="border border-slate-300 p-1 font-bold">
-                    <span className={`px-1 py-0.5 rounded text-[8px] font-black tracking-wider ${badgeClass}`}>
+                    <span
+                      style={{
+                        backgroundColor: badgeBg,
+                        color: '#ffffff',
+                        WebkitPrintColorAdjust: 'exact',
+                        printColorAdjust: 'exact',
+                      }}
+                      className="inline-block px-1.5 py-0.5 rounded text-[8px] font-extrabold tracking-wide uppercase text-white shadow-xs whitespace-nowrap"
+                    >
                       {isRu ? row.signalTitleRu : row.signalTitleEn}
                     </span>
                   </td>
-                  <td className="border border-slate-300 p-1 text-slate-800">
+                  <td className="border border-slate-300 p-1 text-slate-800 leading-snug">
                     {isRu ? row.issueRu : row.issueEn}
                   </td>
                   <td className="border border-slate-300 p-1 font-bold text-slate-700">
                     {isRu ? row.riskAreaRu : row.riskAreaEn}
                   </td>
-                  <td className="border border-slate-300 p-1 text-slate-900">
+                  <td className="border border-slate-300 p-1 text-slate-900 leading-snug">
                     <span className="font-semibold text-slate-800">
                       [{isRu ? row.actionTypeRu : row.actionTypeEn}]
                     </span>{' '}
@@ -402,7 +415,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                   </td>
                   <td className="border border-slate-300 p-1 font-medium text-slate-600">
                     <div>{row.owner}</div>
-                    <div className="text-[8px] font-mono text-slate-500 font-bold">{row.sla}</div>
+                    <div className="text-[7.5px] font-mono text-slate-500 font-bold">{row.sla}</div>
                   </td>
                 </tr>
               );
@@ -412,27 +425,27 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 6. Strategic Executive Narrative Briefing */}
-      <div className="mb-3 border border-slate-300 rounded p-2 bg-slate-50 text-[10px]">
-        <div className="font-bold uppercase tracking-wider text-slate-800 text-[10px] mb-1">
+      <div className="mb-2 border border-slate-300 rounded p-1.5 bg-slate-50 text-[9px]">
+        <div className="font-bold uppercase tracking-wider text-slate-800 text-[9.5px] mb-1">
           {t.weeklyReport.briefingTitle}
         </div>
         <div className="grid grid-cols-2 gap-2 text-slate-800">
           <div>
-            <p className="mb-1">
+            <p className="mb-1 leading-snug">
               <strong className="text-slate-900">• {t.weeklyReport.briefingTakeaway}:</strong>{' '}
               {isRu ? data.narrative.takeawayRu : data.narrative.takeawayEn}
             </p>
-            <p>
+            <p className="leading-snug">
               <strong className="text-slate-900">• {t.weeklyReport.briefingRegulatory}:</strong>{' '}
               {isRu ? data.narrative.regulatoryRu : data.narrative.regulatoryEn}
             </p>
           </div>
           <div>
-            <p className="mb-1">
+            <p className="mb-1 leading-snug">
               <strong className="text-slate-900">• {t.weeklyReport.briefingBottlenecks}:</strong>{' '}
               {isRu ? data.narrative.bottlenecksRu : data.narrative.bottlenecksEn}
             </p>
-            <p>
+            <p className="leading-snug">
               <strong className="text-slate-900">• {t.weeklyReport.briefingActions}:</strong>{' '}
               {isRu ? data.narrative.actionsRu : data.narrative.actionsEn}
             </p>
@@ -441,10 +454,10 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 7. Executive Sign-Off Block */}
-      <div className="border-t-2 border-slate-900 pt-2 flex items-center justify-between text-[10px]">
+      <div className="border-t-2 border-slate-900 pt-1.5 flex items-center justify-between text-[9px]">
         <div>
           <span className="font-bold text-slate-800">{t.weeklyReport.signOffExecutive}</span>
-          <span className="ml-2 font-mono">___________________________________</span>
+          <span className="ml-2 font-mono">____________________________</span>
         </div>
         <div className="flex items-center gap-4">
           <div>

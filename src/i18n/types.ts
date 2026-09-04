@@ -356,6 +356,7 @@ export interface Translations {
     briefingActions: string;
     btnPrintOnePager: string;
     btnCopyPrompt: string;
+    btnCopyPromptDesc: string;
     btnCopyBriefing: string;
     btnExportXlsx: string;
     signOffTitle: string;
@@ -364,6 +365,7 @@ export interface Translations {
     signOffSignature: string;
     promptCopied: string;
     briefingCopied: string;
+    automatedReportNotice: string;
   };
   priorities: Record<Priority, { label: string; short: string; badge: string; description: string }>;
   assignees: Record<Assignee, string>;

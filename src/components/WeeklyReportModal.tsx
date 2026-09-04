@@ -206,8 +206,8 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                   CEO One-Pager
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {t.weeklyReport.modalSubtitle}
+              <p className="text-xs text-slate-300 mt-0.5 font-medium">
+                {isRu ? reportData.summaryNoteRu : reportData.summaryNoteEn}
               </p>
             </div>
           </div>
@@ -328,10 +328,10 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
 
             <button
               onClick={handleCopyPrompt}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-purple-300 border border-slate-700 font-semibold flex items-center gap-1.5 transition-colors"
-              title={reportData.llmPrompt}
+              className="px-3 py-1.5 rounded-lg bg-purple-950/60 hover:bg-purple-900/80 text-purple-200 border border-purple-600/70 font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              title={t.weeklyReport.btnCopyPromptDesc}
             >
-              {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Sparkles className="w-3.5 h-3.5 text-purple-400" />}
+              {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Sparkles className="w-3.5 h-3.5 text-purple-300" />}
               <span className="hidden md:inline">
                 {copiedPrompt ? t.weeklyReport.promptCopied : t.weeklyReport.btnCopyPrompt}
               </span>
@@ -761,10 +761,10 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                   <table className="w-full text-xs text-left border-collapse border border-slate-700">
                     <thead>
                       <tr className="bg-slate-800 text-slate-200 uppercase tracking-wider text-[10px] font-bold">
-                        <th className="p-2.5 border border-slate-700 w-[15%]">{t.weeklyReport.thSignal}</th>
-                        <th className="p-2.5 border border-slate-700 w-[35%]">{t.weeklyReport.thIssue}</th>
-                        <th className="p-2.5 border border-slate-700 w-[15%]">{t.weeklyReport.thRiskArea}</th>
-                        <th className="p-2.5 border border-slate-700 w-[23%]">{t.weeklyReport.thAction}</th>
+                        <th className="p-2.5 border border-slate-700 w-[22%]">{t.weeklyReport.thSignal}</th>
+                        <th className="p-2.5 border border-slate-700 w-[32%]">{t.weeklyReport.thIssue}</th>
+                        <th className="p-2.5 border border-slate-700 w-[13%]">{t.weeklyReport.thRiskArea}</th>
+                        <th className="p-2.5 border border-slate-700 w-[21%]">{t.weeklyReport.thAction}</th>
                         <th className="p-2.5 border border-slate-700 w-[12%]">{t.weeklyReport.thOwner}</th>
                       </tr>
                     </thead>
@@ -782,12 +782,12 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                         >
                           <td className="p-2.5 border border-slate-700 font-bold">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                              className={`px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wide inline-block whitespace-nowrap shadow-sm ${
                                 row.tier === 'CRITICAL'
-                                  ? 'bg-red-950 text-red-400 border border-red-800'
+                                  ? 'bg-red-600 text-white'
                                   : row.tier === 'BOTTLENECK'
-                                  ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                                  : 'bg-blue-950 text-blue-400 border border-blue-800'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-blue-600 text-white'
                               }`}
                             >
                               {isRu ? row.signalTitleRu : row.signalTitleEn}

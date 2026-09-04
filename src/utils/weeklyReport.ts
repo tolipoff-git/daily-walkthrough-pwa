@@ -82,6 +82,9 @@ export interface WeeklyExecutiveReportData {
     actionsEn: string;
     actionsRu: string;
   };
+  auditorsList: string[];
+  summaryNoteEn: string;
+  summaryNoteRu: string;
   llmPrompt: string;
 }
 
@@ -529,6 +532,24 @@ Generate an Executive Summary strictly matching this structure:
 
 Tone: Professional, direct, focused on risk management and accountability. Avoid operational trivialities.`;
 
+  // Unique auditors extraction and automated report summary notes
+  const uniqueAuditors: string[] = Array.from(
+    new Set(
+      filtered
+        .map((s) => s.inspectorName?.trim())
+        .filter((name): name is string => Boolean(name && name.length > 0))
+    )
+  );
+  const auditorsFormatted = uniqueAuditors.length > 0 ? uniqueAuditors.join(', ') : 'EHS Inspection Team';
+  const auditorsFormattedRu = uniqueAuditors.length > 0 ? uniqueAuditors.join(', ') : 'Инспекционная группа EHS';
+
+  const daysCount = auditedDaysCount > 0 ? auditedDaysCount : 5;
+  const daysWordEn = daysCount === 1 ? '1 operational day' : `${daysCount} operational working days`;
+  const daysWordRu = daysCount === 1 ? '1 рабочий день' : `${daysCount} рабочих дней`;
+
+  const summaryNoteEn = `Automated executive synthesis for the past ${daysWordEn} based on daily walkthrough audits conducted by: ${auditorsFormatted}.`;
+  const summaryNoteRu = `Сводный автоматический отчет за последние ${daysWordRu} на основании ежедневных аудитов, подготовленных: ${auditorsFormattedRu}.`;
+
   return {
     period: {
       startDate,
@@ -553,6 +574,9 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
     domainBreakdown,
     actionableMatrix,
     narrative,
+    auditorsList: uniqueAuditors,
+    summaryNoteEn,
+    summaryNoteRu,
     llmPrompt,
   };
 }

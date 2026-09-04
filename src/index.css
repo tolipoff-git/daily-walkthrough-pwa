@@ -29,27 +29,28 @@
   animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Print Stylesheet Overrides (US Letter 8.5" x 11" Clean Output) */
+/* Print Stylesheet Overrides (Strict A4 One-Pager & Vector Output) */
 @media print {
   @page {
-    margin: 10mm;
-    size: letter portrait;
+    margin: 6mm 8mm;
+    size: A4 portrait;
   }
 
   *, *::before, *::after {
     text-shadow: none !important;
     box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   html, body {
     background: #ffffff !important;
     color: #000000 !important;
     width: 100% !important;
-    height: auto !important;
-    min-height: 100% !important;
+    height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   /* Hide screen app shell, modals, buttons, and navigation */
@@ -61,7 +62,32 @@
     visibility: hidden !important;
   }
 
-  /* Force print report container to display with crisp vector styling */
+  /* Weekly Executive One-Pager Print Container (Strict Single-Page A4) */
+  .print-weekly-container {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 194mm !important;
+    max-height: 282mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .print-weekly-container * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Daily Walkthrough Report Container */
   .print-report-container {
     display: block !important;
     visibility: visible !important;
