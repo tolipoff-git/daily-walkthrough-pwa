@@ -108,6 +108,51 @@ export function exportWeeklyReportToExcel(
   const wsZones = XLSX.utils.aoa_to_sheet(zoneRows);
   XLSX.utils.book_append_sheet(wb, wsZones, isRu ? 'Антирейтинг зон' : 'Zone Anti-Rating');
 
+  // Sheet 4: Deduplicated Defect Register (Annex)
+  const allDefectsSorted = [
+    ...data.defectRegister.criticalTierDefects,
+    ...data.defectRegister.bottleneckTierDefects,
+    ...data.defectRegister.cultureTierDefects,
+  ];
+
+  const defectRegisterRows = [
+    [isRu ? 'ПРИЛОЖЕНИЕ: РЕЕСТР ВЫЯВЛЕННЫХ НАРУШЕНИЙ И НЕСООТВЕТСТВИЙ (5 ДНЕЙ)' : 'ANNEX: CONSOLIDATED DEFECT & RISK REGISTER (5-DAY DEDUPLICATED)'],
+    [''],
+    [
+      isRu ? 'Зона' : 'Zone',
+      isRu ? 'Пункт чек-листа' : 'Checkpoint ID & Title',
+      isRu ? 'Уровень (Tier)' : 'Tier',
+      isRu ? 'Тип проблемы' : 'Recurrence Type',
+      isRu ? 'Оценка влияния' : 'Systemic Impact Verdict',
+      isRu ? 'Худший приоритет' : 'Highest Priority',
+      isRu ? 'Частота' : 'Occurrences',
+      isRu ? 'Даты фиксации' : 'Dates',
+      isRu ? 'Отчеты аудитов в истории' : 'Audit Session References',
+      isRu ? 'Статус' : 'Latest Status',
+      isRu ? 'Ответственный' : 'Assignee',
+      isRu ? 'Срок (SLA)' : 'Target SLA',
+      isRu ? 'Хроника замечаний инспекторов' : 'Inspector Comments',
+    ],
+    ...allDefectsSorted.map((d) => [
+      isRu ? d.zoneLabelRu : d.zoneLabelEn,
+      `${d.checkpointId} • ${isRu ? d.checkpointTitleRu : d.checkpointTitleEn}`,
+      isRu ? d.tierTitleRu : d.tierTitleEn,
+      isRu ? (d.recurrenceType === 'RECURRING' ? 'Повторная' : 'Разовая') : d.recurrenceType,
+      isRu ? d.recurrenceVerdictRu : d.recurrenceVerdictEn,
+      d.highestPriority,
+      d.isPersistent ? `${d.occurrencesCount}x` : '1x',
+      isRu ? d.dayLabelsRu.join(', ') : d.dayLabelsEn.join(', '),
+      isRu ? d.reportReferencesFormattedRu : d.reportReferencesFormattedEn,
+      isRu ? (d.latestStatus === 'Resolved' ? 'Устранено' : d.latestStatus === 'In Progress' ? 'В работе' : 'Открыто') : d.latestStatus,
+      d.assignedTo,
+      d.targetDatePreset || (isRu ? 'До конца смены' : 'This shift'),
+      isRu ? d.consolidatedCommentsRu : d.consolidatedCommentsEn,
+    ]),
+  ];
+
+  const wsDefects = XLSX.utils.aoa_to_sheet(defectRegisterRows);
+  XLSX.utils.book_append_sheet(wb, wsDefects, isRu ? 'Реестр нарушений' : 'Defect Register');
+
   // Save workbook
   const fileName = `EHS_Weekly_Executive_Report_${data.period.startDate}_${data.period.endDate}.xlsx`;
   XLSX.writeFile(wb, fileName);

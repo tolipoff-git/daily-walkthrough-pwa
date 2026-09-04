@@ -626,8 +626,16 @@ export const App: React.FC = () => {
         <WeeklyReportModal
           history={history}
           currentSession={session}
-          onClose={() => setShowWeeklyReportModal(false)}
+          onClose={() => {
+            setShowWeeklyReportModal(false);
+            setActivePrintMode('daily');
+          }}
           onTriggerPrint={handleTriggerWeeklyPrint}
+          onReportDataChange={(data) => {
+            setWeeklyPrintData(data);
+            setActivePrintMode('weekly');
+            document.title = `EHS_Weekly_Executive_Report_${data.period.startDate}_${data.period.endDate}`;
+          }}
         />
       )}
       </div>

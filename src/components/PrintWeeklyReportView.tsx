@@ -1,5 +1,5 @@
 import React from 'react';
-import { WeeklyExecutiveReportData } from '../utils/weeklyReport';
+import { WeeklyExecutiveReportData, ConsolidatedWeeklyDefect } from '../utils/weeklyReport';
 import { useLanguage } from '../i18n/LanguageContext';
 import { APP_VERSION, COMMIT_HASH } from '../version';
 
@@ -50,19 +50,171 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
   const topZones = data.zonesAntiRating.slice(0, 4);
   const maxDefects = Math.max(1, ...topZones.map((z) => z.totalDefects));
 
+  // Defect card renderer for Page 2 Annex
+  const renderDefectCard = (defect: ConsolidatedWeeklyDefect) => {
+    return (
+      <div
+        key={defect.id}
+        className="border border-slate-300 rounded p-1.5 mb-1 bg-slate-50/80 break-inside-avoid text-[8px]"
+      >
+        {/* Card Header */}
+        <div className="flex items-center justify-between gap-1 mb-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Canonical Zone Badge */}
+            <span className="bg-slate-900 text-white px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider uppercase">
+              {isRu ? defect.zoneLabelRu : defect.zoneLabelEn}
+            </span>
+            {/* Checkpoint ID & Title */}
+            <span className="font-extrabold text-[8.5px] text-slate-900">
+              {defect.checkpointId} • {isRu ? defect.checkpointTitleRu : defect.checkpointTitleEn}
+            </span>
+          </div>
+
+          {/* Metadata Pills */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Priority Badge */}
+            <span
+              className={`px-1.5 py-0.5 rounded text-[7.5px] font-black text-white ${
+                defect.highestPriority === 'P1'
+                  ? 'bg-red-700'
+                  : defect.highestPriority === 'P2'
+                  ? 'bg-amber-600'
+                  : 'bg-blue-600'
+              }`}
+            >
+              {defect.highestPriority} {defect.highestPriority === 'P1' ? (isRu ? 'КРИТИЧНО' : 'CRITICAL') : ''}
+            </span>
+
+            {/* Recurrence Frequency Pill */}
+            {defect.isPersistent ? (
+              <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[7.5px] font-bold">
+                {isRu
+                  ? `⚠️ Повтор ${defect.occurrencesCount}х (${defect.dayLabelsRu.join(', ')})`
+                  : `⚠️ ${defect.occurrencesCount}x Repeat (${defect.dayLabelsEn.join(', ')})`}
+              </span>
+            ) : (
+              <span className="bg-slate-200 text-slate-700 px-1 py-0.5 rounded text-[7.5px] font-semibold">
+                {isRu ? `Разовое (${defect.dayLabelsRu[0]})` : `Isolated (${defect.dayLabelsEn[0]})`}
+              </span>
+            )}
+
+            {/* Status Pill */}
+            <span
+              className={`px-1.5 py-0.5 rounded text-[7.5px] font-bold border ${
+                defect.latestStatus === 'Resolved'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : defect.latestStatus === 'In Progress'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                  : 'bg-red-50 text-red-800 border-red-300'
+              }`}
+            >
+              {isRu
+                ? defect.latestStatus === 'Resolved'
+                  ? 'Устранено'
+                  : defect.latestStatus === 'In Progress'
+                  ? 'В работе'
+                  : 'Открыто'
+                : defect.latestStatus}
+            </span>
+          </div>
+        </div>
+
+        {/* Recurrence & Systemic Impact Classification Banner */}
+        <div
+          className="flex items-center justify-between text-[7.5px] mb-1 px-1.5 py-0.5 rounded border leading-tight"
+          style={{
+            backgroundColor: defect.recurrenceType === 'RECURRING' ? '#fef3c7' : '#f1f5f9',
+            borderColor: defect.recurrenceType === 'RECURRING' ? '#f59e0b' : '#cbd5e1',
+            color: defect.recurrenceType === 'RECURRING' ? '#92400e' : '#475569',
+          }}
+        >
+          <div className="flex items-center gap-1 font-extrabold">
+            <span
+              className={`px-1 py-0.2 rounded text-[7px] uppercase text-white font-black ${
+                defect.recurrenceType === 'RECURRING' ? 'bg-amber-600' : 'bg-slate-500'
+              }`}
+            >
+              {defect.recurrenceType === 'RECURRING'
+                ? t.weeklyReport.annexRecurrenceRecurring
+                : t.weeklyReport.annexRecurrenceIsolated}
+            </span>
+            <span>{isRu ? defect.recurrenceVerdictRu : defect.recurrenceVerdictEn}</span>
+          </div>
+
+          {/* Audit Report Session Traceability */}
+          <div className="font-mono text-[7.5px] text-slate-600 font-bold truncate max-w-[50%]">
+            {t.weeklyReport.annexAuditTrail}{' '}
+            {isRu ? defect.reportReferencesFormattedRu : defect.reportReferencesFormattedEn}
+          </div>
+        </div>
+
+        {/* Standard Violated */}
+        <div className="text-[7.5px] text-slate-500 mb-1 leading-tight">
+          <strong className="text-slate-700">{t.weeklyReport.annexStandardLabel}</strong>{' '}
+          {isRu ? defect.standardRu : defect.standardEn}
+        </div>
+
+        {/* Consolidated Comments Chronology */}
+        <div className="bg-white border border-slate-200 rounded p-1 text-[7.5px] leading-snug font-mono text-slate-800 space-y-0.5">
+          {defect.observations.map((obs, oIdx) => {
+            const parts = obs.date.split('-');
+            const formattedDate = parts.length === 3 ? (isRu ? `${parts[2]}.${parts[1]}` : `${parts[1]}/${parts[2]}`) : obs.date;
+            const shortId = `№ WALK-${parts.length === 3 ? `${parts[1]}${parts[2]}` : ''}`;
+            const inspLastName = obs.inspectorName ? obs.inspectorName.split(' ')[0] : (isRu ? 'Инспектор' : 'Inspector');
+            return (
+              <div key={oIdx} className="flex items-start gap-1">
+                <span className="font-bold text-slate-600 shrink-0">
+                  [{formattedDate} {obs.dayLabel} • {shortId} • {inspLastName}]:
+                </span>
+                <span className="text-slate-900 font-sans">
+                  {obs.description} {obs.notes ? <em className="text-slate-500 font-sans">({obs.notes})</em> : null}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer: Assignee & Target Date */}
+        <div className="flex items-center justify-between text-[7.5px] text-slate-600 mt-1 pt-0.5 border-t border-slate-200">
+          <div>
+            <strong>{t.weeklyReport.annexOwnerLabel}</strong> {defect.assignedTo}
+          </div>
+          <div>
+            <strong>{t.weeklyReport.annexSlaLabel}</strong>{' '}
+            {defect.targetDatePreset ? defect.targetDatePreset : isRu ? 'До конца смены' : 'This shift'}
+            {defect.customTargetDate ? ` (${defect.customTargetDate})` : ''}
+          </div>
+          {defect.totalPhotosCount > 0 && (
+            <div className="font-bold text-slate-700">
+              📷 {defect.totalPhotosCount} {t.weeklyReport.annexPhotos}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className={`print-weekly-container ${
-        isScreenPreview ? 'block shadow-2xl my-6 border border-slate-300' : 'hidden print:block'
-      } bg-white text-slate-900 p-3.5 font-sans text-xs leading-tight mx-auto`}
+        isScreenPreview ? 'block my-6 space-y-6' : 'hidden print:block'
+      } font-sans text-xs leading-tight mx-auto`}
       style={{
         width: '100%',
         maxWidth: isScreenPreview ? '210mm' : '100%',
         boxSizing: 'border-box',
       }}
     >
-      {/* 1. Header Bar */}
-      <div className="border-b-2 border-slate-900 pb-1.5 mb-2">
+      {/* ========================================================================= */}
+      {/* PAGE 1: EXECUTIVE DASHBOARD (EXECUTIVE ONE-PAGER)                         */}
+      {/* ========================================================================= */}
+      <section
+        className={`print-weekly-page-1 ${
+          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-3.5'
+        } text-slate-900`}
+      >
+        {/* 1. Header Bar */}
+        <div className="border-b-2 border-slate-900 pb-1.5 mb-2">
         <div className="flex items-start justify-between">
           <div className="max-w-[76%]">
             <div className="flex items-center gap-2 mb-0.5">
@@ -91,8 +243,8 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
             <div className="text-[9px] text-slate-500 mt-0.5">
               {isRu ? 'Сформирован:' : 'Generated:'} {new Date().toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}
             </div>
-            <div className="text-[8px] font-mono font-bold text-slate-400 mt-0.5">
-              A4 ONE-PAGER
+            <div className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">
+              {t.weeklyReport.pageOf} 1 / 2 • A4 ONE-PAGER
             </div>
           </div>
         </div>
@@ -458,6 +610,9 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         <div>
           <span className="font-bold text-slate-800">{t.weeklyReport.signOffExecutive}</span>
           <span className="ml-2 font-mono">____________________________</span>
+          <span className="ml-2 text-[8px] text-slate-500 italic">
+            ({isRu ? 'Приложение: Реестр замечаний на стр. 2' : 'Annex: Defect Register on Page 2'})
+          </span>
         </div>
         <div className="flex items-center gap-4">
           <div>
@@ -470,6 +625,124 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
           </div>
         </div>
       </div>
+      </section>
+
+      {/* Screen Preview Page Break Separator */}
+      {isScreenPreview && (
+        <div className="flex items-center justify-center gap-3 text-slate-400 text-xs my-4 print:hidden">
+          <div className="h-px bg-slate-700 flex-1 max-w-xs" />
+          <span className="font-mono uppercase tracking-wider text-[10px] font-bold text-slate-300">
+            --- {t.weeklyReport.pageOf} 2: {t.weeklyReport.annexPageTitle} ---
+          </span>
+          <div className="h-px bg-slate-700 flex-1 max-w-xs" />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* PAGE 2: ANNEX DEFECT REGISTER (ПРИЛОЖЕНИЕ: РЕЕСТР НАРУШЕНИЙ)             */}
+      {/* ========================================================================= */}
+      <section
+        className={`print-weekly-page-2 ${
+          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-3.5'
+        } text-slate-900`}
+      >
+        <div>
+          {/* Annex Header Bar */}
+          <div className="border-b-2 border-slate-900 pb-1.5 mb-2">
+            <div className="flex items-start justify-between">
+              <div className="max-w-[76%]">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="bg-slate-900 text-white font-black px-1.5 py-0.5 rounded text-[8.5px] tracking-wider uppercase">
+                    {t.weeklyReport.annexPageTitle}
+                  </span>
+                  <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.5 rounded text-[8px]">
+                    {t.weeklyReport.annexDedupBadge}
+                  </span>
+                </div>
+                <h2 className="text-sm font-black tracking-tight text-slate-900 uppercase mt-0.5 leading-snug">
+                  {t.weeklyReport.annexTitle}
+                </h2>
+                <p className="text-[9.5px] font-bold text-slate-800 mt-0.5">
+                  {data.facilityName} • {isRu ? data.period.labelRu : data.period.labelEn}
+                </p>
+                <p className="text-[8.5px] font-medium text-slate-600 mt-0.5 leading-snug">
+                  {t.weeklyReport.annexSubtitle}
+                </p>
+              </div>
+
+              <div className="text-right shrink-0">
+                <div className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">
+                  {t.weeklyReport.pageOf} 2 / 2 • EXECUTIVE ANNEX
+                </div>
+                <div className="text-[8px] font-mono text-slate-700 mt-0.5">
+                  <b>{data.defectRegister.totalUniqueDefects}</b> {t.weeklyReport.annexTotalUnique.toLowerCase()} ({data.defectRegister.totalRawDefectInstances} {t.weeklyReport.annexTotalInstances.toLowerCase()})
+                </div>
+                <div className="text-[8px] font-bold text-amber-700 mt-0.5">
+                  {data.defectRegister.recurringDefectsCount} {t.weeklyReport.annexRecurringCount.toLowerCase()} • {data.defectRegister.isolatedDefectsCount} {t.weeklyReport.annexIsolatedCount.toLowerCase()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3-Tier Grouping Sections */}
+          <div className="space-y-2">
+            {/* TIER 1: CRITICAL / REGULATORY */}
+            <div>
+              <div className="bg-red-700 text-white font-black px-2 py-0.5 rounded text-[8.5px] uppercase tracking-wide flex items-center justify-between mb-1">
+                <span>{t.weeklyReport.annexTierCritical}</span>
+                <span className="font-mono text-[8px]">{data.defectRegister.criticalTierDefects.length}</span>
+              </div>
+              {data.defectRegister.criticalTierDefects.length === 0 ? (
+                <div className="text-[8px] text-slate-400 italic p-1.5 border border-dashed border-slate-200 rounded text-center bg-slate-50">
+                  {t.weeklyReport.annexNoDefectsInTier}
+                </div>
+              ) : (
+                data.defectRegister.criticalTierDefects.map((defect) => renderDefectCard(defect))
+              )}
+            </div>
+
+            {/* TIER 2: BOTTLENECKS / 5S / WAREHOUSE */}
+            <div>
+              <div className="bg-amber-600 text-white font-black px-2 py-0.5 rounded text-[8.5px] uppercase tracking-wide flex items-center justify-between mb-1">
+                <span>{t.weeklyReport.annexTierBottlenecks}</span>
+                <span className="font-mono text-[8px]">{data.defectRegister.bottleneckTierDefects.length}</span>
+              </div>
+              {data.defectRegister.bottleneckTierDefects.length === 0 ? (
+                <div className="text-[8px] text-slate-400 italic p-1.5 border border-dashed border-slate-200 rounded text-center bg-slate-50">
+                  {t.weeklyReport.annexNoDefectsInTier}
+                </div>
+              ) : (
+                data.defectRegister.bottleneckTierDefects.map((defect) => renderDefectCard(defect))
+              )}
+            </div>
+
+            {/* TIER 3: SAFETY CULTURE / PPE */}
+            <div>
+              <div className="bg-blue-600 text-white font-black px-2 py-0.5 rounded text-[8.5px] uppercase tracking-wide flex items-center justify-between mb-1">
+                <span>{t.weeklyReport.annexTierCulture}</span>
+                <span className="font-mono text-[8px]">{data.defectRegister.cultureTierDefects.length}</span>
+              </div>
+              {data.defectRegister.cultureTierDefects.length === 0 ? (
+                <div className="text-[8px] text-slate-400 italic p-1.5 border border-dashed border-slate-200 rounded text-center bg-slate-50">
+                  {t.weeklyReport.annexNoDefectsInTier}
+                </div>
+              ) : (
+                data.defectRegister.cultureTierDefects.map((defect) => renderDefectCard(defect))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Annex Footer */}
+        <div className="border-t border-slate-300 pt-1 mt-2 flex items-center justify-between text-[8px] text-slate-500">
+          <div>
+            {t.weeklyReport.annexConfidentialNotice}
+          </div>
+          <div className="font-mono font-bold text-slate-700">
+            {t.weeklyReport.pageOf} 2 / 2
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

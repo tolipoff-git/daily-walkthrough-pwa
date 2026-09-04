@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Printer,
@@ -37,6 +37,7 @@ interface WeeklyReportModalProps {
   currentSession: InspectionSession;
   onClose: () => void;
   onTriggerPrint: (data: WeeklyExecutiveReportData) => void;
+  onReportDataChange?: (data: WeeklyExecutiveReportData) => void;
 }
 
 export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
@@ -44,6 +45,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
   currentSession,
   onClose,
   onTriggerPrint,
+  onReportDataChange,
 }) => {
   const { language, t } = useLanguage();
   const isRu = language === 'ru';
@@ -58,6 +60,10 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
 
   // View Mode: 'dashboard' vs 'printPreview'
   const [viewMode, setViewMode] = useState<'dashboard' | 'printPreview'>('dashboard');
+
+  // Dashboard Tab: 'overview' vs 'annex'
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'annex'>('overview');
+  const [annexFilter, setAnnexFilter] = useState<'ALL' | 'CRITICAL' | 'BOTTLENECK' | 'CULTURE' | 'RECURRING'>('ALL');
 
   // Copy feedback states
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
@@ -98,6 +104,11 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
   const reportData: WeeklyExecutiveReportData = useMemo(() => {
     return aggregateWeeklyExecutiveReport(sessionsPool, startDate, endDate);
   }, [sessionsPool, startDate, endDate]);
+
+  // Notify parent of reportData for synchronized print/PDF readiness
+  useEffect(() => {
+    onReportDataChange?.(reportData);
+  }, [reportData, onReportDataChange]);
 
   // Handle actions
   const handlePrint = () => {
@@ -147,6 +158,22 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
       console.error('Failed to copy briefing', e);
     }
   };
+
+  const allDefects = useMemo(() => {
+    return [
+      ...reportData.defectRegister.criticalTierDefects,
+      ...reportData.defectRegister.bottleneckTierDefects,
+      ...reportData.defectRegister.cultureTierDefects,
+    ];
+  }, [reportData.defectRegister]);
+
+  const displayedDefects = useMemo(() => {
+    if (annexFilter === 'CRITICAL') return reportData.defectRegister.criticalTierDefects;
+    if (annexFilter === 'BOTTLENECK') return reportData.defectRegister.bottleneckTierDefects;
+    if (annexFilter === 'CULTURE') return reportData.defectRegister.cultureTierDefects;
+    if (annexFilter === 'RECURRING') return allDefects.filter((d) => d.isPersistent);
+    return allDefects;
+  }, [allDefects, annexFilter, reportData.defectRegister]);
 
   // Domain icon resolver
   const renderDomainIcon = (name: string) => {
@@ -337,8 +364,49 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
           ) : (
             /* Interactive Dashboard Mode */
             <>
-              {/* 1. Executive 5-Second Status Bar */}
-              <div>
+              {/* Tab Switcher: Overview vs Annex */}
+              <div className="flex items-center gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl mb-4">
+                <button
+                  onClick={() => {
+                    triggerHaptic();
+                    setDashboardTab('overview');
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    dashboardTab === 'overview'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>{t.weeklyReport.tabOverview}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    triggerHaptic();
+                    setDashboardTab('annex');
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    dashboardTab === 'annex'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{t.weeklyReport.tabAnnexRegister}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      dashboardTab === 'annex' ? 'bg-blue-800 text-white' : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {reportData.defectRegister.totalUniqueDefects}
+                  </span>
+                </button>
+              </div>
+
+              {dashboardTab === 'overview' ? (
+                <>
+                  {/* 1. Executive 5-Second Status Bar */}
+                  <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     {t.weeklyReport.kpiSectionTitle}
@@ -835,8 +903,317 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                   </div>
                 </div>
               </div>
-            </>
-          )}
+
+              {/* 6. Annex Quick-Link Banner */}
+                <div className="p-4 rounded-xl border border-indigo-800/60 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 flex items-center justify-between gap-4 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white uppercase tracking-wide">
+                        {t.weeklyReport.annexTitle}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {reportData.defectRegister.totalUniqueDefects} {t.weeklyReport.annexTotalUnique.toLowerCase()} ({reportData.defectRegister.totalRawDefectInstances} {t.weeklyReport.annexTotalInstances.toLowerCase()}) • {reportData.defectRegister.recurringDefectsCount} {t.weeklyReport.annexRecurringCount.toLowerCase()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      triggerHaptic();
+                      setDashboardTab('annex');
+                    }}
+                    className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-md"
+                  >
+                    <span>{isRu ? 'Открыть реестр замечаний' : 'Open Defect Register'}</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Annex Register Interactive Tab */
+              <div className="space-y-4 animate-fade-in">
+                {/* Annex Top Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/90 shadow-md">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      {t.weeklyReport.annexTotalUnique}
+                    </div>
+                    <div className="text-2xl font-black text-white mt-1">
+                      {reportData.defectRegister.totalUniqueDefects}
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 mt-0.5">
+                      {reportData.defectRegister.totalRawDefectInstances} {t.weeklyReport.annexTotalInstances.toLowerCase()}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-amber-800/60 bg-amber-950/30 shadow-md">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                      {t.weeklyReport.annexRecurringCount}
+                    </div>
+                    <div className="text-2xl font-black text-amber-400 mt-1">
+                      {reportData.defectRegister.recurringDefectsCount}
+                    </div>
+                    <div className="text-[10.5px] text-amber-400/80 mt-0.5">
+                      {isRu ? 'Повторяются ≥ 2 дней' : 'Observed ≥ 2 days'}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-red-800/60 bg-red-950/30 shadow-md">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-red-400">
+                      {isRu ? 'Критичные (Tier 1)' : 'Critical (Tier 1)'}
+                    </div>
+                    <div className="text-2xl font-black text-red-400 mt-1">
+                      {reportData.defectRegister.criticalTierDefects.length}
+                    </div>
+                    <div className="text-[10.5px] text-red-400/80 mt-0.5">
+                      OSHA / NFPA / P1
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/90 shadow-md">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      {t.weeklyReport.annexIsolatedCount}
+                    </div>
+                    <div className="text-2xl font-black text-slate-300 mt-1">
+                      {reportData.defectRegister.isolatedDefectsCount}
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 mt-0.5">
+                      {isRu ? 'Разовое устранение' : 'Shift operational'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter Controls */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-slate-400 font-semibold mr-1">
+                      {isRu ? 'Фильтр уровня:' : 'Filter Tier:'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        triggerHaptic();
+                        setAnnexFilter('ALL');
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        annexFilter === 'ALL'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                      }`}
+                    >
+                      {isRu ? 'Все' : 'All'} ({allDefects.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        triggerHaptic();
+                        setAnnexFilter('CRITICAL');
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        annexFilter === 'CRITICAL'
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-red-400 hover:bg-slate-750'
+                      }`}
+                    >
+                      {isRu ? 'Tier 1 • Критичные' : 'Tier 1 • Critical'} ({reportData.defectRegister.criticalTierDefects.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        triggerHaptic();
+                        setAnnexFilter('BOTTLENECK');
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        annexFilter === 'BOTTLENECK'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-amber-400 hover:bg-slate-750'
+                      }`}
+                    >
+                      {isRu ? 'Tier 2 • Узкие места' : 'Tier 2 • Bottlenecks'} ({reportData.defectRegister.bottleneckTierDefects.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        triggerHaptic();
+                        setAnnexFilter('CULTURE');
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        annexFilter === 'CULTURE'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-blue-400 hover:bg-slate-750'
+                      }`}
+                    >
+                      {isRu ? 'Tier 3 • Культура СИЗ' : 'Tier 3 • PPE'} ({reportData.defectRegister.cultureTierDefects.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        triggerHaptic();
+                        setAnnexFilter('RECURRING');
+                      }}
+                      className={`px-2.5 py-1 rounded-md font-bold transition-all ${
+                        annexFilter === 'RECURRING'
+                          ? 'bg-amber-500 text-slate-950 shadow-sm'
+                          : 'bg-slate-800 text-amber-300 hover:bg-slate-750'
+                      }`}
+                    >
+                      ⚠️ {isRu ? 'Только повторные' : 'Recurring Only'} ({reportData.defectRegister.recurringDefectsCount})
+                    </button>
+                  </div>
+
+                  <span className="text-slate-500 text-[11px] font-mono">
+                    {t.weeklyReport.annexDedupBadge}
+                  </span>
+                </div>
+
+                {/* Defect Cards Grid */}
+                {displayedDefects.length === 0 ? (
+                  <div className="p-8 text-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-sm">
+                    {t.weeklyReport.annexNoDefectsInTier}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {displayedDefects.map((defect) => {
+                      const isRecurring = defect.recurrenceType === 'RECURRING';
+                      return (
+                        <div
+                          key={defect.id}
+                          className="p-4 rounded-xl border border-slate-800 bg-slate-900/90 shadow-md space-y-3"
+                        >
+                          {/* Header row */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-xs font-mono font-bold tracking-wider uppercase border border-slate-700">
+                                {isRu ? defect.zoneLabelRu : defect.zoneLabelEn}
+                              </span>
+                              <span className="text-sm font-bold text-white">
+                                {defect.checkpointId} • {isRu ? defect.checkpointTitleRu : defect.checkpointTitleEn}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs font-extrabold ${
+                                  defect.highestPriority === 'P1'
+                                    ? 'bg-red-950 text-red-300 border border-red-800'
+                                    : defect.highestPriority === 'P2'
+                                    ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                                    : 'bg-blue-950 text-blue-300 border border-blue-800'
+                                }`}
+                              >
+                                {defect.highestPriority} {defect.highestPriority === 'P1' ? (isRu ? 'КРИТИЧНО' : 'CRITICAL') : ''}
+                              </span>
+
+                              {isRecurring ? (
+                                <span className="bg-amber-950/80 text-amber-300 border border-amber-700/80 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1">
+                                  <span>⚠️</span>
+                                  <span>
+                                    {isRu
+                                      ? `Повтор ${defect.occurrencesCount}х (${defect.dayLabelsRu.join(', ')})`
+                                      : `${defect.occurrencesCount}x Repeat (${defect.dayLabelsEn.join(', ')})`}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs font-semibold border border-slate-700">
+                                  {isRu ? `Разовое (${defect.dayLabelsRu[0]})` : `Isolated (${defect.dayLabelsEn[0]})`}
+                                </span>
+                              )}
+
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs font-bold border ${
+                                  defect.latestStatus === 'Resolved'
+                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                                    : defect.latestStatus === 'In Progress'
+                                    ? 'bg-amber-950 text-amber-300 border-amber-800'
+                                    : 'bg-red-950 text-red-300 border-red-800'
+                                }`}
+                              >
+                                {isRu
+                                  ? defect.latestStatus === 'Resolved'
+                                    ? 'Устранено'
+                                    : defect.latestStatus === 'In Progress'
+                                    ? 'В работе'
+                                    : 'Открыто'
+                                  : defect.latestStatus}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Recurrence & Systemic Impact Verdict Banner */}
+                          <div
+                            className={`p-2.5 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
+                              isRecurring
+                                ? 'bg-amber-950/40 border-amber-800/80 text-amber-200'
+                                : 'bg-slate-800/60 border-slate-700 text-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 font-bold">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase text-white ${
+                                  isRecurring ? 'bg-amber-600' : 'bg-slate-600'
+                                }`}
+                              >
+                                {isRecurring
+                                  ? t.weeklyReport.annexRecurrenceRecurring
+                                  : t.weeklyReport.annexRecurrenceIsolated}
+                              </span>
+                              <span>{isRu ? defect.recurrenceVerdictRu : defect.recurrenceVerdictEn}</span>
+                            </div>
+
+                            <div className="text-[11px] font-mono font-semibold text-slate-400">
+                              {t.weeklyReport.annexAuditTrail}{' '}
+                              {isRu ? defect.reportReferencesFormattedRu : defect.reportReferencesFormattedEn}
+                            </div>
+                          </div>
+
+                          {/* Standard Violated */}
+                          <div className="text-xs text-slate-400">
+                            <strong className="text-slate-300">{t.weeklyReport.annexStandardLabel}</strong>{' '}
+                            {isRu ? defect.standardRu : defect.standardEn}
+                          </div>
+
+                          {/* Observation chronology log */}
+                          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono text-slate-300 space-y-1.5">
+                            {defect.observations.map((obs, oIdx) => {
+                              const parts = obs.date.split('-');
+                              const formattedDate = parts.length === 3 ? (isRu ? `${parts[2]}.${parts[1]}` : `${parts[1]}/${parts[2]}`) : obs.date;
+                              const shortId = `№ WALK-${parts.length === 3 ? `${parts[1]}${parts[2]}` : ''}`;
+                              const inspLastName = obs.inspectorName ? obs.inspectorName.split(' ')[0] : (isRu ? 'Инспектор' : 'Inspector');
+                              return (
+                                <div key={oIdx} className="flex items-start gap-1.5">
+                                  <span className="font-bold text-slate-400 shrink-0">
+                                    [{formattedDate} {obs.dayLabel} • {shortId} • {inspLastName}]:
+                                  </span>
+                                  <span className="text-slate-200 font-sans">
+                                    {obs.description} {obs.notes ? <em className="text-slate-400 font-sans">({obs.notes})</em> : null}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/80">
+                            <div>
+                              <strong className="text-slate-300">{t.weeklyReport.annexOwnerLabel}</strong> {defect.assignedTo}
+                            </div>
+                            <div>
+                              <strong className="text-slate-300">{t.weeklyReport.annexSlaLabel}</strong>{' '}
+                              {defect.targetDatePreset ? defect.targetDatePreset : isRu ? 'До конца смены' : 'This shift'}
+                              {defect.customTargetDate ? ` (${defect.customTargetDate})` : ''}
+                            </div>
+                            {defect.totalPhotosCount > 0 && (
+                              <div className="font-bold text-indigo-400">
+                                📷 {defect.totalPhotosCount} {t.weeklyReport.annexPhotos}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
         </div>
       </div>
     </div>
