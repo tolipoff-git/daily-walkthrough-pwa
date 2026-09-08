@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useInspection } from './hooks/useInspection';
 import { useHistory } from './hooks/useHistory';
 import { calculateMetrics } from './utils/metrics';
@@ -182,6 +182,15 @@ export const App: React.FC = () => {
   const [showWeeklyReportModal, setShowWeeklyReportModal] = useState<boolean>(false);
   const [activePrintMode, setActivePrintMode] = useState<'daily' | 'weekly'>('daily');
   const [weeklyPrintData, setWeeklyPrintData] = useState<WeeklyExecutiveReportData | null>(null);
+  const printTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const qrPullTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+      if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
+    };
+  }, []);
 
   // Photo Zoom Modal state
   const [previewPhotoData, setPreviewPhotoData] = useState<{
@@ -328,7 +337,8 @@ export const App: React.FC = () => {
       timeoutIds.forEach(clearTimeout);
       timeoutIds.clear();
     }
-    setTimeout(() => {
+    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+    printTimeoutRef.current = setTimeout(() => {
       window.print();
     }, 150);
   };
@@ -338,10 +348,20 @@ export const App: React.FC = () => {
     setWeeklyPrintData(data);
     setShowWeeklyReportModal(false);
     document.title = `EHS_Weekly_Executive_Report_${data.period.startDate}_${data.period.endDate}`;
-    setTimeout(() => {
+    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
+    printTimeoutRef.current = setTimeout(() => {
       window.print();
     }, 150);
   };
+
+  const handleScanRoom = useCallback((room: string) => {
+    setSyncRoom(room);
+    forcePush();
+    if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
+    qrPullTimeoutRef.current = setTimeout(() => {
+      forcePull();
+    }, 500);
+  }, [setSyncRoom, forcePush, forcePull]);
 
   const getCategoryIcon = (iconName: string) => {
     switch (iconName) {
@@ -701,14 +721,11 @@ export const App: React.FC = () => {
       {/* Direct In-App QR Scanner */}
       {showDirectQrScanner && (
         <QrScannerModal
-          onClose={() => setShowDirectQrScanner(false)}
-          onScanRoom={(room) => {
-            setSyncRoom(room);
-            forcePush();
-            setTimeout(() => {
-              forcePull();
-            }, 500);
+          onClose={() => {
+            if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
+            setShowDirectQrScanner(false);
           }}
+          onScanRoom={handleScanRoom}
         />
       )}
 
