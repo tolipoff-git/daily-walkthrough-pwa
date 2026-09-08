@@ -13,7 +13,8 @@ import {
   Calendar, 
   Repeat, 
   MessageSquare,
-  Upload
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 import { 
   ChecklistItem, 
@@ -465,39 +466,63 @@ export const ChecklistItemCard: React.FC<ChecklistItemCardProps> = ({
 
               {/* Photos Gallery Thumbnails */}
               <div className="flex flex-wrap items-center gap-2.5">
-                {defect.photos?.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md"
-                  >
-                    <img
-                      src={photo.url}
-                      alt={photo.caption || 'Thumbnail'}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                      onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
-                        className="p-1 bg-slate-900/80 rounded-md text-white hover:bg-slate-900"
-                        title={t.card.zoomPhoto}
-                      >
-                        <ZoomIn className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemovePhoto(item.id, photo.id)}
-                        className="p-1 bg-red-600/90 rounded-md text-white hover:bg-red-600"
-                        title={t.card.deletePhoto}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                {defect.photos?.map((photo) => {
+                  const isValidUrl = Boolean(photo?.url && typeof photo.url === 'string' && photo.url.trim().length > 0);
+                  return (
+                    <div
+                      key={photo.id}
+                      className="relative group w-20 h-20 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md flex items-center justify-center"
+                    >
+                      {isValidUrl ? (
+                        <>
+                          <img
+                            src={photo.url}
+                            alt={photo.caption || 'Thumbnail'}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                            onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => onPreviewPhoto(photo, defect.location, itemTitle)}
+                              className="p-1 bg-slate-900/80 rounded-md text-white hover:bg-slate-900"
+                              title={t.card.zoomPhoto}
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRemovePhoto(item.id, photo.id)}
+                              className="p-1 bg-red-600/90 rounded-md text-white hover:bg-red-600"
+                              title={t.card.deletePhoto}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full p-1 flex flex-col items-center justify-between text-center bg-slate-900/90 text-slate-400 select-none">
+                          <div className="flex-1 flex flex-col items-center justify-center gap-0.5 w-full overflow-hidden px-1">
+                            <RefreshCw className="w-4 h-4 text-amber-400/80 animate-spin" />
+                            <span className="text-[9px] text-slate-400 truncate w-full" title={photo.caption || 'Syncing...'}>
+                              {photo.caption || (language === 'ru' ? 'Синхр...' : 'Syncing...')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onRemovePhoto(item.id, photo.id)}
+                            className="p-1 bg-red-600/80 hover:bg-red-600 text-white rounded transition-colors"
+                            title={t.card.deletePhoto}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Camera Capture Button (in-app camera — native camera hand-off crashes some phones) */}
                 <button

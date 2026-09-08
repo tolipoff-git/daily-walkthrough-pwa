@@ -223,10 +223,14 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const triggerPull = useCallback(async (currentRoom: string = syncRoom) => {
     if (!navigator.onLine || isSyncingRef.current) return;
 
-    const remote = await pullSessionFromCloud(currentRoom);
-    if (remote) {
-      const resolved = await resolveRemotePhotos(remote, currentRoom);
-      handleRemotePayload(resolved);
+    try {
+      const remote = await pullSessionFromCloud(currentRoom);
+      if (remote) {
+        const resolved = await resolveRemotePhotos(remote, currentRoom);
+        handleRemotePayload(resolved);
+      }
+    } catch (err) {
+      console.error('Trigger pull error:', err);
     }
   }, [syncRoom, handleRemotePayload, resolveRemotePhotos]);
 
@@ -246,35 +250,41 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     initialSyncDoneRef.current = false;
 
     (async () => {
-      const remote = navigator.onLine ? await pullSessionFromCloud(syncRoom) : null;
-      if (cancelled) return;
+      try {
+        const remote = navigator.onLine ? await pullSessionFromCloud(syncRoom) : null;
+        if (cancelled) return;
 
-      if (remote) {
-        const resolved = await resolveRemotePhotos(remote, syncRoom);
-        handleRemotePayload(resolved);
+        if (remote) {
+          const resolved = await resolveRemotePhotos(remote, syncRoom);
+          if (cancelled) return;
+          handleRemotePayload(resolved);
 
-        const remoteTime = new Date(remote.updatedAt || 0).getTime();
-        const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
+          const remoteTime = new Date(remote.updatedAt || 0).getTime();
+          const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
 
-        // Remote is older, but local is a pristine untouched session — take
-        // the remote one instead of publishing an empty session over it
-        if (remoteTime < localTime && isPristineSession(sessionRef.current)) {
-          lastReceivedTimestampRef.current = remote.updatedAt;
-          setLastRemoteDevice(remote.deviceId);
-          setLastSyncedAt(new Date());
-          setSyncStatus('synced');
-          saveActiveSessionDb(resolved.session).catch(() => {});
-          onRemoteUpdateRef.current(resolved.session);
-        } else if (localTime > remoteTime) {
-          // Local has genuine newer work (e.g. edited offline) — publish it
+          // Remote is older, but local is a pristine untouched session — take
+          // the remote one instead of publishing an empty session over it
+          if (remoteTime < localTime && isPristineSession(sessionRef.current)) {
+            lastReceivedTimestampRef.current = remote.updatedAt;
+            setLastRemoteDevice(remote.deviceId);
+            setLastSyncedAt(new Date());
+            setSyncStatus('synced');
+            saveActiveSessionDb(resolved.session).catch(() => {});
+            onRemoteUpdateRef.current(resolved.session);
+          } else if (localTime > remoteTime) {
+            // Local has genuine newer work (e.g. edited offline) — publish it
+            pushToCloud(syncRoom);
+          }
+        } else {
+          // Room empty (or offline) — publish local state
           pushToCloud(syncRoom);
         }
-      } else {
-        // Room empty (or offline) — publish local state
-        pushToCloud(syncRoom);
+      } catch (err) {
+        console.error('Initial sync error:', err);
+        setSyncStatus('error');
+      } finally {
+        initialSyncDoneRef.current = true;
       }
-
-      initialSyncDoneRef.current = true;
     })();
 
     return () => { cancelled = true; };

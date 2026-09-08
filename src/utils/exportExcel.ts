@@ -54,6 +54,12 @@ function styleWorksheet(
 }
 
 export function exportInspectionToExcel(session: InspectionSession, lang: Language = 'ru'): void {
+  if (!session || !Array.isArray(session.items) || session.items.length === 0) {
+    console.error('Invalid session for Excel export:', session);
+    alert(lang === 'ru' ? 'Ошибка экспорта: данные инспекции отсутствуют или повреждены.' : 'Export error: inspection session data is missing or corrupt.');
+    return;
+  }
+
   const t = lang === 'ru' ? ru : en;
   const isRu = lang === 'ru';
   const metrics = calculateMetrics(session.items);
