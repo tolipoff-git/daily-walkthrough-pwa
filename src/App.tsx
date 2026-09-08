@@ -71,6 +71,87 @@ export const App: React.FC = () => {
     clearHistory,
   } = useHistory();
 
+  const handleRemoteUpdate = useCallback((remoteSession: InspectionSession) => {
+    if (remoteSession.updatedAt && remoteSession.updatedAt === session.updatedAt) return;
+
+    // Remote payloads don't carry photos (stripped before push) — preserve
+    // local photos per item instead of wiping them
+    const localPhotosById = new Map<string, DefectPhoto>();
+    const localItemPhotos = new Map<string, DefectPhoto[]>();
+
+    session.items.forEach((item) => {
+      const validPhotos = (item.defectDetails?.photos || []).filter(
+        (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
+      );
+      if (validPhotos.length > 0) {
+        localItemPhotos.set(item.id, validPhotos);
+        validPhotos.forEach((p) => {
+          if (p.id) {
+            localPhotosById.set(p.id, p);
+          }
+        });
+      }
+    });
+
+    const merged: InspectionSession = {
+      ...remoteSession,
+      items: remoteSession.items.map((ri) => {
+        const localPhotos = localItemPhotos.get(ri.id) || [];
+        if (!ri.defectDetails) {
+          if (localPhotos.length > 0 && ri.status === 'FAIL') {
+            return {
+              ...ri,
+              defectDetails: {
+                location: '',
+                zonePreset: '',
+                description: '',
+                priority: 'P2',
+                assignedTo: 'Maintenance',
+                targetDate: 'Today',
+                photos: localPhotos,
+                isRepeatIssue: false,
+                resolutionStatus: 'Open',
+              },
+            };
+          }
+          return ri;
+        }
+
+        const remotePhotos = ri.defectDetails.photos || [];
+        let restoredPhotos = remotePhotos.map((rp) => {
+          if (!rp.url || typeof rp.url !== 'string' || rp.url.trim().length === 0) {
+            const matchedLocal = localPhotosById.get(rp.id);
+            if (matchedLocal?.url) {
+              return { ...rp, url: matchedLocal.url };
+            }
+          }
+          return rp;
+        });
+
+        const hasValidPhoto = restoredPhotos.some(
+          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
+        );
+
+        if (!hasValidPhoto && localPhotos.length > 0) {
+          restoredPhotos = localPhotos;
+        }
+
+        return {
+          ...ri,
+          defectDetails: {
+            ...ri.defectDetails,
+            photos: restoredPhotos,
+          },
+        };
+      }),
+    };
+    loadSession(merged);
+    // A walkthrough finished on another device belongs in local history too
+    if (merged.status === 'Completed') {
+      saveInspectionToHistory(merged);
+    }
+  }, [session, loadSession, saveInspectionToHistory]);
+
   // Cloud Live Synchronization Hook
   const {
     syncRoom,
@@ -83,86 +164,7 @@ export const App: React.FC = () => {
     forcePull,
   } = useCloudSync({
     session,
-    onRemoteUpdate: (remoteSession) => {
-      if (remoteSession.updatedAt && remoteSession.updatedAt === session.updatedAt) return;
-
-      // Remote payloads don't carry photos (stripped before push) — preserve
-      // local photos per item instead of wiping them
-      const localPhotosById = new Map<string, DefectPhoto>();
-      const localItemPhotos = new Map<string, DefectPhoto[]>();
-
-      session.items.forEach((item) => {
-        const validPhotos = (item.defectDetails?.photos || []).filter(
-          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
-        );
-        if (validPhotos.length > 0) {
-          localItemPhotos.set(item.id, validPhotos);
-          validPhotos.forEach((p) => {
-            if (p.id) {
-              localPhotosById.set(p.id, p);
-            }
-          });
-        }
-      });
-
-      const merged: InspectionSession = {
-        ...remoteSession,
-        items: remoteSession.items.map((ri) => {
-          const localPhotos = localItemPhotos.get(ri.id) || [];
-          if (!ri.defectDetails) {
-            if (localPhotos.length > 0 && ri.status === 'FAIL') {
-              return {
-                ...ri,
-                defectDetails: {
-                  location: '',
-                  zonePreset: '',
-                  description: '',
-                  priority: 'P2',
-                  assignedTo: 'Maintenance',
-                  targetDate: 'Today',
-                  photos: localPhotos,
-                  isRepeatIssue: false,
-                  resolutionStatus: 'Open',
-                },
-              };
-            }
-            return ri;
-          }
-
-          const remotePhotos = ri.defectDetails.photos || [];
-          let restoredPhotos = remotePhotos.map((rp) => {
-            if (!rp.url || typeof rp.url !== 'string' || rp.url.trim().length === 0) {
-              const matchedLocal = localPhotosById.get(rp.id);
-              if (matchedLocal?.url) {
-                return { ...rp, url: matchedLocal.url };
-              }
-            }
-            return rp;
-          });
-
-          const hasValidPhoto = restoredPhotos.some(
-            (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
-          );
-
-          if (!hasValidPhoto && localPhotos.length > 0) {
-            restoredPhotos = localPhotos;
-          }
-
-          return {
-            ...ri,
-            defectDetails: {
-              ...ri.defectDetails,
-              photos: restoredPhotos,
-            },
-          };
-        }),
-      };
-      loadSession(merged);
-      // A walkthrough finished on another device belongs in local history too
-      if (merged.status === 'Completed') {
-        saveInspectionToHistory(merged);
-      }
-    },
+    onRemoteUpdate: handleRemoteUpdate,
   });
 
   // Navigation & Filtering State

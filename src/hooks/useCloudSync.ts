@@ -265,31 +265,35 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
           // Remote is older, but local is a pristine untouched session — take
           // the remote one instead of publishing an empty session over it
           if (remoteTime < localTime && isPristineSession(sessionRef.current)) {
+            if (cancelled) return;
             lastReceivedTimestampRef.current = remote.updatedAt;
             setLastRemoteDevice(remote.deviceId);
             setLastSyncedAt(new Date());
             setSyncStatus('synced');
             saveActiveSessionDb(resolved.session).catch(() => {});
             onRemoteUpdateRef.current(resolved.session);
-          } else if (localTime > remoteTime) {
+          } else if (localTime > remoteTime && !cancelled) {
             // Local has genuine newer work (e.g. edited offline) — publish it
-            pushToCloud(syncRoom);
+            await pushToCloud(syncRoom);
           }
-        } else {
+        } else if (!cancelled) {
           // Room empty (or offline) — publish local state
-          pushToCloud(syncRoom);
+          await pushToCloud(syncRoom);
         }
       } catch (err) {
+        if (cancelled) return;
         console.error('Initial sync error:', err);
         setSyncStatus('error');
       } finally {
-        initialSyncDoneRef.current = true;
+        if (!cancelled) {
+          initialSyncDoneRef.current = true;
+        }
       }
     })();
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncRoom]);
+  }, [syncRoom, session.id]);
 
   // Debounced auto-push on local session changes (only after the initial
   // pull-first sync completed, so we never clobber a newer remote session)
