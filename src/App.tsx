@@ -86,17 +86,73 @@ export const App: React.FC = () => {
     onRemoteUpdate: (remoteSession) => {
       // Remote payloads don't carry photos (stripped before push) — preserve
       // local photos per item instead of wiping them
-      const localPhotos = new Map(
-        session.items.map((i) => [i.id, i.defectDetails?.photos ?? []])
-      );
+      const localPhotosById = new Map<string, DefectPhoto>();
+      const localItemPhotos = new Map<string, DefectPhoto[]>();
+
+      session.items.forEach((item) => {
+        const validPhotos = (item.defectDetails?.photos || []).filter(
+          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
+        );
+        if (validPhotos.length > 0) {
+          localItemPhotos.set(item.id, validPhotos);
+          validPhotos.forEach((p) => {
+            if (p.id) {
+              localPhotosById.set(p.id, p);
+            }
+          });
+        }
+      });
+
       const merged: InspectionSession = {
         ...remoteSession,
         items: remoteSession.items.map((ri) => {
-          const photos = localPhotos.get(ri.id);
-          if (photos?.length && ri.defectDetails && !ri.defectDetails.photos?.length) {
-            return { ...ri, defectDetails: { ...ri.defectDetails, photos } };
+          const localPhotos = localItemPhotos.get(ri.id) || [];
+          if (!ri.defectDetails) {
+            if (localPhotos.length > 0 && ri.status === 'FAIL') {
+              return {
+                ...ri,
+                defectDetails: {
+                  location: '',
+                  zonePreset: '',
+                  description: '',
+                  priority: 'P2',
+                  assignedTo: 'Maintenance',
+                  targetDate: 'Today',
+                  photos: localPhotos,
+                  isRepeatIssue: false,
+                  resolutionStatus: 'Open',
+                },
+              };
+            }
+            return ri;
           }
-          return ri;
+
+          const remotePhotos = ri.defectDetails.photos || [];
+          let restoredPhotos = remotePhotos.map((rp) => {
+            if (!rp.url || typeof rp.url !== 'string' || rp.url.trim().length === 0) {
+              const matchedLocal = localPhotosById.get(rp.id);
+              if (matchedLocal?.url) {
+                return { ...rp, url: matchedLocal.url };
+              }
+            }
+            return rp;
+          });
+
+          const hasValidPhoto = restoredPhotos.some(
+            (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
+          );
+
+          if (!hasValidPhoto && localPhotos.length > 0) {
+            restoredPhotos = localPhotos;
+          }
+
+          return {
+            ...ri,
+            defectDetails: {
+              ...ri.defectDetails,
+              photos: restoredPhotos,
+            },
+          };
         }),
       };
       loadSession(merged);
@@ -238,11 +294,44 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDirectPrint = () => {
+  const handleDirectPrint = async () => {
     triggerHaptic();
     setActivePrintMode('daily');
     saveInspectionToHistory(session);
-    window.print();
+    try {
+      const container = document.querySelector('.print-report-container');
+      const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
+      if (imgs.length > 0) {
+        imgs.forEach((img) => {
+          img.loading = 'eager';
+        });
+        await Promise.all(
+          imgs.map(async (img) => {
+            if (!img.complete) {
+              await new Promise<void>((resolve) => {
+                const timeout = setTimeout(resolve, 2000);
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+              });
+            }
+            if (typeof img.decode === 'function') {
+              await img.decode().catch(() => {});
+            }
+          })
+        );
+      }
+    } catch {
+      // Fallback if image decode fails
+    }
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const handleTriggerWeeklyPrint = (data: WeeklyExecutiveReportData) => {

@@ -20,11 +20,13 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
   const { language, t, getItemTitle, getItemStandard, getPriorityInfo, getAssigneeLabel, getTargetDateLabel } = useLanguage();
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
+  const getValidPhotos = (photos?: DefectPhoto[]): DefectPhoto[] =>
+    (photos || []).filter((p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0));
   const defectsWithPhotos = defects.filter(
-    (d) => d.defectDetails?.photos && d.defectDetails.photos.length > 0
+    (d) => getValidPhotos(d.defectDetails?.photos).length > 0
   );
   const totalPhotosCount = defectsWithPhotos.reduce(
-    (acc, d) => acc + (d.defectDetails?.photos?.length || 0),
+    (acc, d) => acc + getValidPhotos(d.defectDetails?.photos).length,
     0
   );
   const isRu = language === 'ru';
@@ -156,56 +158,62 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                   )}
 
                   {/* Defect Photos Thumbnails in Print with Interactive Jump Anchor */}
-                  {details?.photos && details.photos.length > 0 && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
-                          <Camera className="w-3 h-3 text-slate-500" />
-                          {t.printView.photoEvidenceWord}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          {details.photos.map((photo, pIdx) => {
-                            const photoAnchor = `defect-photo-${photo.id || `${d.id}-${pIdx}`}`;
-                            return (
-                              <a
-                                key={photo.id || pIdx}
-                                href={`#${photoAnchor}`}
-                                onClick={(e) => {
-                                  if (isScreenPreview && onPreviewPhoto) {
-                                    e.preventDefault();
-                                    onPreviewPhoto(photo, details?.location, itemTitle);
-                                  }
-                                }}
-                                className="group relative border border-slate-400 rounded overflow-hidden hover:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all bg-slate-100 block shrink-0 cursor-pointer"
-                                title={t.printView.clickToEnlarge}
-                              >
-                                <img
-                                  src={photo.url}
-                                  alt={`Defect ${d.id} photo ${pIdx + 1}`}
-                                  loading="lazy"
-                                  className="h-14 w-20 object-contain bg-slate-200/60"
-                                />
-                                <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-white text-[9px] font-bold text-center py-0.5 group-hover:bg-blue-600 transition-colors flex items-center justify-center gap-0.5">
-                                  <span>{t.printView.photoWord} {pIdx + 1}</span>
-                                  <span className="text-[8px]">↗</span>
-                                </span>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      </div>
+                  {(() => {
+                    const validPhotos = getValidPhotos(details?.photos);
+                    if (validPhotos.length === 0) return null;
 
-                      {/* Direct anchor link to this defect's photos in Appendix */}
-                      <a
-                        href={`#defect-photos-${d.id}`}
-                        className="text-[10px] font-semibold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 print:text-blue-800"
-                        title={t.printView.jumpToPhotosAppendix}
-                      >
-                        <span>{t.printView.jumpToPhotosAppendix}</span>
-                        <span>↓</span>
-                      </a>
-                    </div>
-                  )}
+                    return (
+                      <div className="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                            <Camera className="w-3 h-3 text-slate-500" />
+                            {t.printView.photoEvidenceWord}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {validPhotos.map((photo, pIdx) => {
+                              const photoAnchor = `defect-photo-${photo.id || `${d.id}-${pIdx}`}`;
+                              return (
+                                <a
+                                  key={photo.id || pIdx}
+                                  href={`#${photoAnchor}`}
+                                  onClick={(e) => {
+                                    if (isScreenPreview && onPreviewPhoto) {
+                                      e.preventDefault();
+                                      onPreviewPhoto(photo, details?.location, itemTitle);
+                                    }
+                                  }}
+                                  className="group relative border border-slate-400 rounded overflow-hidden hover:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all bg-slate-100 block shrink-0 cursor-pointer"
+                                  title={t.printView.clickToEnlarge}
+                                >
+                                  <img
+                                    src={photo.url}
+                                    alt={`Defect ${d.id} photo ${pIdx + 1}`}
+                                    loading="eager"
+                                    decoding="sync"
+                                    className="h-14 w-20 object-contain bg-slate-200/60"
+                                  />
+                                  <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-white text-[9px] font-bold text-center py-0.5 group-hover:bg-blue-600 transition-colors flex items-center justify-center gap-0.5">
+                                    <span>{t.printView.photoWord} {pIdx + 1}</span>
+                                    <span className="text-[8px]">↗</span>
+                                  </span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Direct anchor link to this defect's photos in Appendix */}
+                        <a
+                          href={`#defect-photos-${d.id}`}
+                          className="text-[10px] font-semibold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 print:text-blue-800"
+                          title={t.printView.jumpToPhotosAppendix}
+                        >
+                          <span>{t.printView.jumpToPhotosAppendix}</span>
+                          <span>↓</span>
+                        </a>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -321,7 +329,8 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
               const targetDateLabel = details.targetDate ? getTargetDateLabel(details.targetDate) : (isRu ? 'Сегодня' : 'Today');
               const findingIndex = defects.findIndex((item) => item.id === d.id);
               const findingNum = findingIndex >= 0 ? findingIndex + 1 : dIdx + 1;
-              const photos = details.photos || [];
+              const photos = getValidPhotos(details.photos);
+              if (photos.length === 0) return null;
 
               return (
                 <div
@@ -390,7 +399,8 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                         <img
                           src={photos[0].url}
                           alt={photos[0].caption || `${itemTitle} photo`}
-                          loading="lazy"
+                          loading="eager"
+                          decoding="sync"
                           className="max-h-[340px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
                         />
                         {isScreenPreview && (
@@ -429,7 +439,8 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                             <img
                               src={photo.url}
                               alt={photo.caption || `${itemTitle} photo ${pIdx + 1}`}
-                              loading="lazy"
+                              loading="eager"
+                              decoding="sync"
                               className="max-h-[230px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
                             />
                             {isScreenPreview && (

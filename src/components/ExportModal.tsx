@@ -36,9 +36,43 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     exportInspectionToExcel(session, language);
   };
 
-  const handleTriggerPrint = () => {
+  const handleTriggerPrint = async () => {
     triggerHaptic();
     onSaveToHistory(session);
+
+    try {
+      const container = document.querySelector('.print-report-container');
+      const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
+      if (imgs.length > 0) {
+        imgs.forEach((img) => {
+          img.loading = 'eager';
+        });
+
+        await Promise.all(
+          imgs.map(async (img) => {
+            if (!img.complete) {
+              await new Promise<void>((resolve) => {
+                const timeout = setTimeout(resolve, 2000);
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+              });
+            }
+            if (typeof img.decode === 'function') {
+              await img.decode().catch(() => {});
+            }
+          })
+        );
+      }
+    } catch {
+      // Fallback if image preparation fails
+    }
+
     // Unmount modal from DOM before printing to ensure pristine print snapshot
     onClose();
     setTimeout(() => {

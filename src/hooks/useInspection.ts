@@ -4,7 +4,11 @@ import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE } from '../data/ch
 import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
 import { Language } from '../i18n/types';
 
-function hydrateSession(s: any, fallbackLang: Language = 'ru'): InspectionSession {
+function hydrateSession(
+  s: any,
+  fallbackLang: Language = 'ru',
+  baseSession?: InspectionSession
+): InspectionSession {
   const defaultSession = createNewInspectionSession(fallbackLang);
   if (!s || typeof s !== 'object') {
     return defaultSession;
@@ -15,6 +19,56 @@ function hydrateSession(s: any, fallbackLang: Language = 'ru'): InspectionSessio
   const updatedItems: ChecklistItem[] = CHECKLIST_ITEMS_TEMPLATE.map((t) => {
     const existing = incomingItems.find((item) => item && item.id === t.id);
     if (existing) {
+      const incomingPhotos: any[] = Array.isArray(existing.defectDetails?.photos)
+        ? existing.defectDetails.photos
+        : [];
+
+      let validatedPhotos: DefectPhoto[] = [];
+
+      if (baseSession) {
+        const baseItem = baseSession.items?.find((i) => i && i.id === t.id);
+        const basePhotos = (baseItem?.defectDetails?.photos || []).filter(
+          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
+        );
+        const basePhotoMap = new Map(basePhotos.map((p) => [p.id, p]));
+
+        if (incomingPhotos.length > 0) {
+          validatedPhotos = incomingPhotos
+            .map((p: any) => {
+              if (p && typeof p.url === 'string' && p.url.trim().length > 0) {
+                return {
+                  id: String(p.id || `photo-${Date.now()}-${Math.random()}`),
+                  url: String(p.url).trim(),
+                  caption: p.caption ? String(p.caption) : undefined,
+                  timestamp: p.timestamp ? String(p.timestamp) : new Date().toISOString(),
+                };
+              }
+              // Empty or missing url: restore from base photo with matching id if available
+              if (p?.id && basePhotoMap.has(p.id)) {
+                return basePhotoMap.get(p.id)!;
+              }
+              return null;
+            })
+            .filter((p): p is DefectPhoto => Boolean(p));
+
+          // If incoming photos all had empty URLs and none matched by ID, fallback to basePhotos
+          if (validatedPhotos.length === 0 && basePhotos.length > 0) {
+            validatedPhotos = basePhotos;
+          }
+        } else if (basePhotos.length > 0 && existing.status === 'FAIL') {
+          validatedPhotos = basePhotos;
+        }
+      } else {
+        validatedPhotos = incomingPhotos
+          .filter((p: any) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0))
+          .map((p: any) => ({
+            id: String(p.id || `photo-${Date.now()}-${Math.random()}`),
+            url: String(p.url).trim(),
+            caption: p.caption ? String(p.caption) : undefined,
+            timestamp: p.timestamp ? String(p.timestamp) : new Date().toISOString(),
+          }));
+      }
+
       const defectDetails: DefectDetails | undefined = existing.defectDetails ? {
         location: existing.defectDetails.location || '',
         zonePreset: existing.defectDetails.zonePreset || '',
@@ -22,7 +76,7 @@ function hydrateSession(s: any, fallbackLang: Language = 'ru'): InspectionSessio
         priority: existing.defectDetails.priority || 'P2',
         assignedTo: existing.defectDetails.assignedTo || 'Maintenance',
         targetDate: existing.defectDetails.targetDate || 'Today',
-        photos: Array.isArray(existing.defectDetails.photos) ? existing.defectDetails.photos : [],
+        photos: validatedPhotos,
         isRepeatIssue: Boolean(existing.defectDetails.isRepeatIssue),
         resolutionStatus: existing.defectDetails.resolutionStatus || 'Open',
       } : (existing.status === 'FAIL' ? {
@@ -32,7 +86,7 @@ function hydrateSession(s: any, fallbackLang: Language = 'ru'): InspectionSessio
         priority: 'P2',
         assignedTo: 'Maintenance',
         targetDate: 'Today',
-        photos: [],
+        photos: validatedPhotos,
         isRepeatIssue: false,
         resolutionStatus: 'Open',
       } : undefined);
@@ -105,7 +159,7 @@ export function useInspection() {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     getActiveSessionDb().then((dbSession) => {
       if (dbSession && isInitialMount.current) {
-        setSession(hydrateSession(dbSession, currentLang));
+        setSession((prev) => hydrateSession(dbSession, currentLang, prev));
       }
       isInitialMount.current = false;
     }).catch(() => {
@@ -247,6 +301,9 @@ export function useInspection() {
   }, []);
 
   const addDefectPhoto = useCallback((itemId: string, photo: DefectPhoto) => {
+    if (!photo || !photo.url || typeof photo.url !== 'string' || photo.url.trim().length === 0) {
+      return;
+    }
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId) {
@@ -351,7 +408,7 @@ export function useInspection() {
 
   const loadSession = useCallback((loaded: InspectionSession) => {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
-    setSession(hydrateSession(loaded, currentLang));
+    setSession((prev) => hydrateSession(loaded, currentLang, prev));
   }, []);
 
   const finishWalkthrough = useCallback(() => {
