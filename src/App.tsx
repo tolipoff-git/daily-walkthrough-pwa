@@ -184,6 +184,8 @@ export const App: React.FC = () => {
   const [weeklyPrintData, setWeeklyPrintData] = useState<WeeklyExecutiveReportData | null>(null);
   const printTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const qrPullTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isScannerOpenRef = useRef(false);
+  isScannerOpenRef.current = showDirectQrScanner;
 
   useEffect(() => {
     return () => {
@@ -264,18 +266,18 @@ export const App: React.FC = () => {
     }).filter((cat) => cat.items.length > 0);
   }, [filteredItems]);
 
-  const handlePreviewPhoto = (photo: DefectPhoto, location?: string, itemTitle?: string) => {
+  const handlePreviewPhoto = useCallback((photo: DefectPhoto, location?: string, itemTitle?: string) => {
     triggerHaptic();
     setPreviewPhotoData({ photo, location, itemTitle });
-  };
+  }, []);
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     finishWalkthrough();
     saveInspectionToHistory(session);
     setShowExportModal(true);
-  };
+  }, [finishWalkthrough, session, saveInspectionToHistory]);
 
-  const handleScrollToItem = (itemId: string) => {
+  const handleScrollToItem = useCallback((itemId: string) => {
     setActiveCategory('ALL');
     setStatusFilter('ALL');
     setSearchQuery('');
@@ -285,7 +287,7 @@ export const App: React.FC = () => {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     });
-  };
+  }, []);
 
   const handleJumpToNextPending = () => {
     triggerHaptic();
@@ -359,11 +361,13 @@ export const App: React.FC = () => {
     forcePush();
     if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
     qrPullTimeoutRef.current = setTimeout(() => {
-      forcePull();
+      if (isScannerOpenRef.current) {
+        forcePull();
+      }
     }, 500);
   }, [setSyncRoom, forcePush, forcePull]);
 
-  const getCategoryIcon = (iconName: string) => {
+  const getCategoryIcon = useCallback((iconName: string) => {
     switch (iconName) {
       case 'Flame':
         return <Flame className="w-5 h-5 text-red-400" />;
@@ -375,7 +379,7 @@ export const App: React.FC = () => {
       default:
         return <Building2 className="w-5 h-5 text-emerald-400" />;
     }
-  };
+  }, []);
 
   return (
     <>
