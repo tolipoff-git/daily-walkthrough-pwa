@@ -249,6 +249,10 @@ export interface Translations {
   photoModal: {
     defaultTitle: string;
     noCaption: string;
+    zoomIn: string;
+    zoomOut: string;
+    fitToScreen: string;
+    actualSize: string;
   };
   bottomFooter: {
     heading: string;
@@ -293,6 +297,15 @@ export interface Translations {
     dueWord: string;
     notesWord: string;
     photoEvidenceWord: string;
+    jumpToPhotosAppendix: string;
+    backToFinding: string;
+    appendixSectionTitle: string;
+    appendixSubtitle: string;
+    photoWord: string;
+    photoNoCaption: string;
+    zoomInScreen: string;
+    clickToEnlarge: string;
+    endOfAppendix: string;
     auditSectionTitle: string;
     thId: string;
     thStatus: string;

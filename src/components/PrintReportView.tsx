@@ -1,5 +1,6 @@
 import React from 'react';
-import { InspectionSession } from '../types/inspection';
+import { Camera, ZoomIn } from 'lucide-react';
+import { DefectPhoto, InspectionSession } from '../types/inspection';
 import { calculateMetrics } from '../utils/metrics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatShift, formatArea, formatRole } from '../utils/formatters';
@@ -8,12 +9,24 @@ import { APP_VERSION, COMMIT_HASH } from '../version';
 interface PrintReportViewProps {
   session: InspectionSession;
   isScreenPreview?: boolean;
+  onPreviewPhoto?: (photo: DefectPhoto, location?: string, itemTitle?: string) => void;
 }
 
-export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScreenPreview = false }) => {
+export const PrintReportView: React.FC<PrintReportViewProps> = ({
+  session,
+  isScreenPreview = false,
+  onPreviewPhoto,
+}) => {
   const { language, t, getItemTitle, getItemStandard, getPriorityInfo, getAssigneeLabel, getTargetDateLabel } = useLanguage();
   const metrics = calculateMetrics(session.items);
   const defects = session.items.filter((item) => item.status === 'FAIL');
+  const defectsWithPhotos = defects.filter(
+    (d) => d.defectDetails?.photos && d.defectDetails.photos.length > 0
+  );
+  const totalPhotosCount = defectsWithPhotos.reduce(
+    (acc, d) => acc + (d.defectDetails?.photos?.length || 0),
+    0
+  );
   const isRu = language === 'ru';
 
   return (
@@ -104,7 +117,11 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
               const targetDateLabel = details?.targetDate ? getTargetDateLabel(details.targetDate) : (isRu ? 'Сегодня' : 'Today');
 
               return (
-                <div key={d.id} className="defect-card border border-slate-300 rounded-lg p-3 text-xs bg-slate-50 break-inside-avoid">
+                <div
+                  key={d.id}
+                  id={`finding-${d.id}`}
+                  className="defect-card border border-slate-300 rounded-lg p-3 text-xs bg-slate-50 break-inside-avoid"
+                >
                   <div className="flex items-center justify-between mb-1.5 font-bold">
                     <span className="text-slate-900 font-mono">
                       {t.printView.findingNumber}{index + 1} | {t.printView.itemWord} {d.id}: {itemTitle}
@@ -138,22 +155,55 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
                     </p>
                   )}
 
-                  {/* Defect Photos Thumbnails in Print */}
+                  {/* Defect Photos Thumbnails in Print with Interactive Jump Anchor */}
                   {details?.photos && details.photos.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-3">
-                      <span className="text-[10px] font-bold text-slate-500">{t.printView.photoEvidenceWord}</span>
+                    <div className="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        {details.photos.map((photo, pIdx) => (
-                          <div key={photo.id} className="border border-slate-400 rounded overflow-hidden">
-                            <img
-                              src={photo.url}
-                              alt={`Defect ${pIdx + 1}`}
-                              loading="lazy"
-                              className="h-14 w-20 object-cover"
-                            />
-                          </div>
-                        ))}
+                        <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                          <Camera className="w-3 h-3 text-slate-500" />
+                          {t.printView.photoEvidenceWord}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {details.photos.map((photo, pIdx) => {
+                            const photoAnchor = `defect-photo-${photo.id || `${d.id}-${pIdx}`}`;
+                            return (
+                              <a
+                                key={photo.id || pIdx}
+                                href={`#${photoAnchor}`}
+                                onClick={(e) => {
+                                  if (isScreenPreview && onPreviewPhoto) {
+                                    e.preventDefault();
+                                    onPreviewPhoto(photo, details?.location, itemTitle);
+                                  }
+                                }}
+                                className="group relative border border-slate-400 rounded overflow-hidden hover:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all bg-slate-100 block shrink-0 cursor-pointer"
+                                title={t.printView.clickToEnlarge}
+                              >
+                                <img
+                                  src={photo.url}
+                                  alt={`Defect ${d.id} photo ${pIdx + 1}`}
+                                  loading="lazy"
+                                  className="h-14 w-20 object-contain bg-slate-200/60"
+                                />
+                                <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-white text-[9px] font-bold text-center py-0.5 group-hover:bg-blue-600 transition-colors flex items-center justify-center gap-0.5">
+                                  <span>{t.printView.photoWord} {pIdx + 1}</span>
+                                  <span className="text-[8px]">↗</span>
+                                </span>
+                              </a>
+                            );
+                          })}
+                        </div>
                       </div>
+
+                      {/* Direct anchor link to this defect's photos in Appendix */}
+                      <a
+                        href={`#defect-photos-${d.id}`}
+                        className="text-[10px] font-semibold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 print:text-blue-800"
+                        title={t.printView.jumpToPhotosAppendix}
+                      >
+                        <span>{t.printView.jumpToPhotosAppendix}</span>
+                        <span>↓</span>
+                      </a>
                     </div>
                   )}
                 </div>
@@ -235,6 +285,189 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({ session, isScr
           </p>
         </div>
       </div>
+
+      {/* 4. Photo Evidence Appendix (Приложение: Фотоматериалы нарушений) */}
+      {totalPhotosCount > 0 && (
+        <div 
+          className="photo-evidence-appendix mt-8 pt-6 border-t-2 border-slate-900 break-before-page"
+          style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
+        >
+          {/* Appendix Header */}
+          <div className="border-b-2 border-slate-800 pb-2 mb-4 break-inside-avoid">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-tight text-slate-900 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-slate-700" />
+                  <span>{t.printView.appendixSectionTitle}</span>
+                </h2>
+                <p className="text-[11px] text-slate-600">
+                  {t.printView.appendixSubtitle}
+                </p>
+              </div>
+              <div className="text-right text-[11px] text-slate-600">
+                <span className="font-bold text-slate-900">{session.facilityName}</span>
+                <div>{t.printView.reportId} {session.id}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Defect Photo Blocks */}
+          <div className="space-y-6">
+            {defectsWithPhotos.map((d, dIdx) => {
+              const details = d.defectDetails!;
+              const itemTitle = getItemTitle(d);
+              const priorityInfo = getPriorityInfo(details.priority || 'P2');
+              const assigneeLabel = details.assignedTo ? getAssigneeLabel(details.assignedTo) : (isRu ? 'Не назначен' : 'Unassigned');
+              const targetDateLabel = details.targetDate ? getTargetDateLabel(details.targetDate) : (isRu ? 'Сегодня' : 'Today');
+              const findingIndex = defects.findIndex((item) => item.id === d.id);
+              const findingNum = findingIndex >= 0 ? findingIndex + 1 : dIdx + 1;
+              const photos = details.photos || [];
+
+              return (
+                <div
+                  key={d.id}
+                  id={`defect-photos-${d.id}`}
+                  className="defect-photo-block border border-slate-300 rounded-lg p-3 bg-slate-50 break-inside-avoid shadow-sm"
+                >
+                  {/* Block Header */}
+                  <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-200">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold font-mono text-xs text-slate-900">
+                        {t.printView.findingNumber}{findingNum} | {t.printView.itemWord} {d.id}: {itemTitle}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold text-white ${
+                          details.priority === 'P1'
+                            ? 'bg-red-700'
+                            : details.priority === 'P2'
+                            ? 'bg-amber-600'
+                            : 'bg-blue-600'
+                        }`}
+                      >
+                        {t.printView.priorityWord} {priorityInfo.short}
+                      </span>
+                    </div>
+                    <a
+                      href={`#finding-${d.id}`}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 underline flex items-center gap-1 print:text-blue-800"
+                      title={t.printView.backToFinding}
+                    >
+                      <span>↑</span>
+                      <span>{t.printView.backToFinding} #{findingNum}</span>
+                    </a>
+                  </div>
+
+                  {/* Defect Metadata */}
+                  <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600 mb-2 bg-white p-2 rounded border border-slate-200">
+                    <div><strong>{t.printView.locWord}</strong> {details.location || (isRu ? 'Не указана' : 'Not specified')}</div>
+                    <div><strong>{t.printView.respWord}</strong> {assigneeLabel}</div>
+                    <div><strong>{t.printView.dueWord}</strong> {targetDateLabel}{details.targetDate === 'Custom' && details.customTargetDate ? ` (${details.customTargetDate})` : ''}</div>
+                    <div className="col-span-3 text-slate-800 font-medium">
+                      <strong>{t.printView.descWord}</strong> {details.description || (isRu ? 'Нет описания' : 'No description')}
+                    </div>
+                    {details.notes && (
+                      <div className="col-span-3 text-slate-600 italic">
+                        <strong>{t.printView.notesWord}</strong> {details.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photos Layout */}
+                  {photos.length === 1 ? (
+                    // Single Photo: Large display
+                    <div
+                      id={`defect-photo-${photos[0].id || `${d.id}-0`}`}
+                      className="photo-card border border-slate-300 rounded-lg p-2.5 bg-white flex flex-col items-center break-inside-avoid"
+                    >
+                      <div
+                        className={`relative group w-full flex items-center justify-center ${isScreenPreview ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (isScreenPreview && onPreviewPhoto) {
+                            onPreviewPhoto(photos[0], details.location, itemTitle);
+                          }
+                        }}
+                      >
+                        <img
+                          src={photos[0].url}
+                          alt={photos[0].caption || `${itemTitle} photo`}
+                          loading="lazy"
+                          className="max-h-[340px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
+                        />
+                        {isScreenPreview && (
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-black/75 hover:bg-black/90 text-white text-[11px] font-semibold rounded-lg opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
+                            <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{t.printView.zoomInScreen}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="w-full mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-600">
+                        <span className="font-semibold text-slate-800">
+                          {photos[0].caption ? `📷 ${photos[0].caption}` : t.printView.photoNoCaption}
+                        </span>
+                        <span>
+                          {new Date(photos[0].timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    // Multiple Photos: 2-column grid
+                    <div className="grid grid-cols-2 gap-3">
+                      {photos.map((photo, pIdx) => (
+                        <div
+                          key={photo.id || pIdx}
+                          id={`defect-photo-${photo.id || `${d.id}-${pIdx}`}`}
+                          className="photo-card border border-slate-300 rounded-lg p-2 bg-white flex flex-col justify-between break-inside-avoid shadow-sm"
+                        >
+                          <div
+                            className={`relative group flex-1 flex items-center justify-center min-h-[160px] ${isScreenPreview ? 'cursor-pointer' : ''}`}
+                            onClick={() => {
+                              if (isScreenPreview && onPreviewPhoto) {
+                                onPreviewPhoto(photo, details.location, itemTitle);
+                              }
+                            }}
+                          >
+                            <img
+                              src={photo.url}
+                              alt={photo.caption || `${itemTitle} photo ${pIdx + 1}`}
+                              loading="lazy"
+                              className="max-h-[230px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
+                            />
+                            {isScreenPreview && (
+                              <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/75 hover:bg-black/90 text-white text-[10px] font-semibold rounded opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
+                                <ZoomIn className="w-3 h-3 text-emerald-400" />
+                                <span>{t.printView.zoomInScreen}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[9.5px] text-slate-600">
+                            <span className="font-semibold text-slate-800 truncate mr-2">
+                              {photo.caption ? `📷 ${photo.caption}` : `${t.printView.photoWord} #${pIdx + 1}`}
+                            </span>
+                            <span className="shrink-0">
+                              {new Date(photo.timestamp).toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}{' '}
+                              {new Date(photo.timestamp).toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Appendix End Summary */}
+          <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[10px] text-slate-500 break-inside-avoid font-mono">
+            <span>
+              {t.printView.endOfAppendix} {totalPhotosCount}
+            </span>
+            <span>
+              {session.id} | {new Date().toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Print Footer Metadata with Version and Commit */}
       <div className="mt-6 pt-2 border-t border-slate-200 flex items-center justify-between text-[9px] text-slate-500 break-inside-avoid">

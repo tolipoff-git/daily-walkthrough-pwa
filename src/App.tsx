@@ -517,7 +517,11 @@ export const App: React.FC = () => {
             {/* Document Paper Container */}
             <div className="bg-slate-800/40 p-4 sm:p-6 rounded-2xl border border-slate-750 shadow-2xl flex-1 overflow-y-auto">
               <div className="max-w-3xl mx-auto bg-white text-black rounded-lg shadow-2xl overflow-hidden">
-                <PrintReportView session={session} isScreenPreview={true} />
+                <PrintReportView
+                  session={session}
+                  isScreenPreview={true}
+                  onPreviewPhoto={handlePreviewPhoto}
+                />
               </div>
             </div>
           </div>

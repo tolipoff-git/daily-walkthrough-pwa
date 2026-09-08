@@ -140,8 +140,24 @@
   .print-report-container .break-inside-avoid,
   .print-report-container table,
   .print-report-container .defect-card,
+  .print-report-container .defect-photo-block,
+  .print-report-container .photo-card,
   .print-report-container .signature-block {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  .print-report-container .break-before-page,
+  .print-report-container .page-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  .print-report-container a {
+    text-decoration: none;
+  }
+
+  .print-report-container a:after {
+    content: none !important;
   }
 }
