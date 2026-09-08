@@ -75,7 +75,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      triggerPull();
+      triggerPull().catch((err) => console.warn('Online sync triggerPull failed', err));
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -313,7 +313,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       // Ignore echoes of our own pushes
       if (ping.deviceId === deviceIdRef.current) return;
       if (ping.updatedAt === lastReceivedTimestampRef.current) return;
-      triggerPull();
+      triggerPull().catch((err) => console.warn('SSE live ping triggerPull failed', err));
     });
 
     // 2. Periodic polling backup (every 2.5s when active)
@@ -322,20 +322,20 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       if (intervalId) clearInterval(intervalId);
       intervalId = setInterval(() => {
         if (document.visibilityState === 'visible' && navigator.onLine) {
-          triggerPull();
+          triggerPull().catch((err) => console.warn('Interval polling triggerPull failed', err));
         }
       }, 2500);
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        triggerPull();
+        triggerPull().catch((err) => console.warn('Visibility change triggerPull failed', err));
         startPolling();
       }
     };
 
     const handleFocus = () => {
-      triggerPull();
+      triggerPull().catch((err) => console.warn('Focus triggerPull failed', err));
     };
 
     startPolling();
