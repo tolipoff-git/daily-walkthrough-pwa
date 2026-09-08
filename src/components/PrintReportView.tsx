@@ -5,6 +5,7 @@ import { calculateMetrics } from '../utils/metrics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatShift, formatArea, formatRole } from '../utils/formatters';
 import { APP_VERSION, COMMIT_HASH } from '../version';
+import { getActiveSyncRoom } from '../utils/syncApi';
 
 interface PrintReportViewProps {
   session: InspectionSession;
@@ -30,6 +31,15 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
     0
   );
   const isRu = language === 'ru';
+
+  // Construct 4K Cloud Evidence URLs
+  const origin =
+    typeof window !== 'undefined' && window.location.origin.includes('http')
+      ? window.location.origin
+      : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
+  const cleanRoom = (getActiveSyncRoom() || session.facilityArea || 'FSE-MAIN').trim().toUpperCase();
+  const getPhotoCloudUrl = (photoId: string) =>
+    `${origin}/photo/${encodeURIComponent(cleanRoom)}/${encodeURIComponent(photoId)}`;
 
   return (
     <div className={`print-report-container ${isScreenPreview ? 'block' : 'hidden print:block'} bg-white text-black p-6 font-sans leading-normal`}>
@@ -171,11 +181,13 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                           </span>
                           <div className="flex items-center gap-2">
                             {validPhotos.map((photo, pIdx) => {
-                              const photoAnchor = `defect-photo-${photo.id || `${d.id}-${pIdx}`}`;
+                              const photoCloudUrl = getPhotoCloudUrl(photo.id);
                               return (
                                 <a
                                   key={photo.id || pIdx}
-                                  href={`#${photoAnchor}`}
+                                  href={photoCloudUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   onClick={(e) => {
                                     if (isScreenPreview && onPreviewPhoto) {
                                       e.preventDefault();
@@ -183,7 +195,7 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                                     }
                                   }}
                                   className="group relative border border-slate-400 rounded overflow-hidden hover:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all bg-slate-100 block shrink-0 cursor-pointer"
-                                  title={t.printView.clickToEnlarge}
+                                  title={`${t.printView.openCloudPhoto} / ${t.printView.clickToEnlarge}`}
                                 >
                                   <img
                                     src={photo.url}
@@ -384,52 +396,18 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                   {/* Photos Layout */}
                   {photos.length === 1 ? (
                     // Single Photo: Large display
-                    <div
-                      id={`defect-photo-${photos[0].id || `${d.id}-0`}`}
-                      className="photo-card border border-slate-300 rounded-lg p-2.5 bg-white flex flex-col items-center break-inside-avoid"
-                    >
-                      <div
-                        className={`relative group w-full flex items-center justify-center ${isScreenPreview ? 'cursor-pointer' : ''}`}
-                        onClick={() => {
-                          if (isScreenPreview && onPreviewPhoto) {
-                            onPreviewPhoto(photos[0], details.location, itemTitle);
-                          }
-                        }}
-                      >
-                        <img
-                          src={photos[0].url}
-                          alt={photos[0].caption || `${itemTitle} photo`}
-                          loading="eager"
-                          decoding="sync"
-                          className="max-h-[340px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
-                        />
-                        {isScreenPreview && (
-                          <div className="absolute top-2 right-2 px-2 py-1 bg-black/75 hover:bg-black/90 text-white text-[11px] font-semibold rounded-lg opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
-                            <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>{t.printView.zoomInScreen}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="w-full mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-600">
-                        <span className="font-semibold text-slate-800">
-                          {photos[0].caption ? `📷 ${photos[0].caption}` : t.printView.photoNoCaption}
-                        </span>
-                        <span>
-                          {new Date(photos[0].timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    // Multiple Photos: 2-column grid
-                    <div className="grid grid-cols-2 gap-3">
-                      {photos.map((photo, pIdx) => (
+                    (() => {
+                      const photo = photos[0];
+                      const photoCloudUrl = getPhotoCloudUrl(photo.id);
+                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(photoCloudUrl)}&bgcolor=ffffff&color=0f172a&margin=2`;
+
+                      return (
                         <div
-                          key={photo.id || pIdx}
-                          id={`defect-photo-${photo.id || `${d.id}-${pIdx}`}`}
-                          className="photo-card border border-slate-300 rounded-lg p-2 bg-white flex flex-col justify-between break-inside-avoid shadow-sm"
+                          id={`defect-photo-${photo.id || `${d.id}-0`}`}
+                          className="photo-card border border-slate-300 rounded-lg p-3 bg-white flex flex-col items-center break-inside-avoid shadow-sm"
                         >
                           <div
-                            className={`relative group flex-1 flex items-center justify-center min-h-[160px] ${isScreenPreview ? 'cursor-pointer' : ''}`}
+                            className={`relative group w-full flex items-center justify-center ${isScreenPreview ? 'cursor-pointer' : ''}`}
                             onClick={() => {
                               if (isScreenPreview && onPreviewPhoto) {
                                 onPreviewPhoto(photo, details.location, itemTitle);
@@ -438,29 +416,131 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                           >
                             <img
                               src={photo.url}
-                              alt={photo.caption || `${itemTitle} photo ${pIdx + 1}`}
+                              alt={photo.caption || `${itemTitle} photo`}
                               loading="eager"
                               decoding="sync"
-                              className="max-h-[230px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
+                              className="max-h-[340px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
                             />
                             {isScreenPreview && (
-                              <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/75 hover:bg-black/90 text-white text-[10px] font-semibold rounded opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
-                                <ZoomIn className="w-3 h-3 text-emerald-400" />
+                              <div className="absolute top-2 right-2 px-2 py-1 bg-black/75 hover:bg-black/90 text-white text-[11px] font-semibold rounded-lg opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
+                                <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
                                 <span>{t.printView.zoomInScreen}</span>
                               </div>
                             )}
                           </div>
-                          <div className="mt-2 pt-1 border-t border-slate-200 flex items-center justify-between text-[9.5px] text-slate-600">
-                            <span className="font-semibold text-slate-800 truncate mr-2">
-                              {photo.caption ? `📷 ${photo.caption}` : `${t.printView.photoWord} #${pIdx + 1}`}
-                            </span>
-                            <span className="shrink-0">
-                              {new Date(photo.timestamp).toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}{' '}
-                              {new Date(photo.timestamp).toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+
+                          <div className="w-full mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between gap-3 text-[11px] text-slate-600">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg shrink-0">
+                                <img
+                                  src={qrUrl}
+                                  alt="QR Code"
+                                  loading="eager"
+                                  decoding="sync"
+                                  className="w-14 h-14 object-contain rounded"
+                                />
+                                <div className="flex flex-col text-[8.5px] leading-tight">
+                                  <span className="font-bold text-slate-800">{t.printView.scanFor4K}</span>
+                                  <span className="text-slate-400 font-mono text-[8px]">ID: {photo.id.slice(0, 12)}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold text-slate-800 truncate text-xs">
+                                  {photo.caption ? `📷 ${photo.caption}` : t.printView.photoNoCaption}
+                                </span>
+                                <span className="text-[10px] text-slate-500">
+                                  {new Date(photo.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0">
+                              <a
+                                href={photoCloudUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors print:border-slate-300 print:text-blue-800"
+                              >
+                                <span>🌐 {t.printView.openCloudPhoto} ↗</span>
+                              </a>
+                            </div>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })()
+                  ) : (
+                    // Multiple Photos: 2-column grid
+                    <div className="grid grid-cols-2 gap-3">
+                      {photos.map((photo, pIdx) => {
+                        const photoCloudUrl = getPhotoCloudUrl(photo.id);
+                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(photoCloudUrl)}&bgcolor=ffffff&color=0f172a&margin=2`;
+
+                        return (
+                          <div
+                            key={photo.id || pIdx}
+                            id={`defect-photo-${photo.id || `${d.id}-${pIdx}`}`}
+                            className="photo-card border border-slate-300 rounded-lg p-2 bg-white flex flex-col justify-between break-inside-avoid shadow-sm"
+                          >
+                            <div
+                              className={`relative group flex-1 flex items-center justify-center min-h-[160px] ${isScreenPreview ? 'cursor-pointer' : ''}`}
+                              onClick={() => {
+                                if (isScreenPreview && onPreviewPhoto) {
+                                  onPreviewPhoto(photo, details.location, itemTitle);
+                                }
+                              }}
+                            >
+                              <img
+                                src={photo.url}
+                                alt={photo.caption || `${itemTitle} photo ${pIdx + 1}`}
+                                loading="eager"
+                                decoding="sync"
+                                className="max-h-[230px] w-auto max-w-full object-contain rounded border border-slate-200 shadow-sm mx-auto bg-slate-50"
+                              />
+                              {isScreenPreview && (
+                                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/75 hover:bg-black/90 text-white text-[10px] font-semibold rounded opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1 shadow">
+                                  <ZoomIn className="w-3 h-3 text-emerald-400" />
+                                  <span>{t.printView.zoomInScreen}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2 text-[9.5px] text-slate-600">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 p-0.5 rounded shrink-0">
+                                  <img
+                                    src={qrUrl}
+                                    alt="QR"
+                                    loading="eager"
+                                    decoding="sync"
+                                    className="w-10 h-10 object-contain rounded"
+                                  />
+                                  <span className="text-[7px] font-bold text-slate-700 leading-tight max-w-[45px] block">
+                                    {t.printView.scanFor4K}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-semibold text-slate-800 truncate">
+                                    {photo.caption ? `📷 ${photo.caption}` : `${t.printView.photoWord} #${pIdx + 1}`}
+                                  </span>
+                                  <span className="text-slate-500 text-[8.5px]">
+                                    {new Date(photo.timestamp).toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}{' '}
+                                    {new Date(photo.timestamp).toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="shrink-0">
+                                <a
+                                  href={photoCloudUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 border border-blue-200 rounded transition-colors print:text-blue-800"
+                                >
+                                  <span>🌐 {t.printView.openCloudPhoto} ↗</span>
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

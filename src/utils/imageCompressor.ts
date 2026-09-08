@@ -1,13 +1,13 @@
 /**
- * Compress an image file using HTML5 Canvas to max dimension 1024px and JPEG quality 0.75
- * to prevent localStorage/IndexedDB quota overflow.
+ * Compress an image file using HTML5 Canvas to max dimension 1600px and JPEG quality 0.82
+ * to provide high-clarity inspection evidence while keeping memory safe.
  *
  * Memory-safe path: prefers createImageBitmap with native downscale-on-decode
  * (no giant base64 intermediate, no full-resolution <img> decode), which is
  * critical on low-RAM phones where the FileReader + Image path could eat
  * hundreds of MB per photo and freeze the device.
  */
-export async function compressImage(file: File, maxDimension = 1024, quality = 0.75): Promise<string> {
+export async function compressImage(file: File, maxDimension = 1600, quality = 0.82): Promise<string> {
   if (typeof createImageBitmap === 'function') {
     try {
       return await compressViaBitmap(file, maxDimension, quality);
@@ -50,7 +50,7 @@ async function compressViaBitmap(file: File, maxDimension: number, quality: numb
     if (!ctx) throw new Error('Failed to create 2D canvas context');
 
     ctx.drawImage(bitmap, 0, 0);
-    drawWatermark(ctx, canvas.height);
+    drawWatermark(ctx, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', quality);
   } finally {
     bitmap.close();
@@ -92,7 +92,7 @@ function compressViaImageElement(file: File, maxDimension: number, quality: numb
 
         // Draw and compress
         ctx.drawImage(img, 0, 0, width, height);
-        drawWatermark(ctx, height);
+        drawWatermark(ctx, width, height);
 
         const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedDataUrl);
@@ -103,20 +103,43 @@ function compressViaImageElement(file: File, maxDimension: number, quality: numb
   });
 }
 
-function drawWatermark(ctx: CanvasRenderingContext2D, height: number): void {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(8, height - 24, 180, 20);
-  ctx.font = '10px Inter, sans-serif';
+function drawWatermark(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  const baseDim = Math.min(width, height);
+  const fontSize = Math.max(12, Math.round(baseDim * 0.022));
+  const paddingX = Math.max(8, Math.round(fontSize * 0.6));
+  const paddingY = Math.max(4, Math.round(fontSize * 0.35));
+  const margin = Math.max(8, Math.round(baseDim * 0.015));
+  const text = `EHS ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+
+  ctx.save();
+  ctx.font = `600 ${fontSize}px Inter, -apple-system, BlinkMacSystemFont, sans-serif`;
+  const textMetrics = ctx.measureText(text);
+  const boxWidth = textMetrics.width + paddingX * 2;
+  const boxHeight = fontSize + paddingY * 2;
+  const boxX = margin;
+  const boxY = height - margin - boxHeight;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.65)';
+  if (typeof ctx.roundRect === 'function') {
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, Math.max(3, Math.round(fontSize * 0.25)));
+    ctx.fill();
+  } else {
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+  }
+
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(`EHS ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, 14, height - 10);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, boxX + paddingX, boxY + boxHeight / 2);
+  ctx.restore();
 }
 
 /**
  * Capture the current frame of a getUserMedia <video> element as a compressed
- * JPEG data URL (max 1024px). Used by the in-app camera so we never hand off
+ * JPEG data URL (max 1600px). Used by the in-app camera so we never hand off
  * to the native camera app (which crashes some phones at the driver level).
  */
-export function captureVideoFrame(video: HTMLVideoElement, maxDimension = 1024, quality = 0.75): string {
+export function captureVideoFrame(video: HTMLVideoElement, maxDimension = 1600, quality = 0.82): string {
   const srcW = video.videoWidth;
   const srcH = video.videoHeight;
   if (!srcW || !srcH) {
@@ -135,6 +158,6 @@ export function captureVideoFrame(video: HTMLVideoElement, maxDimension = 1024, 
   if (!ctx) throw new Error('Failed to create 2D canvas context');
 
   ctx.drawImage(video, 0, 0, width, height);
-  drawWatermark(ctx, height);
+  drawWatermark(ctx, width, height);
   return canvas.toDataURL('image/jpeg', quality);
 }

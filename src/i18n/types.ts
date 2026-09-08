@@ -305,6 +305,9 @@ export interface Translations {
     photoNoCaption: string;
     zoomInScreen: string;
     clickToEnlarge: string;
+    openCloudPhoto: string;
+    scanFor4K: string;
+    cloudArchiveLink: string;
     endOfAppendix: string;
     auditSectionTitle: string;
     thId: string;

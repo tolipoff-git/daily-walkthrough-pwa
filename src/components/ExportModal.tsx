@@ -7,10 +7,11 @@ import {
   Eye,
   TrendingUp,
 } from 'lucide-react';
-import { InspectionSession } from '../types/inspection';
+import { DefectPhoto, InspectionSession } from '../types/inspection';
 import { exportInspectionToExcel } from '../utils/exportExcel';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { pushPhotoToCloud, getActiveSyncRoom } from '../utils/syncApi';
 
 interface ExportModalProps {
   session: InspectionSession;
@@ -39,6 +40,29 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleTriggerPrint = async () => {
     triggerHaptic();
     onSaveToHistory(session);
+
+    // Ensure all defect photos are synced to cloud so QR codes and PDF cloud links are active
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      const room = (getActiveSyncRoom() || session.facilityArea || 'FSE-MAIN').trim().toUpperCase();
+      const photosToSync: DefectPhoto[] = [];
+      session.items.forEach((item) => {
+        item.defectDetails?.photos?.forEach((p) => {
+          if (p && p.id && p.url) {
+            photosToSync.push(p);
+          }
+        });
+      });
+
+      if (photosToSync.length > 0) {
+        try {
+          await Promise.allSettled(
+            photosToSync.map((photo) => pushPhotoToCloud(room, photo))
+          );
+        } catch (syncErr) {
+          console.warn('Failed to pre-upload photos to cloud before print:', syncErr);
+        }
+      }
+    }
 
     try {
       const container = document.querySelector('.print-report-container');
