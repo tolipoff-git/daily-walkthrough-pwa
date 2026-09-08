@@ -177,28 +177,32 @@ export function useInspection() {
     // Save lightweight copy to localStorage (photos stripped — they live in
     // IndexedDB only; stringifying multi-MB base64 on every keystroke freezes
     // low-end phones)
-    try {
-      const lightweight: InspectionSession = {
-        ...session,
-        items: session.items.map((i) =>
-          i.defectDetails?.photos?.length
-            ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
-            : i
-        ),
-      };
-      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
-      if (session.inspectorName) {
-        localStorage.setItem('ehs_last_inspector', session.inspectorName);
+    const timer = setTimeout(() => {
+      try {
+        const lightweight: InspectionSession = {
+          ...session,
+          items: session.items.map((i) =>
+            i.defectDetails?.photos?.length
+              ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+              : i
+          ),
+        };
+        localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+        if (session.inspectorName) {
+          localStorage.setItem('ehs_last_inspector', session.inspectorName);
+        }
+        if (session.inspectorRole) {
+          localStorage.setItem('ehs_last_role', session.inspectorRole);
+        }
+        if (session.facilityName) {
+          localStorage.setItem('ehs_last_facility', session.facilityName);
+        }
+      } catch {
+        // localStorage quota exceeded fallback handled safely by IndexedDB
       }
-      if (session.inspectorRole) {
-        localStorage.setItem('ehs_last_role', session.inspectorRole);
-      }
-      if (session.facilityName) {
-        localStorage.setItem('ehs_last_facility', session.facilityName);
-      }
-    } catch {
-      // localStorage quota exceeded fallback handled safely by IndexedDB
-    }
+    }, 600);
+
+    return () => clearTimeout(timer);
   }, [session]);
 
   const updateSessionHeader = useCallback(

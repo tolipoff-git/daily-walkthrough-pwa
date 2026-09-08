@@ -64,9 +64,13 @@ export function useHistory() {
     setHistory((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  const clearHistory = useCallback(() => {
-    history.forEach((h) => deleteHistorySessionDb(h.id));
-    setHistory([]);
+  const clearHistory = useCallback(async () => {
+    try {
+      await Promise.all(history.map((h) => deleteHistorySessionDb(h.id)));
+      setHistory([]);
+    } catch (err) {
+      console.error('Failed to clear history:', err);
+    }
   }, [history]);
 
   return {

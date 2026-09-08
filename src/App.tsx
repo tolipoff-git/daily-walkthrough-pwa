@@ -84,6 +84,8 @@ export const App: React.FC = () => {
   } = useCloudSync({
     session,
     onRemoteUpdate: (remoteSession) => {
+      if (remoteSession.updatedAt && remoteSession.updatedAt === session.updatedAt) return;
+
       // Remote payloads don't carry photos (stripped before push) — preserve
       // local photos per item instead of wiping them
       const localPhotosById = new Map<string, DefectPhoto>();
@@ -211,6 +213,7 @@ export const App: React.FC = () => {
 
   // Filtered items logic
   const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return session.items.filter((item) => {
       // Category filter
       if (activeCategory !== 'ALL' && item.categoryId !== activeCategory) {
@@ -222,31 +225,20 @@ export const App: React.FC = () => {
       if (statusFilter === 'PENDING' && item.status !== 'PENDING') return false;
       if (statusFilter === 'PASS' && item.status !== 'PASS') return false;
 
-      // Search Query filter (searches across both RU and EN fields)
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesId = item.id.toLowerCase().includes(query);
-        const matchesTitleRu = item.titleRu?.toLowerCase().includes(query);
-        const matchesTitleEn = item.titleEn?.toLowerCase().includes(query);
-        const matchesStandardRu = item.standardRu?.toLowerCase().includes(query);
-        const matchesStandardEn = item.standardEn?.toLowerCase().includes(query);
-        const matchesLocation = item.defectDetails?.location?.toLowerCase().includes(query);
-        const matchesDefect = item.defectDetails?.description?.toLowerCase().includes(query);
-        const matchesNotes = item.itemNotes?.toLowerCase().includes(query);
+      // Fast path: if !searchQuery.trim(), filter by category and status without checking strings
+      if (!q) return true;
 
-        if (
-          !matchesId &&
-          !matchesTitleRu &&
-          !matchesTitleEn &&
-          !matchesStandardRu &&
-          !matchesStandardEn &&
-          !matchesLocation &&
-          !matchesDefect &&
-          !matchesNotes
-        ) {
-          return false;
-        }
-      }
+      // Search Query filter (searches across both RU and EN fields)
+      const matches =
+        item.id.toLowerCase().includes(q) ||
+        item.titleRu?.toLowerCase().includes(q) ||
+        item.titleEn?.toLowerCase().includes(q) ||
+        item.defectDetails?.description?.toLowerCase().includes(q) ||
+        item.defectDetails?.location?.toLowerCase().includes(q) ||
+        item.itemNotes?.toLowerCase().includes(q) ||
+        item.standardRu?.toLowerCase().includes(q) ||
+        item.standardEn?.toLowerCase().includes(q);
+      if (!matches) return false;
 
       return true;
     });
@@ -278,12 +270,12 @@ export const App: React.FC = () => {
     setActiveCategory('ALL');
     setStatusFilter('ALL');
     setSearchQuery('');
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const el = document.getElementById(`item-${itemId}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }, 150);
+    });
   };
 
   const handleJumpToNextPending = () => {
@@ -298,6 +290,7 @@ export const App: React.FC = () => {
     triggerHaptic();
     setActivePrintMode('daily');
     saveInspectionToHistory(session);
+    const timeoutIds = new Set<NodeJS.Timeout>();
     try {
       const container = document.querySelector('.print-report-container');
       const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
@@ -309,15 +302,18 @@ export const App: React.FC = () => {
           imgs.map(async (img) => {
             if (!img.complete) {
               await new Promise<void>((resolve) => {
-                const timeout = setTimeout(resolve, 2000);
-                img.onload = () => {
-                  clearTimeout(timeout);
+                let timeoutId: NodeJS.Timeout;
+                const cleanup = () => {
+                  clearTimeout(timeoutId);
+                  timeoutIds.delete(timeoutId);
+                  img.onload = null;
+                  img.onerror = null;
                   resolve();
                 };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
+                timeoutId = setTimeout(cleanup, 2000);
+                timeoutIds.add(timeoutId);
+                img.onload = cleanup;
+                img.onerror = cleanup;
               });
             }
             if (typeof img.decode === 'function') {
@@ -328,6 +324,9 @@ export const App: React.FC = () => {
       }
     } catch {
       // Fallback if image decode fails
+    } finally {
+      timeoutIds.forEach(clearTimeout);
+      timeoutIds.clear();
     }
     setTimeout(() => {
       window.print();

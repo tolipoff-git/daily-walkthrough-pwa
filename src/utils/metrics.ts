@@ -1,6 +1,14 @@
 import { ChecklistItem, InspectionMetrics } from '../types/inspection';
 
+export const metricsCache = new Map<string, InspectionMetrics>();
+
 export function calculateMetrics(items: ChecklistItem[]): InspectionMetrics {
+  const cacheKey = items.map((i) => `${i.id}:${i.status}:${i.defectDetails?.priority || ''}`).join('|');
+  const cached = metricsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const total = items.length;
   let passed = 0;
   let failed = 0;
@@ -37,7 +45,7 @@ export function calculateMetrics(items: ChecklistItem[]): InspectionMetrics {
   const scorableItems = total - na;
   const scorePercentage = scorableItems > 0 ? Math.round((passed / scorableItems) * 100) : 100;
 
-  return {
+  const result: InspectionMetrics = {
     total,
     completed,
     pending,
@@ -49,4 +57,14 @@ export function calculateMetrics(items: ChecklistItem[]): InspectionMetrics {
     shiftP2Count,
     scheduledP3Count,
   };
+
+  metricsCache.set(cacheKey, result);
+  if (metricsCache.size > 100) {
+    const oldestKey = metricsCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      metricsCache.delete(oldestKey);
+    }
+  }
+
+  return result;
 }

@@ -64,6 +64,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       }
     }
 
+    const timeoutIds = new Set<NodeJS.Timeout>();
     try {
       const container = document.querySelector('.print-report-container');
       const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
@@ -76,15 +77,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           imgs.map(async (img) => {
             if (!img.complete) {
               await new Promise<void>((resolve) => {
-                const timeout = setTimeout(resolve, 2000);
-                img.onload = () => {
-                  clearTimeout(timeout);
+                let timeoutId: NodeJS.Timeout;
+                const cleanup = () => {
+                  clearTimeout(timeoutId);
+                  timeoutIds.delete(timeoutId);
+                  img.onload = null;
+                  img.onerror = null;
                   resolve();
                 };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
+                timeoutId = setTimeout(cleanup, 2000);
+                timeoutIds.add(timeoutId);
+                img.onload = cleanup;
+                img.onerror = cleanup;
               });
             }
             if (typeof img.decode === 'function') {
@@ -95,6 +99,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       }
     } catch {
       // Fallback if image preparation fails
+    } finally {
+      timeoutIds.forEach(clearTimeout);
+      timeoutIds.clear();
     }
 
     // Unmount modal from DOM before printing to ensure pristine print snapshot
