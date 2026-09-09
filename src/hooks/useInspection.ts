@@ -227,6 +227,17 @@ export function useInspection() {
           saveHistorySessionDb(prev).catch(() => {});
           const fresh = createNewInspectionSession(currentLang);
           saveActiveSessionDb(fresh).catch(() => {});
+          try {
+            const lightweight: InspectionSession = {
+              ...fresh,
+              items: fresh.items.map((i) =>
+                i.defectDetails?.photos?.length
+                  ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+                  : i
+              ),
+            };
+            localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+          } catch {}
           return fresh;
         }
         return prev;
@@ -453,9 +464,37 @@ export function useInspection() {
     });
   }, []);
 
-  const resetWalkthrough = useCallback((lang: Language = 'ru') => {
-    const newSession = createNewInspectionSession(lang);
-    setSession(newSession);
+  const resetWalkthrough = useCallback((lang: Language = 'ru'): InspectionSession => {
+    // 1. Archive current session if it has any user activity or was completed
+    setSession((prev) => {
+      if (prev.status === 'Completed' || prev.items.some((i) => i.status !== 'PENDING') || prev.generalNotes) {
+        saveHistorySessionDb(prev).catch(() => {});
+      }
+      return prev;
+    });
+
+    // 2. Generate a fresh session with today's date and current start time
+    const fresh = createNewInspectionSession(lang);
+
+    // 3. Immediately persist to localStorage & IndexedDB synchronously / atomically
+    try {
+      const lightweight: InspectionSession = {
+        ...fresh,
+        items: fresh.items.map((i) =>
+          i.defectDetails?.photos?.length
+            ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+            : i
+        ),
+      };
+      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+    } catch {
+      // localStorage quota exceeded fallback handled safely by IndexedDB
+    }
+    saveActiveSessionDb(fresh).catch((err) => console.warn('Failed to save fresh session to IndexedDB', err));
+
+    // 4. Update React state and return fresh
+    setSession(fresh);
+    return fresh;
   }, []);
 
   const loadSession = useCallback((loaded: InspectionSession) => {
@@ -463,11 +502,12 @@ export function useInspection() {
     setSession((prev) => hydrateSession(loaded, currentLang, prev));
   }, []);
 
-  const finishWalkthrough = useCallback(() => {
+  const finishWalkthrough = useCallback((): InspectionSession => {
     const now = new Date();
     const currentTime = getLocalCurrentTime();
+    let completedSession: InspectionSession | null = null;
     setSession((prev) => {
-      const completedSession: InspectionSession = {
+      completedSession = {
         ...prev,
         status: 'Completed',
         endTime: prev.endTime || currentTime,
@@ -478,8 +518,21 @@ export function useInspection() {
         updatedAt: now.toISOString(),
       };
       saveHistorySessionDb(completedSession).catch(() => {});
+      saveActiveSessionDb(completedSession).catch(() => {});
+      try {
+        const lightweight: InspectionSession = {
+          ...completedSession,
+          items: completedSession.items.map((i) =>
+            i.defectDetails?.photos?.length
+              ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+              : i
+          ),
+        };
+        localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+      } catch {}
       return completedSession;
     });
+    return completedSession!;
   }, []);
 
   return {

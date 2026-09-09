@@ -6,6 +6,7 @@ import { INITIAL_CHECKLIST_DATA } from './data/checklistData';
 import { DefectPhoto, InspectionSession } from './types/inspection';
 import { triggerHaptic } from './utils/haptics';
 import { useLanguage } from './i18n/LanguageContext';
+import { Language } from './i18n/types';
 import { getReportFileName } from './utils/formatters';
 import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from './version';
 
@@ -73,6 +74,16 @@ export const App: React.FC = () => {
 
   const handleRemoteUpdate = useCallback((remoteSession: InspectionSession) => {
     if (remoteSession.updatedAt && remoteSession.updatedAt === session.updatedAt) return;
+
+    // Protection: never overwrite an active In Progress walkthrough with a different Completed session
+    if (
+      remoteSession.status === 'Completed' &&
+      session.status === 'In Progress' &&
+      remoteSession.id !== session.id
+    ) {
+      saveInspectionToHistory(remoteSession);
+      return;
+    }
 
     // Remote payloads don't carry photos (stripped before push) — preserve
     // local photos per item instead of wiping them
@@ -274,10 +285,24 @@ export const App: React.FC = () => {
   }, []);
 
   const handleFinish = useCallback(() => {
-    finishWalkthrough();
-    saveInspectionToHistory(session);
+    const completed = finishWalkthrough();
+    saveInspectionToHistory(completed);
+    forcePush(completed);
     setShowExportModal(true);
-  }, [finishWalkthrough, session, saveInspectionToHistory]);
+  }, [finishWalkthrough, saveInspectionToHistory, forcePush]);
+
+  const handleStartNewWalkthrough = useCallback((lang: Language = language) => {
+    triggerHaptic();
+    if (session.status === 'Completed' || session.items.some((i) => i.status !== 'PENDING') || session.generalNotes) {
+      saveInspectionToHistory(session);
+    }
+    const fresh = resetWalkthrough(lang);
+    forcePush(fresh);
+    setActiveCategory('ALL');
+    setStatusFilter('ALL');
+    setSearchQuery('');
+    setShowExportModal(false);
+  }, [language, session, saveInspectionToHistory, resetWalkthrough, forcePush]);
 
   const handleScrollToItem = useCallback((itemId: string) => {
     setActiveCategory('ALL');
@@ -400,7 +425,7 @@ export const App: React.FC = () => {
           onOpenQrScanner={() => setShowDirectQrScanner(true)}
           syncStatus={syncStatus}
           syncRoom={syncRoom}
-          onReset={() => resetWalkthrough(language)}
+          onReset={() => handleStartNewWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}
         />
@@ -658,7 +683,7 @@ export const App: React.FC = () => {
           onSaveToHistory={saveInspectionToHistory}
           onOpenPrintPreview={() => setShowPrintPreview(true)}
           onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
-          onStartNewInspection={() => resetWalkthrough(language)}
+          onStartNewInspection={() => handleStartNewWalkthrough(language)}
         />
       )}
 

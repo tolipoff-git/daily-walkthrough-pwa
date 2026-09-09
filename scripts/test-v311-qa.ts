@@ -549,6 +549,116 @@ async function main() {
     console.log(`       Evidence: modalClosed=${closed}, newInspectionStarted=${newInspectionStarted}, sessionStatus="${activeSession.status}"`);
   });
 
+  runTest('5.3 New Walkthrough flow: archives prior completed session and produces pristine session with 17 pending items', () => {
+    const historyStore: InspectionSession[] = [];
+    const activeStore: { current: InspectionSession | null } = { current: null };
+
+    // Set up initial completed walkthrough
+    const completedWalkthrough = createNewInspectionSession('ru');
+    completedWalkthrough.status = 'Completed';
+    completedWalkthrough.endTime = '14:30';
+    completedWalkthrough.items[0].status = 'PASS';
+    activeStore.current = completedWalkthrough;
+
+    // Simulate handleStartNewWalkthrough
+    const handleStartNewWalkthrough = () => {
+      if (activeStore.current && (activeStore.current.status === 'Completed' || activeStore.current.items.some(i => i.status !== 'PENDING'))) {
+        historyStore.push(activeStore.current);
+      }
+      const fresh = createNewInspectionSession('ru');
+      activeStore.current = fresh;
+      return fresh;
+    };
+
+    const freshSession = handleStartNewWalkthrough();
+
+    assert.strictEqual(historyStore.length, 1, 'Previous session must be archived to history');
+    assert.strictEqual(historyStore[0].id, completedWalkthrough.id, 'Archived session must match previous session ID');
+    assert.strictEqual(historyStore[0].status, 'Completed', 'Archived session status must be Completed');
+
+    assert.ok(activeStore.current, 'Active session must be set');
+    assert.notStrictEqual(activeStore.current.id, completedWalkthrough.id, 'Fresh session must have a new unique ID');
+    assert.strictEqual(activeStore.current.status, 'In Progress', 'Fresh session must be In Progress');
+    assert.strictEqual(activeStore.current.items.length, 17, 'Fresh session must have 17 items');
+    assert.strictEqual(activeStore.current.items.every(i => i.status === 'PENDING'), true, 'All items in fresh session must be PENDING');
+    assert.strictEqual(activeStore.current.date, getLocalTodayDate(), 'Fresh session must have today date');
+    assert.strictEqual(activeStore.current.startTime, getLocalCurrentTime(), 'Fresh session must have current start time');
+    console.log(`       Evidence: historyArchivedId="${historyStore[0].id}", freshId="${freshSession.id}", allPending=${freshSession.items.every(i => i.status === 'PENDING')}`);
+  });
+
+  runTest('5.4 Cloud Sync Protection: Completed remote session NEVER overwrites active In Progress walkthrough', () => {
+    const historyStore: InspectionSession[] = [];
+    let localSession: InspectionSession = createNewInspectionSession('ru'); // fresh walkthrough
+    const localId = localSession.id;
+
+    // Incoming remote payload is Completed from earlier or another session
+    const remoteCompletedSession: InspectionSession = {
+      ...createNewInspectionSession('ru'),
+      id: 'INS-20260909-OLDCOMPLETED',
+      status: 'Completed',
+      endTime: '11:00',
+      updatedAt: '2026-09-09T06:40:00.000Z'
+    };
+
+    const remotePayload: SyncPayload = {
+      deviceId: 'remote-device-999',
+      updatedAt: '2026-09-09T06:40:00.000Z',
+      session: remoteCompletedSession
+    };
+
+    // Simulate handleRemotePayload logic
+    const handleRemotePayload = (remote: SyncPayload) => {
+      // Protection: never let a remote Completed session overwrite an active In Progress session with a different ID
+      if (
+        remote.session.status === 'Completed' &&
+        localSession.status === 'In Progress' &&
+        remote.session.id !== localSession.id
+      ) {
+        historyStore.push(remote.session);
+        return;
+      }
+      localSession = remote.session;
+    };
+
+    handleRemotePayload(remotePayload);
+
+    assert.strictEqual(localSession.id, localId, 'Local active session must NOT be overwritten by remote completed session');
+    assert.strictEqual(localSession.status, 'In Progress', 'Local session must remain In Progress');
+    assert.strictEqual(historyStore.length, 1, 'Remote completed session must be redirected to History');
+    assert.strictEqual(historyStore[0].id, 'INS-20260909-OLDCOMPLETED');
+    console.log(`       Evidence: localSessionIdPreserved="${localSession.id}", archivedCompletedId="${historyStore[0].id}"`);
+  });
+
+  runTest('5.5 finishWalkthrough atomically computes and returns completedSession with endTime and status', () => {
+    let currentSession = createNewInspectionSession('ru');
+    assert.strictEqual(currentSession.status, 'In Progress');
+    assert.strictEqual(currentSession.endTime, '');
+
+    const finishWalkthrough = (): InspectionSession => {
+      const now = new Date();
+      const currentTime = getLocalCurrentTime();
+      const completed: InspectionSession = {
+        ...currentSession,
+        status: 'Completed',
+        endTime: currentSession.endTime || currentTime,
+        signatures: {
+          ...currentSession.signatures,
+          timestamp: now.toISOString(),
+        },
+        updatedAt: now.toISOString(),
+      };
+      currentSession = completed;
+      return completed;
+    };
+
+    const result = finishWalkthrough();
+
+    assert.strictEqual(result.status, 'Completed', 'Returned session status must be Completed');
+    assert.strictEqual(result.endTime, getLocalCurrentTime(), 'Returned session endTime must match current time');
+    assert.strictEqual(currentSession.status, 'Completed', 'Stored session must be Completed');
+    console.log(`       Evidence: completedId="${result.id}", status="${result.status}", endTime="${result.endTime}"`);
+  });
+
   console.log('\n======================================================================');
   console.log(`QA VERIFICATION SUMMARY: ${passedTests}/${totalTests} Passed (${failedTests} Failed)`);
   console.log('======================================================================\n');

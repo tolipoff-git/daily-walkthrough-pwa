@@ -55,6 +55,16 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       return;
     }
 
+    // Protection: never let a remote Completed session overwrite an active In Progress session with a different ID
+    if (
+      remote.session.status === 'Completed' &&
+      sessionRef.current?.status === 'In Progress' &&
+      remote.session.id !== sessionRef.current?.id
+    ) {
+      saveHistorySessionDb(remote.session).catch(() => {});
+      return;
+    }
+
     // If change was made by this same device, ignore echo
     if (remote.deviceId === deviceIdRef.current) {
       return;
@@ -237,6 +247,14 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
           saveHistorySessionDb(remote.session).catch(() => {});
           return;
         }
+        if (
+          remote.session.status === 'Completed' &&
+          sessionRef.current?.status === 'In Progress' &&
+          remote.session.id !== sessionRef.current.id
+        ) {
+          saveHistorySessionDb(remote.session).catch(() => {});
+          return;
+        }
         const resolved = await resolveRemotePhotos(remote, currentRoom);
         handleRemotePayload(resolved);
       }
@@ -274,6 +292,20 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
             return;
           }
 
+          // If remote session is Completed and local is In Progress (and different ID),
+          // archive remote to history and publish local to room
+          if (
+            remote.session.status === 'Completed' &&
+            sessionRef.current?.status === 'In Progress' &&
+            remote.session.id !== sessionRef.current?.id
+          ) {
+            saveHistorySessionDb(remote.session).catch(() => {});
+            if (!cancelled) {
+              await pushToCloud(syncRoom);
+            }
+            return;
+          }
+
           const resolved = await resolveRemotePhotos(remote, syncRoom);
           if (cancelled) return;
           handleRemotePayload(resolved);
@@ -282,8 +314,13 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
           const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
 
           // Remote is older, but local is a pristine untouched session — take
-          // the remote one instead of publishing an empty session over it
-          if (remoteTime < localTime && isPristineSession(sessionRef.current)) {
+          // the remote one instead of publishing an empty session over it,
+          // UNLESS remote is already Completed
+          if (
+            remoteTime < localTime &&
+            isPristineSession(sessionRef.current) &&
+            remote.session.status !== 'Completed'
+          ) {
             if (cancelled) return;
             lastReceivedTimestampRef.current = remote.updatedAt;
             setLastRemoteDevice(remote.deviceId);
@@ -312,7 +349,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncRoom, session.id]);
+  }, [syncRoom]);
 
   // Debounced auto-push on local session changes (only after the initial
   // pull-first sync completed, so we never clobber a newer remote session)
