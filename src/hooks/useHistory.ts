@@ -46,7 +46,8 @@ export function useHistory() {
     }
   }, [history]);
 
-  const saveInspectionToHistory = useCallback((session: InspectionSession) => {
+  const saveInspectionToHistory = useCallback((session?: InspectionSession | null) => {
+    if (!session || !session.id) return;
     saveHistorySessionDb(session).catch((err) => console.warn('Failed to save to DB history', err));
     setHistory((prev) => {
       const existingIndex = prev.findIndex((s) => s.id === session.id);

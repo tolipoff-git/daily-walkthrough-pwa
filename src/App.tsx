@@ -285,23 +285,35 @@ export const App: React.FC = () => {
   }, []);
 
   const handleFinish = useCallback(() => {
-    const completed = finishWalkthrough();
-    saveInspectionToHistory(completed);
-    forcePush(completed);
-    setShowExportModal(true);
+    try {
+      const completed = finishWalkthrough();
+      if (completed) {
+        saveInspectionToHistory(completed);
+        forcePush(completed);
+      }
+      setShowExportModal(true);
+    } catch (err) {
+      console.error('Error finishing walkthrough:', err);
+    }
   }, [finishWalkthrough, saveInspectionToHistory, forcePush]);
 
   const handleStartNewWalkthrough = useCallback((lang: Language = language) => {
-    triggerHaptic();
-    if (session.status === 'Completed' || session.items.some((i) => i.status !== 'PENDING') || session.generalNotes) {
-      saveInspectionToHistory(session);
+    try {
+      triggerHaptic();
+      if (session.status === 'Completed' || session.items.some((i) => i.status !== 'PENDING') || session.generalNotes) {
+        saveInspectionToHistory(session);
+      }
+      const fresh = resetWalkthrough(lang);
+      if (fresh) {
+        forcePush(fresh);
+      }
+      setActiveCategory('ALL');
+      setStatusFilter('ALL');
+      setSearchQuery('');
+      setShowExportModal(false);
+    } catch (err) {
+      console.error('Error starting new walkthrough:', err);
     }
-    const fresh = resetWalkthrough(lang);
-    forcePush(fresh);
-    setActiveCategory('ALL');
-    setStatusFilter('ALL');
-    setSearchQuery('');
-    setShowExportModal(false);
   }, [language, session, saveInspectionToHistory, resetWalkthrough, forcePush]);
 
   const handleScrollToItem = useCallback((itemId: string) => {

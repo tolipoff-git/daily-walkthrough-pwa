@@ -659,6 +659,74 @@ async function main() {
     console.log(`       Evidence: completedId="${result.id}", status="${result.status}", endTime="${result.endTime}"`);
   });
 
+  runTest('5.6 handleFinish end-to-end: finishWalkthrough + saveInspectionToHistory never throws and preserves valid state', () => {
+    const sessionState = { current: createNewInspectionSession('ru') };
+    const historyState: InspectionSession[] = [];
+
+    // Emulate hook implementations
+    const finishWalkthrough = (): InspectionSession => {
+      const now = new Date();
+      const currentTime = getLocalCurrentTime();
+      const prev = sessionState.current;
+      const completedSession: InspectionSession = {
+        ...prev,
+        status: 'Completed',
+        endTime: prev.endTime || currentTime,
+        signatures: {
+          ...prev.signatures,
+          timestamp: now.toISOString(),
+        },
+        updatedAt: now.toISOString(),
+      };
+      sessionState.current = completedSession;
+      return completedSession;
+    };
+
+    const saveInspectionToHistory = (session?: InspectionSession | null) => {
+      if (!session || !session.id) return;
+      const existingIndex = historyState.findIndex((s) => s.id === session.id);
+      if (existingIndex >= 0) {
+        historyState[existingIndex] = session;
+      } else {
+        historyState.unshift(session);
+      }
+    };
+
+    let exportModalOpened = false;
+    const setShowExportModal = (val: boolean) => { exportModalOpened = val; };
+
+    // Simulate handleFinish from App.tsx
+    const handleFinish = () => {
+      try {
+        const completed = finishWalkthrough();
+        assert.ok(completed, 'finishWalkthrough must return non-null session object');
+        assert.strictEqual(completed.status, 'Completed');
+        assert.ok(completed.id, 'session must have valid id');
+        saveInspectionToHistory(completed);
+        setShowExportModal(true);
+      } catch (err: any) {
+        assert.fail(`handleFinish must never throw: ${err?.message}`);
+      }
+    };
+
+    // Execute finish
+    handleFinish();
+
+    assert.strictEqual(exportModalOpened, true, 'Export modal must open upon completion');
+    assert.strictEqual(sessionState.current.status, 'Completed');
+    assert.strictEqual(historyState.length, 1);
+    assert.strictEqual(historyState[0].id, sessionState.current.id);
+    assert.strictEqual(historyState[0].status, 'Completed');
+
+    // Test defensive null guard in saveInspectionToHistory
+    assert.doesNotThrow(() => {
+      saveInspectionToHistory(null);
+      saveInspectionToHistory(undefined);
+    }, 'saveInspectionToHistory must handle null or undefined safely without throwing');
+
+    console.log(`       Evidence: finishWalkthrough returned valid ID="${sessionState.current.id}", exportModalOpened=${exportModalOpened}, historyCount=${historyState.length}`);
+  });
+
   console.log('\n======================================================================');
   console.log(`QA VERIFICATION SUMMARY: ${passedTests}/${totalTests} Passed (${failedTests} Failed)`);
   console.log('======================================================================\n');

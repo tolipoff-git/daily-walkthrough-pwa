@@ -119,14 +119,14 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   }, []);
 
   // Push local session to cloud
-  const pushToCloud = useCallback(async (currentRoom: string = syncRoom, explicitSession?: InspectionSession) => {
+  const pushToCloud = useCallback(async (currentRoom: string = syncRoom, explicitSession?: InspectionSession | null) => {
     if (!navigator.onLine) {
       setSyncStatus('offline');
       return false;
     }
 
     const currentSession = explicitSession || sessionRef.current;
-    if (!currentSession) return false;
+    if (!currentSession || !Array.isArray(currentSession.items)) return false;
 
     // Don't push if this state was just received from remote (unless explicit)
     if (!explicitSession && currentSession.updatedAt === lastReceivedTimestampRef.current) {

@@ -158,6 +158,8 @@ export function useInspection() {
   });
 
   const isInitialMount = useRef(true);
+  const sessionRef = useRef<InspectionSession>(session);
+  sessionRef.current = session;
 
   // Load from IndexedDB on mount if available (contains rich photos)
   useEffect(() => {
@@ -466,12 +468,10 @@ export function useInspection() {
 
   const resetWalkthrough = useCallback((lang: Language = 'ru'): InspectionSession => {
     // 1. Archive current session if it has any user activity or was completed
-    setSession((prev) => {
-      if (prev.status === 'Completed' || prev.items.some((i) => i.status !== 'PENDING') || prev.generalNotes) {
-        saveHistorySessionDb(prev).catch(() => {});
-      }
-      return prev;
-    });
+    const current = sessionRef.current;
+    if (current && (current.status === 'Completed' || current.items.some((i) => i.status !== 'PENDING') || current.generalNotes)) {
+      saveHistorySessionDb(current).catch(() => {});
+    }
 
     // 2. Generate a fresh session with today's date and current start time
     const fresh = createNewInspectionSession(lang);
@@ -492,47 +492,51 @@ export function useInspection() {
     }
     saveActiveSessionDb(fresh).catch((err) => console.warn('Failed to save fresh session to IndexedDB', err));
 
-    // 4. Update React state and return fresh
+    // 4. Update React state, sessionRef, and return fresh
+    sessionRef.current = fresh;
     setSession(fresh);
     return fresh;
   }, []);
 
   const loadSession = useCallback((loaded: InspectionSession) => {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
-    setSession((prev) => hydrateSession(loaded, currentLang, prev));
+    setSession((prev) => {
+      const next = hydrateSession(loaded, currentLang, prev);
+      sessionRef.current = next;
+      return next;
+    });
   }, []);
 
   const finishWalkthrough = useCallback((): InspectionSession => {
     const now = new Date();
     const currentTime = getLocalCurrentTime();
-    let completedSession: InspectionSession | null = null;
-    setSession((prev) => {
-      completedSession = {
-        ...prev,
-        status: 'Completed',
-        endTime: prev.endTime || currentTime,
-        signatures: {
-          ...prev.signatures,
-          timestamp: now.toISOString(),
-        },
-        updatedAt: now.toISOString(),
+    const prev = sessionRef.current;
+    const completedSession: InspectionSession = {
+      ...prev,
+      status: 'Completed',
+      endTime: prev.endTime || currentTime,
+      signatures: {
+        ...prev.signatures,
+        timestamp: now.toISOString(),
+      },
+      updatedAt: now.toISOString(),
+    };
+    saveHistorySessionDb(completedSession).catch(() => {});
+    saveActiveSessionDb(completedSession).catch(() => {});
+    try {
+      const lightweight: InspectionSession = {
+        ...completedSession,
+        items: completedSession.items.map((i) =>
+          i.defectDetails?.photos?.length
+            ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
+            : i
+        ),
       };
-      saveHistorySessionDb(completedSession).catch(() => {});
-      saveActiveSessionDb(completedSession).catch(() => {});
-      try {
-        const lightweight: InspectionSession = {
-          ...completedSession,
-          items: completedSession.items.map((i) =>
-            i.defectDetails?.photos?.length
-              ? { ...i, defectDetails: { ...i.defectDetails, photos: [] } }
-              : i
-          ),
-        };
-        localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
-      } catch {}
-      return completedSession;
-    });
-    return completedSession!;
+      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+    } catch {}
+    sessionRef.current = completedSession;
+    setSession(completedSession);
+    return completedSession;
   }, []);
 
   return {
