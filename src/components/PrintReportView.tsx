@@ -399,7 +399,6 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                     (() => {
                       const photo = photos[0];
                       const photoCloudUrl = getPhotoCloudUrl(photo.id);
-                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(photoCloudUrl)}&bgcolor=ffffff&color=0f172a&margin=2`;
 
                       return (
                         <div
@@ -430,28 +429,13 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                           </div>
 
                           <div className="w-full mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between gap-3 text-[11px] text-slate-600">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg shrink-0">
-                                <img
-                                  src={qrUrl}
-                                  alt="QR Code"
-                                  loading="eager"
-                                  decoding="sync"
-                                  className="w-14 h-14 object-contain rounded"
-                                />
-                                <div className="flex flex-col text-[8.5px] leading-tight">
-                                  <span className="font-bold text-slate-800">{t.printView.scanFor4K}</span>
-                                  <span className="text-slate-400 font-mono text-[8px]">ID: {photo.id.slice(0, 12)}</span>
-                                </div>
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-semibold text-slate-800 truncate text-xs">
-                                  {photo.caption ? `📷 ${photo.caption}` : t.printView.photoNoCaption}
-                                </span>
-                                <span className="text-[10px] text-slate-500">
-                                  {new Date(photo.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
-                                </span>
-                              </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-slate-800 truncate text-xs">
+                                {photo.caption ? `📷 ${photo.caption}` : t.printView.photoNoCaption}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(photo.timestamp).toLocaleString(isRu ? 'ru-RU' : 'en-US')}
+                              </span>
                             </div>
 
                             <div className="shrink-0">
@@ -473,7 +457,6 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                       {photos.map((photo, pIdx) => {
                         const photoCloudUrl = getPhotoCloudUrl(photo.id);
-                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(photoCloudUrl)}&bgcolor=ffffff&color=0f172a&margin=2`;
 
                         return (
                           <div
@@ -504,28 +487,14 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
                               )}
                             </div>
                             <div className="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2 text-[9.5px] text-slate-600">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 p-0.5 rounded shrink-0">
-                                  <img
-                                    src={qrUrl}
-                                    alt="QR"
-                                    loading="eager"
-                                    decoding="sync"
-                                    className="w-10 h-10 object-contain rounded"
-                                  />
-                                  <span className="text-[7px] font-bold text-slate-700 leading-tight max-w-[45px] block">
-                                    {t.printView.scanFor4K}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                  <span className="font-semibold text-slate-800 truncate">
-                                    {photo.caption ? `📷 ${photo.caption}` : `${t.printView.photoWord} #${pIdx + 1}`}
-                                  </span>
-                                  <span className="text-slate-500 text-[8.5px]">
-                                    {new Date(photo.timestamp).toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}{' '}
-                                    {new Date(photo.timestamp).toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold text-slate-800 truncate">
+                                  {photo.caption ? `📷 ${photo.caption}` : `${t.printView.photoWord} #${pIdx + 1}`}
+                                </span>
+                                <span className="text-slate-500 text-[8.5px]">
+                                  {new Date(photo.timestamp).toLocaleDateString(isRu ? 'ru-RU' : 'en-US')}{' '}
+                                  {new Date(photo.timestamp).toLocaleTimeString(isRu ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
                               </div>
                               <div className="shrink-0">
                                 <a

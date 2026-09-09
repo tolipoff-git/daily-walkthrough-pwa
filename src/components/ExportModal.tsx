@@ -40,11 +40,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     exportInspectionToExcel(session, language);
   };
 
-  const handleTriggerPrint = async () => {
+  const handleTriggerPrint = () => {
     triggerHaptic();
     onSaveToHistory(session);
 
-    // Ensure all defect photos are synced to cloud so QR codes and PDF cloud links are active
+    // Sync defect photos in background without blocking user print gesture
     if (typeof navigator !== 'undefined' && navigator.onLine) {
       const room = (getActiveSyncRoom() || session.facilityArea || 'FSE-MAIN').trim().toUpperCase();
       const photosToSync: DefectPhoto[] = [];
@@ -57,61 +57,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       });
 
       if (photosToSync.length > 0) {
-        try {
-          await Promise.allSettled(
-            photosToSync.map((photo) => pushPhotoToCloud(room, photo))
-          );
-        } catch (syncErr) {
-          console.warn('Failed to pre-upload photos to cloud before print:', syncErr);
-        }
+        Promise.allSettled(
+          photosToSync.map((photo) => pushPhotoToCloud(room, photo))
+        ).catch(() => {});
       }
-    }
-
-    const timeoutIds = new Set<NodeJS.Timeout>();
-    try {
-      const container = document.querySelector('.print-report-container');
-      const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
-      if (imgs.length > 0) {
-        imgs.forEach((img) => {
-          img.loading = 'eager';
-        });
-
-        await Promise.all(
-          imgs.map(async (img) => {
-            if (!img.complete) {
-              await new Promise<void>((resolve) => {
-                let timeoutId: NodeJS.Timeout;
-                const cleanup = () => {
-                  clearTimeout(timeoutId);
-                  timeoutIds.delete(timeoutId);
-                  img.onload = null;
-                  img.onerror = null;
-                  resolve();
-                };
-                timeoutId = setTimeout(cleanup, 2000);
-                timeoutIds.add(timeoutId);
-                img.onload = cleanup;
-                img.onerror = cleanup;
-              });
-            }
-            if (typeof img.decode === 'function') {
-              await img.decode().catch(() => {});
-            }
-          })
-        );
-      }
-    } catch {
-      // Fallback if image preparation fails
-    } finally {
-      timeoutIds.forEach(clearTimeout);
-      timeoutIds.clear();
     }
 
     // Unmount modal from DOM before printing to ensure pristine print snapshot
     onClose();
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 50);
   };
 
   return (

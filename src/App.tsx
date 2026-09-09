@@ -336,52 +336,14 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDirectPrint = async () => {
+  const handleDirectPrint = () => {
     triggerHaptic();
     setActivePrintMode('daily');
     saveInspectionToHistory(session);
-    const timeoutIds = new Set<NodeJS.Timeout>();
-    try {
-      const container = document.querySelector('.print-report-container');
-      const imgs = container ? Array.from(container.querySelectorAll<HTMLImageElement>('img')) : [];
-      if (imgs.length > 0) {
-        imgs.forEach((img) => {
-          img.loading = 'eager';
-        });
-        await Promise.all(
-          imgs.map(async (img) => {
-            if (!img.complete) {
-              await new Promise<void>((resolve) => {
-                let timeoutId: NodeJS.Timeout;
-                const cleanup = () => {
-                  clearTimeout(timeoutId);
-                  timeoutIds.delete(timeoutId);
-                  img.onload = null;
-                  img.onerror = null;
-                  resolve();
-                };
-                timeoutId = setTimeout(cleanup, 2000);
-                timeoutIds.add(timeoutId);
-                img.onload = cleanup;
-                img.onerror = cleanup;
-              });
-            }
-            if (typeof img.decode === 'function') {
-              await img.decode().catch(() => {});
-            }
-          })
-        );
-      }
-    } catch {
-      // Fallback if image decode fails
-    } finally {
-      timeoutIds.forEach(clearTimeout);
-      timeoutIds.clear();
-    }
     if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
     printTimeoutRef.current = setTimeout(() => {
       window.print();
-    }, 150);
+    }, 50);
   };
 
   const handleTriggerWeeklyPrint = (data: WeeklyExecutiveReportData) => {
