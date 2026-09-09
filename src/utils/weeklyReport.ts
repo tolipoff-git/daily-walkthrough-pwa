@@ -4,6 +4,8 @@ import { calculateMetrics } from './metrics';
 export interface DailyPoint {
   date: string;
   dayLabel: string;
+  dayLabelRu?: string;
+  dayLabelEn?: string;
   score: number;
   totalItems: number;
   defectsCount: number;
@@ -57,9 +59,14 @@ export interface ActionableMatrixRow {
 export interface DefectDailyObservation {
   date: string;              // YYYY-MM-DD
   dayLabel: string;          // e.g. "Mon" | "Пн"
+  dayLabelRu?: string;
+  dayLabelEn?: string;
   inspectorName: string;     // e.g. "Смирнов Д. В."
+  inspectorNameEn?: string;
   description: string;       // Observation description
+  descriptionEn?: string;
   notes?: string;            // Additional notes if any
+  notesEn?: string;
   priority: Priority;        // 'P1' | 'P2' | 'P3'
   sessionId: string;        // e.g. "INS-20260901-X7K9"
   sessionDate: string;      // e.g. "2026-09-01"
@@ -531,18 +538,22 @@ export function aggregateWeeklyExecutiveReport(
     totalScoreSum += dayMetrics.scorePercentage;
     totalCheckpointsAudited += dayMetrics.total;
 
+    const dayLabelRu = getWeekdayName(date, 'ru');
+    const dayLabelEn = getWeekdayName(date, 'en');
+
     dailyPoints.push({
       date,
-      dayLabel: getWeekdayName(date, 'en'),
+      dayLabel: language === 'en' ? dayLabelEn : dayLabelRu,
+      dayLabelRu,
+      dayLabelEn,
       score: dayMetrics.scorePercentage,
       totalItems: dayMetrics.total,
       defectsCount: dayMetrics.failed,
       p1Count: dayMetrics.criticalP1Count,
-      inspector: daySessions[0]?.inspectorName || 'Inspector',
+      inspector: language === 'en'
+        ? maskCyrillicForEnglish(daySessions[0]?.inspectorName || 'Inspector')
+        : (daySessions[0]?.inspectorName || 'Инспектор'),
     });
-
-    const dayLabelRu = getWeekdayName(date, 'ru');
-    const dayLabelEn = getWeekdayName(date, 'en');
 
     // Process all sessions and items on this day
     daySessions.forEach((session) => {
@@ -607,14 +618,27 @@ export function aggregateWeeklyExecutiveReport(
 
           // Smart Chronological Deduplication tracking
           const dedupKey = `${item.id}::${zoneInfo.zoneKey}`;
+          const obsDesc = item.defectDetails?.description || item.titleRu;
+          const obsDescEn = item.defectDetails?.description
+            ? maskCyrillicForEnglish(item.defectDetails.description)
+            : item.titleEn;
+          const obsNotes = item.defectDetails?.notes;
+          const obsNotesEn = obsNotes ? maskCyrillicForEnglish(obsNotes) : undefined;
+          const inspEn = maskCyrillicForEnglish(currentInspector);
+
           const obs: DefectDailyObservation = {
             date,
-            dayLabel: dayLabelRu,
+            dayLabel: language === 'en' ? dayLabelEn : dayLabelRu,
+            dayLabelRu,
+            dayLabelEn,
             sessionId: session.id,
             sessionDate: date,
             inspectorName: currentInspector,
-            description: item.defectDetails?.description || item.titleRu,
-            notes: item.defectDetails?.notes,
+            inspectorNameEn: inspEn,
+            description: obsDesc,
+            descriptionEn: obsDescEn,
+            notes: obsNotes,
+            notesEn: obsNotesEn,
             priority: p,
             status: resStatus,
             rawLocation: zoneInfo.rawLocation,
@@ -977,7 +1001,8 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
         const dateFormatted = parts.length === 3 ? `${parts[2]}.${parts[1]}` : o.date;
         const shortId = formatShortSessionId(o.sessionId, o.date);
         const inspLastName = o.inspectorName ? o.inspectorName.split(' ')[0] : 'Инспектор';
-        let text = `• [${dateFormatted} ${o.dayLabel} • ${shortId} • ${inspLastName}]: ${o.description}`;
+        const dayRu = o.dayLabelRu || o.dayLabel;
+        let text = `• [${dateFormatted} ${dayRu} • ${shortId} • ${inspLastName}]: ${o.description}`;
         if (o.notes) text += ` (${o.notes})`;
         return text;
       })
@@ -989,9 +1014,12 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
         const dateFormatted = parts.length === 3 ? `${parts[1]}/${parts[2]}` : o.date;
         const shortId = formatShortSessionId(o.sessionId, o.date);
         const inspLastName = o.inspectorName ? o.inspectorName.split(' ')[0] : 'Inspector';
-        const dayEn = getWeekdayName(o.date, 'en');
-        let text = `• [${dateFormatted} ${dayEn} • ${shortId} • ${maskCyrillicForEnglish(inspLastName)}]: ${maskCyrillicForEnglish(o.description)}`;
-        if (o.notes) text += ` (${maskCyrillicForEnglish(o.notes)})`;
+        const inspDisplay = o.inspectorNameEn ? o.inspectorNameEn.split(' ')[0] : maskCyrillicForEnglish(inspLastName);
+        const dayEn = o.dayLabelEn || getWeekdayName(o.date, 'en');
+        const descEn = o.descriptionEn || maskCyrillicForEnglish(o.description);
+        const notesEn = o.notesEn || (o.notes ? maskCyrillicForEnglish(o.notes) : undefined);
+        let text = `• [${dateFormatted} ${dayEn} • ${shortId} • ${inspDisplay}]: ${descEn}`;
+        if (notesEn) text += ` (${notesEn})`;
         return text;
       })
       .join('\n');
@@ -1006,8 +1034,8 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
         shortSessionId,
         date: o.date,
         formattedDate: formattedDateRu,
-        dayLabelRu: o.dayLabel,
-        dayLabelEn: getWeekdayName(o.date, 'en'),
+        dayLabelRu: o.dayLabelRu || o.dayLabel,
+        dayLabelEn: o.dayLabelEn || getWeekdayName(o.date, 'en'),
         inspector: o.inspectorName,
       };
     });
@@ -1018,7 +1046,8 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
           const parts = o.date.split('-');
           const formattedDateRu = parts.length === 3 ? `${parts[2]}.${parts[1]}` : o.date;
           const shortSessionId = formatShortSessionId(o.sessionId, o.date);
-          return `${shortSessionId} (${formattedDateRu} ${o.dayLabel})`;
+          const dayRu = o.dayLabelRu || o.dayLabel;
+          return `${shortSessionId} (${formattedDateRu} ${dayRu})`;
         })
       )
     ).join(', ');
@@ -1156,21 +1185,86 @@ Tone: Professional, direct, focused on risk management and accountability. Avoid
 }
 
 /**
- * Replaces Cyrillic characters in a string with a stable Roman placeholder
- * so that English-language exports (CEO narrative, LLM prompt, Gemini copy)
- * never carry mixed alphabets. We keep the original length hint and ASCII
- * fallback instead of trying to transliterate (transliteration is lossy and
- * a future i18n improvement can swap this for a proper translation pass).
+ * Transliteration dictionary for Cyrillic -> Latin (BGN/PCGN standard-based)
+ */
+const CYRILLIC_MAP: Record<string, string> = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+  'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+  'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+  'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+  'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+  'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+  'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+  'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+  'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Shch',
+  'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+};
+
+/**
+ * Common phrase dictionary for technical / operational inspection terms
+ */
+const COMMON_TRANSLATIONS: Array<[RegExp, string]> = [
+  [/до конца смены/gi, 'This shift'],
+  [/в течение 24 часов/gi, 'Within 24 hours'],
+  [/в течение недели/gi, 'Within 1 week'],
+  [/в плановом порядке/gi, 'Scheduled maintenance'],
+  [/инспектор[а-я]*/gi, 'Inspector'],
+  [/начальник[а-я]* смены/gi, 'Shift Supervisor'],
+  [/служба[а-я]* эксплуатации/gi, 'Facilities'],
+  [/охрана[а-я]* труда|биот/gi, 'EHS Department'],
+  [/отдел[а-я]* качества|отк/gi, 'QA Department'],
+  [/склад[а-я]*/gi, 'Warehouse'],
+  [/производств[а-я]*/gi, 'Production'],
+  [/устранено/gi, 'Resolved'],
+  [/в работе/gi, 'In Progress'],
+  [/открыто/gi, 'Open'],
+  [/огнетушител[а-я]*/gi, 'fire extinguisher'],
+  [/эвакуац[а-я]*/gi, 'evacuation egress'],
+  [/проход[а-я]*/gi, 'passageway'],
+  [/загроможден[а-я]*/gi, 'obstructed'],
+  [/завален[а-я]*/gi, 'blocked'],
+  [/электрощит[а-я]*|щит[а-я]*/gi, 'electrical panel'],
+  [/кабел[а-я]*/gi, 'cable'],
+  [/паллет[а-я]*/gi, 'pallet'],
+  [/стеллаж[а-я]*/gi, 'rack'],
+  [/мусор[а-я]*/gi, 'debris/trash'],
+  [/масл[а-я]*|пролив[а-я]*/gi, 'oil spill'],
+  [/очк[а-я]*/gi, 'safety glasses'],
+  [/\bсиз\b/gi, 'PPE'],
+  [/обув[а-я]*/gi, 'safety shoes'],
+  [/каск[а-я]*/gi, 'hard hat'],
+  [/жилет[а-я]*/gi, 'safety vest'],
+  [/аптечк[а-я]*/gi, 'first aid kit'],
+  [/гидрант[а-я]*/gi, 'hydrant'],
+];
+
+/**
+ * Format SLA target date presets for localized display
+ */
+export function formatSlaTargetDate(preset?: string, isRu: boolean = true): string {
+  if (!preset) return isRu ? 'До конца смены' : 'This shift';
+  if (isRu) return preset;
+  if (/до конца смены/i.test(preset)) return 'This shift';
+  if (/24 часа|24ч/i.test(preset)) return 'Within 24 hours';
+  if (/недел/i.test(preset)) return 'Within 1 week';
+  if (/планов/i.test(preset)) return 'Scheduled maintenance';
+  return maskCyrillicForEnglish(preset);
+}
+
+/**
+ * Translates common inspection terms and converts remaining Cyrillic text
+ * to clean Latin transliteration so that English CEO reports and exports
+ * are 100% human-readable without placeholder artifacts.
  */
 export function maskCyrillicForEnglish(input: string | null | undefined): string {
   if (!input) return '';
-  // Detect any Cyrillic character
   if (!/[\u0400-\u04FF]/.test(input)) return input;
-  // Mask: collapse runs of Cyrillic into a bracketed placeholder
-  return input.replace(/[\u0400-\u04FF]+/g, (match) => {
-    if (match.length <= 2) return '[ru]';
-    return '[ru-text]';
-  });
+  let result = input;
+  for (const [pattern, replacement] of COMMON_TRANSLATIONS) {
+    result = result.replace(pattern, replacement);
+  }
+  result = result.replace(/[\u0400-\u04FF]/g, (ch) => (ch in CYRILLIC_MAP ? CYRILLIC_MAP[ch] : ch));
+  return result;
 }
 
 /**

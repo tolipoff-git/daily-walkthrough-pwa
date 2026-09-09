@@ -32,7 +32,7 @@
 /* Print Stylesheet Overrides (Strict A4 One-Pager & Vector Output) */
 @media print {
   @page {
-    margin: 6mm 8mm;
+    margin: 5mm 6mm;
     size: A4 portrait;
   }
 
@@ -68,7 +68,7 @@
     visibility: visible !important;
     position: static !important;
     width: 100% !important;
-    max-width: 194mm !important;
+    max-width: 198mm !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -76,35 +76,29 @@
     overflow: visible !important;
   }
 
-  /* Page 1 Wrapper: Strict A4 One-Pager */
+  /* Page 1 Wrapper: Strict Executive One-Pager (fits comfortably on phone, A4, Letter) */
   .print-weekly-page-1 {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    min-height: 270mm !important;
-    max-height: 280mm !important;
+    display: block !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
+    height: auto !important;
+    width: 100% !important;
   }
 
-  /* Page 2 Wrapper: Strict A4 Annex Register */
+  /* Page 2 Wrapper: Executive Annex Register (clean multi-page pagination if needed) */
   .print-weekly-page-2 {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
+    display: block !important;
     page-break-before: always !important;
     break-before: page !important;
-    min-height: 270mm !important;
-    max-height: 280mm !important;
-    overflow: hidden !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
     padding-top: 2mm !important;
+    height: auto !important;
+    width: 100% !important;
   }
 
   .print-weekly-container * {
@@ -113,11 +107,25 @@
     print-color-adjust: exact !important;
   }
 
+  /* Prevent text slicing across page splits on mobile and all printers */
   .print-weekly-container tr,
+  .print-weekly-container th,
+  .print-weekly-container td,
+  .print-weekly-container table,
   .print-weekly-container .break-inside-avoid,
-  .print-weekly-container .defect-card {
+  .print-weekly-container .defect-card,
+  .print-weekly-container .executive-section {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    -webkit-column-break-inside: avoid !important;
+  }
+
+  .print-weekly-container p,
+  .print-weekly-container h1,
+  .print-weekly-container h2,
+  .print-weekly-container h3 {
+    orphans: 3 !important;
+    widows: 3 !important;
   }
 
   /* Daily Walkthrough Report Container */

@@ -26,6 +26,9 @@ import {
   getWeekDateRange,
   getLastNDaysRange,
   WeeklyExecutiveReportData,
+  formatSlaTargetDate,
+  maskCyrillicForEnglish,
+  getWeekdayName,
 } from '../utils/weeklyReport';
 import { exportWeeklyReportToExcel } from '../utils/exportWeeklyExcel';
 import { PrintWeeklyReportView } from './PrintWeeklyReportView';
@@ -1179,13 +1182,17 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                               const formattedDate = parts.length === 3 ? (isRu ? `${parts[2]}.${parts[1]}` : `${parts[1]}/${parts[2]}`) : obs.date;
                               const shortId = `№ WALK-${parts.length === 3 ? `${parts[1]}${parts[2]}` : ''}`;
                               const inspLastName = obs.inspectorName ? obs.inspectorName.split(' ')[0] : (isRu ? 'Инспектор' : 'Inspector');
+                              const dayLabel = isRu ? (obs.dayLabelRu || obs.dayLabel) : (obs.dayLabelEn || getWeekdayName(obs.date, 'en'));
+                              const inspectorDisplay = isRu ? inspLastName : (obs.inspectorNameEn ? obs.inspectorNameEn.split(' ')[0] : maskCyrillicForEnglish(inspLastName));
+                              const descDisplay = isRu ? obs.description : (obs.descriptionEn || maskCyrillicForEnglish(obs.description));
+                              const notesDisplay = obs.notes ? (isRu ? obs.notes : (obs.notesEn || maskCyrillicForEnglish(obs.notes))) : null;
                               return (
                                 <div key={oIdx} className="flex items-start gap-1.5">
                                   <span className="font-bold text-slate-400 shrink-0">
-                                    [{formattedDate} {obs.dayLabel} • {shortId} • {inspLastName}]:
+                                    [{formattedDate} {dayLabel} • {shortId} • {inspectorDisplay}]:
                                   </span>
                                   <span className="text-slate-200 font-sans">
-                                    {obs.description} {obs.notes ? <em className="text-slate-400 font-sans">({obs.notes})</em> : null}
+                                    {descDisplay} {notesDisplay ? <em className="text-slate-400 font-sans">({notesDisplay})</em> : null}
                                   </span>
                                 </div>
                               );
@@ -1199,7 +1206,7 @@ ${isRu ? reportData.narrative.actionsRu : reportData.narrative.actionsEn}`;
                             </div>
                             <div>
                               <strong className="text-slate-300">{t.weeklyReport.annexSlaLabel}</strong>{' '}
-                              {defect.targetDatePreset ? defect.targetDatePreset : isRu ? 'До конца смены' : 'This shift'}
+                              {formatSlaTargetDate(defect.targetDatePreset, isRu)}
                               {defect.customTargetDate ? ` (${defect.customTargetDate})` : ''}
                             </div>
                             {defect.totalPhotosCount > 0 && (

@@ -1,5 +1,9 @@
 import * as XLSX from 'xlsx';
-import { WeeklyExecutiveReportData } from './weeklyReport';
+import {
+  WeeklyExecutiveReportData,
+  formatSlaTargetDate,
+  maskCyrillicForEnglish,
+} from './weeklyReport';
 import { Language } from '../i18n/types';
 
 export function exportWeeklyReportToExcel(
@@ -69,12 +73,12 @@ export function exportWeeklyReportToExcel(
     ],
     ...data.dailyPoints.map((d) => [
       d.date,
-      d.dayLabel,
+      isRu ? (d.dayLabelRu || d.dayLabel) : (d.dayLabelEn || d.dayLabel),
       `${d.score}%`,
       d.totalItems,
       d.defectsCount,
       d.p1Count,
-      d.inspector,
+      isRu ? d.inspector : maskCyrillicForEnglish(d.inspector),
     ]),
   ];
 
@@ -145,7 +149,7 @@ export function exportWeeklyReportToExcel(
       isRu ? d.reportReferencesFormattedRu : d.reportReferencesFormattedEn,
       isRu ? (d.latestStatus === 'Resolved' ? 'Устранено' : d.latestStatus === 'In Progress' ? 'В работе' : 'Открыто') : d.latestStatus,
       d.assignedTo,
-      d.targetDatePreset || (isRu ? 'До конца смены' : 'This shift'),
+      formatSlaTargetDate(d.targetDatePreset, isRu),
       isRu ? d.consolidatedCommentsRu : d.consolidatedCommentsEn,
     ]),
   ];

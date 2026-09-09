@@ -1,5 +1,11 @@
 import React from 'react';
-import { WeeklyExecutiveReportData, ConsolidatedWeeklyDefect } from '../utils/weeklyReport';
+import {
+  WeeklyExecutiveReportData,
+  ConsolidatedWeeklyDefect,
+  formatSlaTargetDate,
+  maskCyrillicForEnglish,
+  getWeekdayName,
+} from '../utils/weeklyReport';
 import { useLanguage } from '../i18n/LanguageContext';
 import { APP_VERSION, COMMIT_HASH } from '../version';
 
@@ -55,7 +61,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
     return (
       <div
         key={defect.id}
-        className="border border-slate-300 rounded p-1.5 mb-1 bg-slate-50/80 break-inside-avoid text-[8px]"
+        className="defect-card border border-slate-300 rounded p-1.5 mb-1 bg-slate-50/80 break-inside-avoid text-[8px]"
       >
         {/* Card Header */}
         <div className="flex items-center justify-between gap-1 mb-1">
@@ -161,13 +167,17 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
             const formattedDate = parts.length === 3 ? (isRu ? `${parts[2]}.${parts[1]}` : `${parts[1]}/${parts[2]}`) : obs.date;
             const shortId = `№ WALK-${parts.length === 3 ? `${parts[1]}${parts[2]}` : ''}`;
             const inspLastName = obs.inspectorName ? obs.inspectorName.split(' ')[0] : (isRu ? 'Инспектор' : 'Inspector');
+            const dayLabel = isRu ? (obs.dayLabelRu || obs.dayLabel) : (obs.dayLabelEn || getWeekdayName(obs.date, 'en'));
+            const inspectorDisplay = isRu ? inspLastName : (obs.inspectorNameEn ? obs.inspectorNameEn.split(' ')[0] : maskCyrillicForEnglish(inspLastName));
+            const descDisplay = isRu ? obs.description : (obs.descriptionEn || maskCyrillicForEnglish(obs.description));
+            const notesDisplay = obs.notes ? (isRu ? obs.notes : (obs.notesEn || maskCyrillicForEnglish(obs.notes))) : null;
             return (
               <div key={oIdx} className="flex items-start gap-1">
                 <span className="font-bold text-slate-600 shrink-0">
-                  [{formattedDate} {obs.dayLabel} • {shortId} • {inspLastName}]:
+                  [{formattedDate} {dayLabel} • {shortId} • {inspectorDisplay}]:
                 </span>
                 <span className="text-slate-900 font-sans">
-                  {obs.description} {obs.notes ? <em className="text-slate-500 font-sans">({obs.notes})</em> : null}
+                  {descDisplay} {notesDisplay ? <em className="text-slate-500 font-sans">({notesDisplay})</em> : null}
                 </span>
               </div>
             );
@@ -181,7 +191,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
           </div>
           <div>
             <strong>{t.weeklyReport.annexSlaLabel}</strong>{' '}
-            {defect.targetDatePreset ? defect.targetDatePreset : isRu ? 'До конца смены' : 'This shift'}
+            {formatSlaTargetDate(defect.targetDatePreset, isRu)}
             {defect.customTargetDate ? ` (${defect.customTargetDate})` : ''}
           </div>
           {defect.totalPhotosCount > 0 && (
@@ -211,11 +221,11 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       {/* ========================================================================= */}
       <section
         className={`print-weekly-page-1 ${
-          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-3.5'
+          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-2.5'
         } text-slate-900`}
       >
         {/* 1. Header Bar */}
-        <div className="border-b-2 border-slate-900 pb-1.5 mb-2">
+        <div className="executive-section break-inside-avoid border-b-2 border-slate-900 pb-1 mb-1.5">
         <div className="flex items-start justify-between">
           <div className="max-w-[76%]">
             <div className="flex items-center gap-2 mb-0.5">
@@ -253,7 +263,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
 
       {/* 2. Executive 5-Second Status Bar */}
       <div
-        className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2 p-1.5 rounded-lg border border-slate-300"
+        className="executive-section break-inside-avoid grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-1.5 p-1 rounded-lg border border-slate-300"
         style={{ backgroundColor: '#f8fafc' }}
       >
         {/* Compliance Score Gauge */}
@@ -341,7 +351,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 3. Visual Trends & Anti-Rating Grid (Side-by-Side Charts) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2">
+      <div className="executive-section break-inside-avoid grid grid-cols-1 sm:grid-cols-2 gap-2 mb-1.5">
         {/* Chart 1: Pulse of the Week */}
         <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
           <div className="flex items-center justify-between mb-1">
@@ -486,8 +496,8 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 4. Operational Domains Breakdown Row */}
-      <div className="mb-2 border border-slate-200 rounded-lg p-1.5 bg-slate-50">
-        <div className="text-[9.5px] font-bold uppercase text-slate-700 mb-1">
+      <div className="executive-section break-inside-avoid mb-1.5 border border-slate-200 rounded-lg p-1 bg-slate-50">
+        <div className="text-[9.5px] font-bold uppercase text-slate-700 mb-0.5">
           {t.weeklyReport.chartDomainsTitle}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[9px]">
@@ -511,12 +521,12 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 5. Actionable Executive Matrix (The 3-Row Decision Table) */}
-      <div className="mb-2">
-        <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-900 mb-1 border-b border-slate-300 pb-0.5">
+      <div className="executive-section break-inside-avoid mb-1.5">
+        <h3 className="text-[9.5px] font-black uppercase tracking-wide text-slate-900 mb-0.5 border-b border-slate-300 pb-0.5">
           {t.weeklyReport.matrixTitle}
         </h3>
-        <div className="overflow-x-auto -mx-1">
-        <table className="w-full text-[9px] text-left border-collapse border border-slate-300" style={{ minWidth: '420px' }}>
+        <div className="overflow-x-auto print:overflow-visible -mx-1">
+        <table className="w-full text-[8px] sm:text-[8.5px] text-left border-collapse border border-slate-300 print:min-w-0" style={{ minWidth: isScreenPreview ? '420px' : undefined }}>
           <thead>
             <tr className="bg-slate-200 text-slate-900 font-bold">
               <th className="border border-slate-300 p-1 w-[22%]">{t.weeklyReport.thSignal}</th>
@@ -580,27 +590,27 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 6. Strategic Executive Narrative Briefing */}
-      <div className="mb-2 border border-slate-300 rounded p-1.5 bg-slate-50 text-[9px]">
-        <div className="font-bold uppercase tracking-wider text-slate-800 text-[9.5px] mb-1">
+      <div className="executive-section break-inside-avoid mb-1.5 border border-slate-300 rounded p-1 bg-slate-50 text-[8.5px]">
+        <div className="font-bold uppercase tracking-wider text-slate-800 text-[9px] mb-0.5">
           {t.weeklyReport.briefingTitle}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-slate-800">
           <div>
-            <p className="mb-1 leading-snug">
+            <p className="mb-0.5 leading-snug break-inside-avoid">
               <strong className="text-slate-900">• {t.weeklyReport.briefingTakeaway}:</strong>{' '}
               {isRu ? data.narrative.takeawayRu : data.narrative.takeawayEn}
             </p>
-            <p className="leading-snug">
+            <p className="leading-snug break-inside-avoid">
               <strong className="text-slate-900">• {t.weeklyReport.briefingRegulatory}:</strong>{' '}
               {isRu ? data.narrative.regulatoryRu : data.narrative.regulatoryEn}
             </p>
           </div>
           <div>
-            <p className="mb-1 leading-snug">
+            <p className="mb-0.5 leading-snug break-inside-avoid">
               <strong className="text-slate-900">• {t.weeklyReport.briefingBottlenecks}:</strong>{' '}
               {isRu ? data.narrative.bottlenecksRu : data.narrative.bottlenecksEn}
             </p>
-            <p className="leading-snug">
+            <p className="leading-snug break-inside-avoid">
               <strong className="text-slate-900">• {t.weeklyReport.briefingActions}:</strong>{' '}
               {isRu ? data.narrative.actionsRu : data.narrative.actionsEn}
             </p>
@@ -609,7 +619,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       </div>
 
       {/* 7. Executive Sign-Off Block */}
-      <div className="border-t-2 border-slate-900 pt-1.5 flex items-center justify-between text-[9px]">
+      <div className="executive-section break-inside-avoid border-t-2 border-slate-900 pt-1 flex items-center justify-between text-[8.5px]">
         <div>
           <span className="font-bold text-slate-800">{t.weeklyReport.signOffExecutive}</span>
           <span className="ml-2 font-mono">____________________________</span>
@@ -646,7 +656,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
       {/* ========================================================================= */}
       <section
         className={`print-weekly-page-2 ${
-          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-3.5'
+          isScreenPreview ? 'bg-white shadow-2xl p-4 border border-slate-300 rounded-sm' : 'bg-white p-2.5'
         } text-slate-900`}
       >
         <div>
