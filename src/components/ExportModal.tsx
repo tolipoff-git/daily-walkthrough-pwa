@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   TrendingUp,
+  PlusCircle,
 } from 'lucide-react';
 import { DefectPhoto, InspectionSession } from '../types/inspection';
 import { exportInspectionToExcel } from '../utils/exportExcel';
@@ -19,6 +20,7 @@ interface ExportModalProps {
   onSaveToHistory: (session: InspectionSession) => void;
   onOpenPrintPreview?: () => void;
   onOpenWeeklyReport?: () => void;
+  onStartNewInspection?: () => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -27,6 +29,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onSaveToHistory,
   onOpenPrintPreview,
   onOpenWeeklyReport,
+  onStartNewInspection,
 }) => {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'xlsx' | 'print'>('xlsx');
@@ -277,7 +280,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 bg-slate-850 border-t border-slate-700 flex items-center justify-end">
+        <div className="px-5 py-3 bg-slate-850 border-t border-slate-700 flex items-center justify-between">
+          <div>
+            {onStartNewInspection && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic();
+                  onClose();
+                  onStartNewInspection();
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-950/50 transition-all"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>{t.common.startNewWalkthrough}</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"

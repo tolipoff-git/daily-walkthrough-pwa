@@ -21,6 +21,8 @@ export const ru: Translations = {
     finished: 'Завершен',
     finishTitle: 'Зафиксировать время окончания и завершить',
     finishedTitle: 'Обход завершен',
+    newWalkthroughBtn: 'Новый обход',
+    startNewWalkthrough: 'Начать новый обход',
     close: 'Закрыть',
     cancel: 'Отмена',
     confirm: 'Подтвердить',

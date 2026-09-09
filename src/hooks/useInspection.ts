@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, DefectPhoto } from '../types/inspection';
-import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE } from '../data/checklistData';
-import { saveActiveSessionDb, getActiveSessionDb } from '../utils/indexedDb';
+import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE, getLocalTodayDate, getLocalCurrentTime } from '../data/checklistData';
+import { saveActiveSessionDb, getActiveSessionDb, saveHistorySessionDb } from '../utils/indexedDb';
 import { Language } from '../i18n/types';
 
 function hydrateSession(
@@ -144,7 +144,12 @@ export function useInspection() {
     try {
       const saved = localStorage.getItem('ehs_active_session_v1');
       if (saved) {
-        return hydrateSession(JSON.parse(saved), currentLang);
+        const parsed = JSON.parse(saved);
+        if (parsed.date && parsed.date < getLocalTodayDate()) {
+          saveHistorySessionDb(parsed).catch(() => {});
+          return createNewInspectionSession(currentLang);
+        }
+        return hydrateSession(parsed, currentLang);
       }
     } catch (e) {
       console.error('Error loading initial session from localStorage:', e);
@@ -159,7 +164,14 @@ export function useInspection() {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     getActiveSessionDb().then((dbSession) => {
       if (dbSession && isInitialMount.current) {
-        setSession((prev) => hydrateSession(dbSession, currentLang, prev));
+        if (dbSession.date && dbSession.date < getLocalTodayDate()) {
+          saveHistorySessionDb(dbSession).catch(() => {});
+          const freshSession = createNewInspectionSession(currentLang);
+          setSession(freshSession);
+          saveActiveSessionDb(freshSession).catch(() => {});
+        } else {
+          setSession((prev) => hydrateSession(dbSession, currentLang, prev));
+        }
       }
       isInitialMount.current = false;
     }).catch(() => {
@@ -204,6 +216,42 @@ export function useInspection() {
 
     return () => clearTimeout(timer);
   }, [session]);
+
+  // Day-rollover listener: check if active session belongs to a previous calendar day
+  useEffect(() => {
+    const checkDayRollover = () => {
+      const today = getLocalTodayDate();
+      setSession((prev) => {
+        if (prev.date && prev.date < today) {
+          const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
+          saveHistorySessionDb(prev).catch(() => {});
+          const fresh = createNewInspectionSession(currentLang);
+          saveActiveSessionDb(fresh).catch(() => {});
+          return fresh;
+        }
+        return prev;
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkDayRollover();
+      }
+    };
+    const handleFocus = () => {
+      checkDayRollover();
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    const intervalId = setInterval(checkDayRollover, 60000);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const updateSessionHeader = useCallback(
     <K extends keyof InspectionSession>(field: K, value: InspectionSession[K]) => {
@@ -417,17 +465,21 @@ export function useInspection() {
 
   const finishWalkthrough = useCallback(() => {
     const now = new Date();
-    const timeStr = now.toTimeString().slice(0, 5);
-    setSession((prev) => ({
-      ...prev,
-      endTime: prev.endTime || timeStr,
-      status: 'Completed',
-      signatures: {
-        ...prev.signatures,
-        timestamp: now.toISOString(),
-      },
-      updatedAt: now.toISOString(),
-    }));
+    const currentTime = getLocalCurrentTime();
+    setSession((prev) => {
+      const completedSession: InspectionSession = {
+        ...prev,
+        status: 'Completed',
+        endTime: prev.endTime || currentTime,
+        signatures: {
+          ...prev.signatures,
+          timestamp: now.toISOString(),
+        },
+        updatedAt: now.toISOString(),
+      };
+      saveHistorySessionDb(completedSession).catch(() => {});
+      return completedSession;
+    });
   }, []);
 
   return {

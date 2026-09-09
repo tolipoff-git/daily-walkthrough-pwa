@@ -21,6 +21,8 @@ export const en: Translations = {
     finished: 'Completed',
     finishTitle: 'Record completion time and finish walkthrough',
     finishedTitle: 'Walkthrough is completed',
+    newWalkthroughBtn: 'New Walkthrough',
+    startNewWalkthrough: 'Start New Inspection',
     close: 'Close',
     cancel: 'Cancel',
     confirm: 'Confirm',

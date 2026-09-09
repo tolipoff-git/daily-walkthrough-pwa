@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Camera,
   TrendingUp,
+  PlusCircle,
 } from 'lucide-react';
 import { InspectionMetrics } from '../types/inspection';
 import { triggerHaptic } from '../utils/haptics';
@@ -353,22 +354,32 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{t.common.export}</span>
             </button>
 
-            {/* Finish / Complete Button */}
-            <button
-              onClick={() => {
-                triggerHaptic();
-                onFinish();
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                isFinished
-                  ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50 cursor-default'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-950/50 active:scale-95'
-              }`}
-              title={isFinished ? t.common.finishedTitle : t.common.finishTitle}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-blue-300" />
-              <span>{isFinished ? t.common.finished : t.common.finish}</span>
-            </button>
+            {/* Finish / Complete Button or New Walkthrough Button */}
+            {isFinished ? (
+              <button
+                onClick={() => {
+                  triggerHaptic();
+                  onReset();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/50 active:scale-95"
+                title={t.common.startNewWalkthrough}
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-white" />
+                <span>{t.common.newWalkthroughBtn}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  triggerHaptic();
+                  onFinish();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-950/50 active:scale-95"
+                title={t.common.finishTitle}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-300" />
+                <span>{t.common.finish}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

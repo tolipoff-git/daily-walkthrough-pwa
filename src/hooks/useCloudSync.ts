@@ -11,7 +11,8 @@ import {
   subscribeToLiveCloudStream,
   SyncPayload 
 } from '../utils/syncApi';
-import { saveActiveSessionDb } from '../utils/indexedDb';
+import { saveActiveSessionDb, saveHistorySessionDb } from '../utils/indexedDb';
+import { getLocalTodayDate } from '../data/checklistData';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'pending' | 'error';
 
@@ -47,6 +48,12 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const handleRemotePayload = useCallback((remote: SyncPayload) => {
     if (!remote || !remote.session || typeof remote.session !== 'object') return;
     if (!Array.isArray(remote.session.items)) return;
+
+    // Past-day stale overwrite protection
+    if (remote.session.date && remote.session.date < getLocalTodayDate()) {
+      saveHistorySessionDb(remote.session).catch(() => {});
+      return;
+    }
 
     // If change was made by this same device, ignore echo
     if (remote.deviceId === deviceIdRef.current) {
@@ -226,6 +233,10 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     try {
       const remote = await pullSessionFromCloud(currentRoom);
       if (remote) {
+        if (remote.session.date && remote.session.date < getLocalTodayDate()) {
+          saveHistorySessionDb(remote.session).catch(() => {});
+          return;
+        }
         const resolved = await resolveRemotePhotos(remote, currentRoom);
         handleRemotePayload(resolved);
       }
@@ -255,6 +266,14 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
         if (cancelled) return;
 
         if (remote) {
+          if (remote.session.date && remote.session.date < getLocalTodayDate()) {
+            saveHistorySessionDb(remote.session).catch(() => {});
+            if (!cancelled) {
+              await pushToCloud(syncRoom);
+            }
+            return;
+          }
+
           const resolved = await resolveRemotePhotos(remote, syncRoom);
           if (cancelled) return;
           handleRemotePayload(resolved);

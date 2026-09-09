@@ -23,6 +23,8 @@ export interface Translations {
     finished: string;
     finishTitle: string;
     finishedTitle: string;
+    newWalkthroughBtn: string;
+    startNewWalkthrough: string;
     close: string;
     cancel: string;
     confirm: string;

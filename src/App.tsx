@@ -658,6 +658,7 @@ export const App: React.FC = () => {
           onSaveToHistory={saveInspectionToHistory}
           onOpenPrintPreview={() => setShowPrintPreview(true)}
           onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
+          onStartNewInspection={() => resetWalkthrough(language)}
         />
       )}
 
