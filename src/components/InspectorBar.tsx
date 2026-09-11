@@ -19,12 +19,14 @@ import { formatShift, formatArea, formatRole } from '../utils/formatters';
 interface InspectorBarProps {
   session: InspectionSession;
   onUpdateHeader: <K extends keyof InspectionSession>(field: K, value: InspectionSession[K]) => void;
+  onUpdateHeaders?: (updates: Partial<InspectionSession>) => void;
   onOpenPersonnel: () => void;
 }
 
 export const InspectorBar: React.FC<InspectorBarProps> = ({ 
   session, 
   onUpdateHeader,
+  onUpdateHeaders,
   onOpenPersonnel 
 }) => {
   const { language, t, getShifts } = useLanguage();
@@ -48,13 +50,25 @@ export const InspectorBar: React.FC<InspectorBarProps> = ({
     const p = personnel.find((x) => x.id === personId);
     if (!p) return;
     triggerHaptic();
-    onUpdateHeader('inspectorName', p.name);
-    onUpdateHeader('inspectorRole', p.role);
-    onUpdateHeader('signatures', {
-      ...session.signatures,
-      inspector: p.name,
-      inspectorTitle: p.role,
-    });
+    if (onUpdateHeaders) {
+      onUpdateHeaders({
+        inspectorName: p.name,
+        inspectorRole: p.role,
+        signatures: {
+          ...session.signatures,
+          inspector: p.name,
+          inspectorTitle: p.role,
+        },
+      });
+    } else {
+      onUpdateHeader('inspectorName', p.name);
+      onUpdateHeader('inspectorRole', p.role);
+      onUpdateHeader('signatures', {
+        ...session.signatures,
+        inspector: p.name,
+        inspectorTitle: p.role,
+      });
+    }
   };
 
   const handleSaveCurrentInspector = () => {

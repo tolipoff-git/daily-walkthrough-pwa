@@ -53,6 +53,18 @@ function styleWorksheet(
   }
 }
 
+// Sanitize user inputs against CSV/Excel formula injection (=, +, -, @, tabs)
+export function sanitizeExcelCell(val: unknown): unknown {
+  if (typeof val === 'string' && /^[=\+\-@\t\r]/.test(val)) {
+    return `'${val}`;
+  }
+  return val;
+}
+
+export function sanitizeAoA<T extends unknown[][]>(data: T): T {
+  return data.map((row) => row.map(sanitizeExcelCell)) as T;
+}
+
 export function exportInspectionToExcel(session: InspectionSession, lang: Language = 'ru'): void {
   if (!session || !Array.isArray(session.items) || session.items.length === 0) {
     console.error('Invalid session for Excel export:', session);
@@ -107,7 +119,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
     [isRu ? 'ВЕРСИЯ ПРИЛОЖЕНИЯ' : 'APP VERSION', `PWA ${APP_VERSION} (Commit: ${COMMIT_HASH})`],
   ];
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  const summarySheet = XLSX.utils.aoa_to_sheet(sanitizeAoA(summaryData));
   summarySheet['!cols'] = [{ wch: 38 }, { wch: 48 }, { wch: 25 }];
   summarySheet['!rows'] = [{ hpt: 26 }, { hpt: 12 }, { hpt: 22 }];
   styleWorksheet(summarySheet, 2, [0, 1, 2]);
@@ -208,7 +220,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
       ]];
 
   const actionSheetData = [actionHeader, ...finalActionRows];
-  const actionSheet = XLSX.utils.aoa_to_sheet(actionSheetData);
+  const actionSheet = XLSX.utils.aoa_to_sheet(sanitizeAoA(actionSheetData));
 
   // Generous column widths optimized for readability without horizontal squeezing
   actionSheet['!cols'] = [
@@ -328,7 +340,7 @@ export function exportInspectionToExcel(session: InspectionSession, lang: Langua
   });
 
   const fullAuditData = [fullAuditHeader, ...fullAuditRows];
-  const fullAuditSheet = XLSX.utils.aoa_to_sheet(fullAuditData);
+  const fullAuditSheet = XLSX.utils.aoa_to_sheet(sanitizeAoA(fullAuditData));
 
   fullAuditSheet['!cols'] = [
     { wch: 8 },  // A: ID

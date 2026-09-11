@@ -6,7 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 interface MetricsBarProps {
   metrics: InspectionMetrics;
-  onFilterStatus?: (status: 'ALL' | 'FAIL' | 'PENDING' | 'PASS') => void;
+  onFilterStatus?: (status: 'ALL' | 'FAIL' | 'PENDING' | 'PASS' | 'NA') => void;
   activeStatusFilter?: string;
 }
 
@@ -136,14 +136,18 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             type="button"
             onClick={() => {
               triggerHaptic();
-              onFilterStatus?.('ALL');
+              onFilterStatus?.(activeStatusFilter === 'NA' ? 'ALL' : 'NA');
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border bg-slate-900/60 border-slate-700/60 hover:bg-slate-900 transition-all text-left"
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-left ${
+              activeStatusFilter === 'NA'
+                ? 'bg-slate-700/90 border-slate-400 shadow-md shadow-slate-900/40 ring-1 ring-slate-400'
+                : 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-900 hover:border-slate-500'
+            }`}
           >
-            <MinusCircle className="w-5 h-5 text-slate-400 shrink-0" />
+            <MinusCircle className={`w-5 h-5 shrink-0 ${activeStatusFilter === 'NA' ? 'text-slate-200' : 'text-slate-400'}`} />
             <div>
               <div className="text-base font-bold text-white leading-tight font-mono">{metrics.na}</div>
-              <div className="text-[10px] uppercase font-semibold text-slate-400">{t.metrics.statusNa}</div>
+              <div className={`text-[10px] uppercase font-semibold ${activeStatusFilter === 'NA' ? 'text-slate-200' : 'text-slate-400'}`}>{t.metrics.statusNa}</div>
             </div>
           </button>
 

@@ -41,8 +41,8 @@ export function calculateMetrics(items: ChecklistItem[]): InspectionMetrics {
   });
 
   const completed = passed + failed + na;
-  // Applicable items for scoring are total minus NA
-  const scorableItems = total - na;
+  // Applicable items evaluated for compliance score are passed + failed (100% if no items evaluated yet)
+  const scorableItems = passed + failed;
   const scorePercentage = scorableItems > 0 ? Math.round((passed / scorableItems) * 100) : 100;
 
   const result: InspectionMetrics = {

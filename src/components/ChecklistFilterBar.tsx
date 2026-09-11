@@ -100,7 +100,7 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
         </div>
 
         {/* Status Filter Toggle Pills */}
-        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700 shrink-0 text-xs font-medium">
+        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700 shrink-0 text-xs font-medium overflow-x-auto">
           <button
             onClick={() => {
               triggerHaptic();
@@ -133,6 +133,28 @@ export const ChecklistFilterBar: React.FC<ChecklistFilterBarProps> = ({
             }`}
           >
             {t.filterBar.filterPending}
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onSelectStatusFilter('PASS');
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-colors ${
+              statusFilter === 'PASS' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-400 hover:text-emerald-300'
+            }`}
+          >
+            {t.common.pass}
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onSelectStatusFilter('NA');
+            }}
+            className={`px-2.5 py-1 rounded-lg transition-colors ${
+              statusFilter === 'NA' ? 'bg-slate-600 text-white font-bold' : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            {t.common.na}
           </button>
         </div>
 

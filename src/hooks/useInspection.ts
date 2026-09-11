@@ -157,7 +157,8 @@ export function useInspection() {
     return createNewInspectionSession(currentLang);
   });
 
-  const isInitialMount = useRef(true);
+  const isHydrated = useRef(false);
+  const hasUserInteracted = useRef(false);
   const sessionRef = useRef<InspectionSession>(session);
   sessionRef.current = session;
 
@@ -165,25 +166,31 @@ export function useInspection() {
   useEffect(() => {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     getActiveSessionDb().then((dbSession) => {
-      if (dbSession && isInitialMount.current) {
+      if (dbSession && !hasUserInteracted.current) {
         if (dbSession.date && dbSession.date < getLocalTodayDate()) {
           saveHistorySessionDb(dbSession).catch(() => {});
           const freshSession = createNewInspectionSession(currentLang);
+          sessionRef.current = freshSession;
           setSession(freshSession);
           saveActiveSessionDb(freshSession).catch(() => {});
         } else {
-          setSession((prev) => hydrateSession(dbSession, currentLang, prev));
+          setSession((prev) => {
+            if (hasUserInteracted.current) return prev;
+            const hydrated = hydrateSession(dbSession, currentLang, prev);
+            sessionRef.current = hydrated;
+            return hydrated;
+          });
         }
       }
-      isInitialMount.current = false;
+      isHydrated.current = true;
     }).catch(() => {
-      isInitialMount.current = false;
+      isHydrated.current = true;
     });
   }, []);
 
   // Auto-save to both IndexedDB and localStorage (lightweight metadata)
   useEffect(() => {
-    if (isInitialMount.current) return;
+    if (!isHydrated.current && !hasUserInteracted.current) return;
 
     // Save full data including photos to IndexedDB
     saveActiveSessionDb(session).catch((err) => console.warn('Failed to save to IndexedDB', err));
@@ -268,16 +275,41 @@ export function useInspection() {
 
   const updateSessionHeader = useCallback(
     <K extends keyof InspectionSession>(field: K, value: InspectionSession[K]) => {
-      setSession((prev) => ({
-        ...prev,
-        [field]: value,
-        updatedAt: new Date().toISOString(),
-      }));
+      hasUserInteracted.current = true;
+      isHydrated.current = true;
+      setSession((prev) => {
+        const next = {
+          ...prev,
+          [field]: value,
+          updatedAt: new Date().toISOString(),
+        };
+        sessionRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
+
+  const updateSessionHeaders = useCallback(
+    (updates: Partial<InspectionSession>) => {
+      hasUserInteracted.current = true;
+      isHydrated.current = true;
+      setSession((prev) => {
+        const next = {
+          ...prev,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        };
+        sessionRef.current = next;
+        return next;
+      });
     },
     []
   );
 
   const setItemStatus = useCallback((itemId: string, status: InspectionStatus) => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId) {
@@ -303,15 +335,19 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
   const updateDefectDetails = useCallback((itemId: string, updates: Partial<DefectDetails>) => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId) {
@@ -337,15 +373,19 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
   const updateItemNotes = useCallback((itemId: string, itemNotes: string) => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId) {
@@ -357,11 +397,13 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
@@ -369,6 +411,8 @@ export function useInspection() {
     if (!photo || !photo.url || typeof photo.url !== 'string' || photo.url.trim().length === 0) {
       return;
     }
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId) {
@@ -395,15 +439,19 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
   const removeDefectPhoto = useCallback((itemId: string, photoId: string) => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.id === itemId && item.defectDetails) {
@@ -418,15 +466,19 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
   const markAllUncheckedAsPass = useCallback(() => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.status === 'PENDING') {
@@ -438,15 +490,19 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
   const markCategoryAsPass = useCallback((categoryId: string) => {
+    hasUserInteracted.current = true;
+    isHydrated.current = true;
     setSession((prev) => {
       const newItems = prev.items.map((item) => {
         if (item.categoryId === categoryId && item.status === 'PENDING') {
@@ -458,11 +514,13 @@ export function useInspection() {
         return item;
       });
 
-      return {
+      const next = {
         ...prev,
         items: newItems,
         updatedAt: new Date().toISOString(),
       };
+      sessionRef.current = next;
+      return next;
     });
   }, []);
 
@@ -542,6 +600,7 @@ export function useInspection() {
   return {
     session,
     updateSessionHeader,
+    updateSessionHeaders,
     setItemStatus,
     updateDefectDetails,
     updateItemNotes,

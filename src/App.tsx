@@ -53,6 +53,7 @@ export const App: React.FC = () => {
   const {
     session,
     updateSessionHeader,
+    updateSessionHeaders,
     setItemStatus,
     updateDefectDetails,
     updateItemNotes,
@@ -248,6 +249,7 @@ export const App: React.FC = () => {
       if (statusFilter === 'FAIL' && item.status !== 'FAIL') return false;
       if (statusFilter === 'PENDING' && item.status !== 'PENDING') return false;
       if (statusFilter === 'PASS' && item.status !== 'PASS') return false;
+      if (statusFilter === 'NA' && item.status !== 'NA') return false;
 
       // Fast path: if !searchQuery.trim(), filter by category and status without checking strings
       if (!q) return true;
@@ -410,6 +412,7 @@ export const App: React.FC = () => {
           <InspectorBar 
             session={session} 
             onUpdateHeader={updateSessionHeader}
+            onUpdateHeaders={updateSessionHeaders}
             onOpenPersonnel={() => setShowPersonnelModal(true)} 
           />
 
@@ -691,12 +694,14 @@ export const App: React.FC = () => {
         <PersonnelModal
           onClose={() => setShowPersonnelModal(false)}
           onSelectInspector={(person) => {
-            updateSessionHeader('inspectorName', person.name);
-            updateSessionHeader('inspectorRole', person.role);
-            updateSessionHeader('signatures', {
-              ...session.signatures,
-              inspector: person.name,
-              inspectorTitle: person.role,
+            updateSessionHeaders({
+              inspectorName: person.name,
+              inspectorRole: person.role,
+              signatures: {
+                ...session.signatures,
+                inspector: person.name,
+                inspectorTitle: person.role,
+              },
             });
           }}
         />
