@@ -25,3 +25,10 @@ jobs:
 
       - name: Run Build
         run: npm run build
+
+      - name: Deploy to Cloudflare
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/workers/builds/deploy_hooks/${{ secrets.CF_DEPLOY_HOOK_ID }}" \
+            || echo "deploy hook failed (non-fatal)"
