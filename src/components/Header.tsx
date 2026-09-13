@@ -40,6 +40,7 @@ interface HeaderProps {
   onReset: () => void;
   onFinish: () => void;
   isFinished: boolean;
+  isFinishing?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -57,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   onReset,
   onFinish,
   isFinished,
+  isFinishing = false,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -358,10 +360,12 @@ export const Header: React.FC<HeaderProps> = ({
             {isFinished ? (
               <button
                 onClick={() => {
+                  if (isFinishing) return;
                   triggerHaptic();
                   onReset();
                 }}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/50 active:scale-95"
+                disabled={isFinishing}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 title={t.common.startNewWalkthrough}
               >
                 <PlusCircle className="w-3.5 h-3.5 text-white" />
@@ -370,10 +374,12 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={() => {
+                  if (isFinishing) return;
                   triggerHaptic();
                   onFinish();
                 }}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-950/50 active:scale-95"
+                disabled={isFinishing}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-950/50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                 title={t.common.finishTitle}
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-300" />

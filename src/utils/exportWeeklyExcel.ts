@@ -5,6 +5,7 @@ import {
   maskCyrillicForEnglish,
 } from './weeklyReport';
 import { Language } from '../i18n/types';
+import { sanitizeAoA } from './exportExcel';
 
 export function exportWeeklyReportToExcel(
   data: WeeklyExecutiveReportData,
@@ -57,7 +58,7 @@ export function exportWeeklyReportToExcel(
     ]),
   ];
 
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  const wsSummary = XLSX.utils.aoa_to_sheet(sanitizeAoA(summaryRows));
   XLSX.utils.book_append_sheet(wb, wsSummary, isRu ? 'Сводка CEO' : 'Executive Summary');
 
   // Sheet 2: Daily Pulse Log
@@ -82,7 +83,7 @@ export function exportWeeklyReportToExcel(
     ]),
   ];
 
-  const wsDaily = XLSX.utils.aoa_to_sheet(dailyRows);
+  const wsDaily = XLSX.utils.aoa_to_sheet(sanitizeAoA(dailyRows));
   XLSX.utils.book_append_sheet(wb, wsDaily, isRu ? 'Пульс недели' : 'Daily Pulse');
 
   // Sheet 3: Zone Anti-Rating
@@ -109,7 +110,7 @@ export function exportWeeklyReportToExcel(
     ]),
   ];
 
-  const wsZones = XLSX.utils.aoa_to_sheet(zoneRows);
+  const wsZones = XLSX.utils.aoa_to_sheet(sanitizeAoA(zoneRows));
   XLSX.utils.book_append_sheet(wb, wsZones, isRu ? 'Антирейтинг зон' : 'Zone Anti-Rating');
 
   // Sheet 4: Deduplicated Defect Register (Annex)
@@ -154,7 +155,7 @@ export function exportWeeklyReportToExcel(
     ]),
   ];
 
-  const wsDefects = XLSX.utils.aoa_to_sheet(defectRegisterRows);
+  const wsDefects = XLSX.utils.aoa_to_sheet(sanitizeAoA(defectRegisterRows));
   XLSX.utils.book_append_sheet(wb, wsDefects, isRu ? 'Реестр нарушений' : 'Defect Register');
 
   // Save workbook

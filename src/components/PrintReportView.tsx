@@ -294,8 +294,8 @@ export const PrintReportView: React.FC<PrintReportViewProps> = ({
 
         <div>
           <p className="font-bold text-slate-900 mb-1">{t.printView.approverSignHeading}</p>
-          <div className="mt-5 border-b border-slate-900 pb-1 flex justify-between items-end">
-            <span className="font-medium text-slate-800">
+          <div className="mt-5 border-b border-slate-900 pb-1 flex justify-between items-end min-w-0">
+            <span className="font-medium text-slate-800 whitespace-normal break-words min-w-0">
               {session.signatures?.reviewedBy || '__________________________'}
             </span>
             <span className="text-[10px] text-slate-500 font-mono">{t.printView.signatureLine}</span>

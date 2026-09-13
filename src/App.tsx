@@ -183,6 +183,7 @@ export const App: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isFinishing, setIsFinishing] = useState<boolean>(false);
 
   // Modals state
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
@@ -287,17 +288,22 @@ export const App: React.FC = () => {
   }, []);
 
   const handleFinish = useCallback(() => {
+    if (isFinishing) return;
+    setIsFinishing(true);
     try {
       const completed = finishWalkthrough();
       if (completed) {
         saveInspectionToHistory(completed);
-        forcePush(completed);
+        forcePush(completed).finally(() => setIsFinishing(false));
+      } else {
+        setIsFinishing(false);
       }
       setShowExportModal(true);
     } catch (err) {
       console.error('Error finishing walkthrough:', err);
+      setIsFinishing(false);
     }
-  }, [finishWalkthrough, saveInspectionToHistory, forcePush]);
+  }, [isFinishing, finishWalkthrough, saveInspectionToHistory, forcePush]);
 
   const handleStartNewWalkthrough = useCallback((lang: Language = language) => {
     try {
@@ -404,6 +410,7 @@ export const App: React.FC = () => {
           onReset={() => handleStartNewWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}
+          isFinishing={isFinishing}
         />
 
         {/* Main Content Area */}

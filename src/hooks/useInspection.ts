@@ -159,6 +159,8 @@ export function useInspection() {
 
   const isHydrated = useRef(false);
   const hasUserInteracted = useRef(false);
+  const finishInFlightRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionRef = useRef<InspectionSession>(session);
   sessionRef.current = session;
 
@@ -199,6 +201,21 @@ export function useInspection() {
     // IndexedDB only; stringifying multi-MB base64 on every keystroke freezes
     // low-end phones)
     const timer = setTimeout(() => {
+      // Race guard: only write our own record. A newer session (fresh reset or
+      // reloaded from storage) must never be clobbered by a stale debounce fire —
+      // and the clock guard is a hard stop among same-id writes anyway: localStorage
+      // clock moves in ≤1s increments on some platforms, so honour the newest one.
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('ehs_active_session_v1') : null;
+      if (stored) {
+        try {
+          const existing = JSON.parse(stored);
+          if (existing && typeof existing === 'object' && typeof existing.id === 'string' && existing.id !== session.id) return;
+          if (existing && typeof existing.updatedAt === 'string' && typeof session.updatedAt === 'string'
+            && existing.updatedAt > session.updatedAt) return;
+        } catch {
+          // parse failure: fall through to overwrite
+        }
+      }
       try {
         const lightweight: InspectionSession = {
           ...session,
@@ -223,6 +240,7 @@ export function useInspection() {
       }
     }, 600);
 
+    autoSaveTimerRef.current = timer;
     return () => clearTimeout(timer);
   }, [session]);
 
@@ -525,6 +543,13 @@ export function useInspection() {
   }, []);
 
   const resetWalkthrough = useCallback((lang: Language = 'ru'): InspectionSession => {
+    // 0. Flush any pending debounced auto-save for the OLD session BEFORE we
+    // swap in the fresh one — without this, its 600ms timer fires after the reset
+    // and overwrites the new record (stale-completion clobber).
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     // 1. Archive current session if it has any user activity or was completed
     const current = sessionRef.current;
     if (current && (current.status === 'Completed' || current.items.some((i) => i.status !== 'PENDING') || current.generalNotes)) {
@@ -552,6 +577,10 @@ export function useInspection() {
 
     // 4. Update React state, sessionRef, and return fresh
     sessionRef.current = fresh;
+    // Disarm the auto-save effect for the previous session: a queued run of the
+    // old effect (against the stale [session] render) will now early-return.
+    hasUserInteracted.current = false;
+    isHydrated.current = false;
     setSession(fresh);
     return fresh;
   }, []);
@@ -566,6 +595,14 @@ export function useInspection() {
   }, []);
 
   const finishWalkthrough = useCallback((): InspectionSession => {
+    // Guard against double-fire (double-click, race with a fast offline retry): while a
+    // finish is still in flight, return the already-completed session unchanged.
+    // Idempotent on repeat calls too: a completed session is returned as-is so the
+    // updatedAt (and thus the cloud push) can never change.
+    if (finishInFlightRef.current || sessionRef.current.status === 'Completed') {
+      return sessionRef.current;
+    }
+    finishInFlightRef.current = true;
     const now = new Date();
     const currentTime = getLocalCurrentTime();
     const prev = sessionRef.current;
@@ -594,6 +631,7 @@ export function useInspection() {
     } catch {}
     sessionRef.current = completedSession;
     setSession(completedSession);
+    finishInFlightRef.current = false;
     return completedSession;
   }, []);
 

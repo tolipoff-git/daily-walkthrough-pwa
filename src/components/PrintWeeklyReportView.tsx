@@ -127,16 +127,16 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
 
         {/* Recurrence & Systemic Impact Classification Banner */}
         <div
-          className="flex items-center justify-between text-[7.5px] mb-1 px-1.5 py-0.5 rounded border leading-tight"
+          className="flex items-center justify-between gap-1 text-[7.5px] mb-1 px-1.5 py-0.5 rounded border leading-tight"
           style={{
             backgroundColor: defect.recurrenceType === 'RECURRING' ? '#fef3c7' : '#f1f5f9',
             borderColor: defect.recurrenceType === 'RECURRING' ? '#f59e0b' : '#cbd5e1',
             color: defect.recurrenceType === 'RECURRING' ? '#92400e' : '#475569',
           }}
         >
-          <div className="flex items-center gap-1 font-extrabold">
+          <div className="flex items-center gap-1 font-extrabold min-w-0">
             <span
-              className={`px-1 py-0.2 rounded text-[7px] uppercase text-white font-black ${
+              className={`px-1 py-0.2 rounded text-[7px] uppercase text-white font-black shrink-0 ${
                 defect.recurrenceType === 'RECURRING' ? 'bg-amber-600' : 'bg-slate-500'
               }`}
             >
@@ -148,7 +148,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
           </div>
 
           {/* Audit Report Session Traceability */}
-          <div className="font-mono text-[7.5px] text-slate-600 font-bold truncate max-w-[50%]">
+          <div className="font-mono text-[7.5px] text-slate-600 font-bold min-w-0 flex-1 whitespace-normal break-words leading-tight" title={`${t.weeklyReport.annexAuditTrail} ${isRu ? defect.reportReferencesFormattedRu : defect.reportReferencesFormattedEn}`}>
             {t.weeklyReport.annexAuditTrail}{' '}
             {isRu ? defect.reportReferencesFormattedRu : defect.reportReferencesFormattedEn}
           </div>
@@ -471,10 +471,13 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
                 return (
                   <div key={z.zone}>
                     <div className="flex items-center justify-between text-[9px] mb-0.5">
-                      <span className="font-bold text-slate-800 truncate max-w-[130px]">
+                      <span
+                        className="font-bold text-slate-800 min-w-0 flex-1 whitespace-normal break-words leading-tight"
+                        title={`${idx + 1}. ${isRu ? z.zoneLabelRu : z.zoneLabelEn}`}
+                      >
                         {idx + 1}. {isRu ? z.zoneLabelRu : z.zoneLabelEn}
                       </span>
-                      <span className="text-slate-600 font-mono text-[8.5px]">
+                      <span className="text-slate-600 font-mono text-[8.5px] shrink-0">
                         <b>{z.totalDefects}</b> ({z.percentage}%)
                         {z.p1Count > 0 && (
                           <span className="ml-1 text-red-600 font-bold">P1:{z.p1Count}</span>
@@ -503,7 +506,7 @@ export const PrintWeeklyReportView: React.FC<PrintWeeklyReportViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[9px]">
           {data.domainBreakdown.map((d) => (
             <div key={d.id} className="bg-white border border-slate-200 rounded p-1">
-              <div className="font-bold text-slate-800 text-[9px] truncate">
+              <div className="font-bold text-slate-800 text-[9px] whitespace-normal break-words leading-tight" title={isRu ? d.titleRu : d.titleEn}>
                 {isRu ? d.titleRu : d.titleEn}
               </div>
               <div className="text-xs font-black text-slate-900 mt-0.5">
