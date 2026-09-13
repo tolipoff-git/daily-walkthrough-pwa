@@ -488,7 +488,7 @@ export function createNewInspectionSession(lang: Language = 'ru'): InspectionSes
   const savedFacility = typeof window !== 'undefined' ? localStorage.getItem('ehs_last_facility') : null;
 
   const inspector = savedInspector || defaultPerson?.name || (lang === 'ru' ? defaultInspectorRu : defaultInspectorEn);
-  const role = defaultPerson?.role || savedRole || (lang === 'ru' ? defaultRoleRu : defaultRoleEn);
+  const role = savedRole || defaultPerson?.role || (lang === 'ru' ? defaultRoleRu : defaultRoleEn);
   const facility = savedFacility || (lang === 'ru' ? defaultFacilityRu : defaultFacilityEn);
   const area = lang === 'ru' ? defaultAreaRu : defaultAreaEn;
   const shift = lang === 'ru' ? defaultShiftRu : defaultShiftEn;
