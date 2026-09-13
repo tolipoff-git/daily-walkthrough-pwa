@@ -35,23 +35,56 @@ export function getOrCreateDeviceId(): string {
   return deviceId;
 }
 
-// Active sync room from URL or localStorage (default: FSE-MAIN)
+// Room codes are [A-Z0-9-] only: an underscore would make the worker mis-parse
+// the room segment out of sync keys (session_<ROOM>, photo_<ROOM>_<id>).
+function sanitizeRoomCode(room: string): string {
+  return (room || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40);
+}
+
+// Active sync room from URL or localStorage (no default room: sync starts
+// disabled until a room is explicitly set)
 export function getActiveSyncRoom(): string {
-  if (typeof window === 'undefined') return 'FSE-MAIN';
+  if (typeof window === 'undefined') return '';
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get('room') || urlParams.get('sync');
   if (roomParam) {
-    const clean = roomParam.trim().toUpperCase();
-    localStorage.setItem('ehs_sync_room', clean);
+    const clean = sanitizeRoomCode(roomParam);
+    if (clean) localStorage.setItem('ehs_sync_room', clean);
     return clean;
   }
-  return localStorage.getItem('ehs_sync_room') || 'FSE-MAIN';
+  return sanitizeRoomCode(localStorage.getItem('ehs_sync_room') || '');
+}
+
+// Shared-secret token required for every cloud sync call. Empty = sync disabled.
+export function getActiveSyncToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('ehs_sync_token') || '';
+}
+
+export function setActiveSyncToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  const clean = (token || '').trim();
+  if (clean) {
+    localStorage.setItem('ehs_sync_token', clean);
+  } else {
+    localStorage.removeItem('ehs_sync_token');
+  }
+}
+
+// "Sync has not been configured yet" guard: no room or no token set means
+// the client MUST NOT hit the network (the worker rejects it with 401 anyway).
+export function isSyncConfigured(): boolean {
+  return Boolean(getActiveSyncRoom() && getActiveSyncToken());
 }
 
 export function setActiveSyncRoom(room: string): void {
   if (typeof window === 'undefined') return;
-  const clean = (room || 'FSE-MAIN').trim().toUpperCase();
-  localStorage.setItem('ehs_sync_room', clean);
+  const clean = sanitizeRoomCode(room);
+  if (clean) {
+    localStorage.setItem('ehs_sync_room', clean);
+  } else {
+    localStorage.removeItem('ehs_sync_room');
+  }
 
   // Update URL without reload for easy sharing/bookmarking
   const url = new URL(window.location.href);
@@ -59,13 +92,22 @@ export function setActiveSyncRoom(room: string): void {
   window.history.replaceState({}, '', url.toString());
 }
 
+// Authorization header attached to every worker /api/sync call
+function syncAuthHeaders(deviceId?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'X-Sync-Token': getActiveSyncToken(),
+  };
+  if (deviceId) headers['X-Device-ID'] = deviceId;
+  return headers;
+}
+
 function getCloudTopic(room: string): string {
-  const clean = (room || 'FSE-MAIN').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  const clean = sanitizeRoomCode(room);
   return `fse_ehs_sync_${clean}`;
 }
 
 function getWorkerSyncUrl(room: string): string {
-  const clean = (room || 'FSE-MAIN').trim().toUpperCase();
+  const clean = sanitizeRoomCode(room);
   return `/api/sync/session_${encodeURIComponent(clean)}`;
 }
 
@@ -85,7 +127,8 @@ function isValidPayload(payload: any): payload is SyncPayload {
  * Returns true only if the Worker API actually accepted the payload.
  */
 export async function pushSessionToCloud(room: string, payload: SyncPayload): Promise<boolean> {
-  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const cleanRoom = sanitizeRoomCode(room);
+  if (!cleanRoom || !getActiveSyncToken()) return false; // sync not configured (no token yet)
   const payloadString = JSON.stringify(payload);
 
   // 1. Authoritative write to the Cloudflare Worker API
@@ -98,13 +141,26 @@ export async function pushSessionToCloud(room: string, payload: SyncPayload): Pr
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Device-ID': payload.deviceId,
+        ...syncAuthHeaders(payload.deviceId),
       },
       body: payloadString,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
     workerOk = res.ok;
+    if (res.ok) {
+      // Trust the worker's explicit success flag over the bare 2xx status:
+      // a 200 with success:false (or a retryable storage error) must NOT be
+      // treated as synced — the payload stays pending and gets retried.
+      try {
+        const body = await res.json();
+        workerOk = body && body.success === true;
+      } catch {
+        // Non-JSON success body — keep workerOk as-is
+      }
+    } else {
+      workerOk = false;
+    }
   } catch (err) {
     console.warn('Sync push to Worker API failed:', err);
   }
@@ -144,7 +200,8 @@ export async function pushSessionToCloud(room: string, payload: SyncPayload): Pr
  * Pulls latest session state from the Cloudflare Worker API.
  */
 export async function pullSessionFromCloud(room: string): Promise<SyncPayload | null> {
-  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const cleanRoom = sanitizeRoomCode(room);
+  if (!cleanRoom || !getActiveSyncToken()) return null; // sync not configured
 
   try {
     const controller = new AbortController();
@@ -152,7 +209,10 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
 
     const response = await fetch(`${getWorkerSyncUrl(cleanRoom)}?t=${Date.now()}`, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: {
+        'Cache-Control': 'no-cache',
+        ...syncAuthHeaders(),
+      },
       signal: controller.signal,
     });
 
@@ -175,7 +235,8 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
  * photo travels over the network at most once per device.
  */
 export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promise<boolean> {
-  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const cleanRoom = sanitizeRoomCode(room);
+  if (!cleanRoom || !getActiveSyncToken()) return false; // sync not configured
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -184,7 +245,10 @@ export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promis
       `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photo.id)}`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...syncAuthHeaders(),
+        },
         body: JSON.stringify(photo),
         signal: controller.signal,
       }
@@ -200,14 +264,15 @@ export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promis
  * Fetches a single photo by id from the Worker API.
  */
 export async function pullPhotoFromCloud(room: string, photoId: string): Promise<DefectPhoto | null> {
-  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const cleanRoom = sanitizeRoomCode(room);
+  if (!cleanRoom || !getActiveSyncToken()) return null; // sync not configured
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     const res = await fetch(
       `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photoId)}?t=${Date.now()}`,
-      { method: 'GET', headers: { 'Cache-Control': 'no-cache' }, signal: controller.signal }
+      { method: 'GET', headers: { 'Cache-Control': 'no-cache', ...syncAuthHeaders() }, signal: controller.signal }
     );
     clearTimeout(timeoutId);
 
@@ -234,7 +299,7 @@ export function subscribeToLiveCloudStream(
     return () => {};
   }
 
-  const cleanRoom = (room || 'FSE-MAIN').trim().toUpperCase();
+  const cleanRoom = sanitizeRoomCode(room);
   const topic = getCloudTopic(cleanRoom);
   let eventSource: EventSource | null = null;
 

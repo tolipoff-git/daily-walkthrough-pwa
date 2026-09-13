@@ -66,6 +66,10 @@ export const App: React.FC = () => {
     finishWalkthrough,
   } = useInspection();
 
+  // Latest session in a ref so handleRemoteUpdate stays stable across edits
+  const sessionRef = useRef<InspectionSession>(session);
+  sessionRef.current = session;
+
   const {
     history,
     saveInspectionToHistory,
@@ -74,13 +78,14 @@ export const App: React.FC = () => {
   } = useHistory();
 
   const handleRemoteUpdate = useCallback((remoteSession: InspectionSession) => {
-    if (remoteSession.updatedAt && remoteSession.updatedAt === session.updatedAt) return;
+    const currentSession = sessionRef.current;
+    if (remoteSession.updatedAt && remoteSession.updatedAt === currentSession.updatedAt) return;
 
     // Protection: never overwrite an active In Progress walkthrough with a different Completed session
     if (
       remoteSession.status === 'Completed' &&
-      session.status === 'In Progress' &&
-      remoteSession.id !== session.id
+      currentSession.status === 'In Progress' &&
+      remoteSession.id !== currentSession.id
     ) {
       saveInspectionToHistory(remoteSession);
       return;
@@ -91,7 +96,7 @@ export const App: React.FC = () => {
     const localPhotosById = new Map<string, DefectPhoto>();
     const localItemPhotos = new Map<string, DefectPhoto[]>();
 
-    session.items.forEach((item) => {
+    currentSession.items.forEach((item) => {
       const validPhotos = (item.defectDetails?.photos || []).filter(
         (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
       );
@@ -162,12 +167,14 @@ export const App: React.FC = () => {
     if (merged.status === 'Completed') {
       saveInspectionToHistory(merged);
     }
-  }, [session, loadSession, saveInspectionToHistory]);
+  }, [loadSession, saveInspectionToHistory]);
 
   // Cloud Live Synchronization Hook
   const {
     syncRoom,
     setSyncRoom,
+    syncToken,
+    setSyncToken,
     syncStatus,
     lastSyncedAt,
     isOnline,
@@ -407,6 +414,7 @@ export const App: React.FC = () => {
           onOpenQrScanner={() => setShowDirectQrScanner(true)}
           syncStatus={syncStatus}
           syncRoom={syncRoom}
+          syncToken={syncToken}
           onReset={() => handleStartNewWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}
@@ -729,6 +737,8 @@ export const App: React.FC = () => {
           lastSyncedAt={lastSyncedAt}
           syncRoom={syncRoom}
           onSetSyncRoom={setSyncRoom}
+          syncToken={syncToken}
+          onSetSyncToken={setSyncToken}
           onForcePush={forcePush}
           onForcePull={forcePull}
           isOnline={isOnline}

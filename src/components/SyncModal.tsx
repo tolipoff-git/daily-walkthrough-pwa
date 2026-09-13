@@ -21,6 +21,8 @@ interface SyncModalProps {
   lastSyncedAt: Date | null;
   syncRoom: string;
   onSetSyncRoom: (room: string) => void;
+  syncToken: string;
+  onSetSyncToken: (token: string) => void;
   onForcePush: () => void;
   onForcePull: () => void;
   isOnline: boolean;
@@ -33,6 +35,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   lastSyncedAt,
   syncRoom,
   onSetSyncRoom,
+  syncToken,
+  onSetSyncToken,
   onForcePush,
   onForcePull,
   isOnline,
@@ -41,8 +45,15 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   const { language } = useLanguage();
   const isRu = language === 'ru';
   const [roomInput, setRoomInput] = useState(syncRoom);
+  const [tokenInput, setTokenInput] = useState(syncToken);
   const [copied, setCopied] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
+
+  const showNotice = (msg: string) => {
+    setNoticeMsg(msg);
+    setTimeout(() => setNoticeMsg(null), 4000);
+  };
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
   const syncUrl = `${baseUrl}/?room=${encodeURIComponent(syncRoom)}`;
@@ -60,6 +71,31 @@ export const SyncModal: React.FC<SyncModalProps> = ({
     if (!roomInput.trim()) return;
     triggerHaptic();
     onSetSyncRoom(roomInput.trim().toUpperCase());
+    if (!syncToken) {
+      showNotice(isRu
+        ? '⚠ Установите секретный токен комнаты ниже — без него синхронизация не работает'
+        : '⚠ Set the room secret token below — sync stays disabled without it');
+    }
+  };
+
+  const generateToken = () => {
+    const gen = `tk-${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+    setTokenInput(gen);
+    onSetSyncToken(gen);
+    triggerHaptic(30);
+    showNotice(isRu
+      ? '🔑 Токен сгенерирован. Передайте этот же токен на другие устройства этой комнаты.'
+      : '🔑 Token generated. Give this exact token to the other devices in this room.');
+  };
+
+  const handleSaveToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tokenInput.trim()) return;
+    triggerHaptic(30);
+    onSetSyncToken(tokenInput.trim());
+    showNotice(isRu
+      ? 'Токен сохранен. Синхронизация активирована.'
+      : 'Token saved. Sync is now active.');
   };
 
   return (
@@ -278,6 +314,57 @@ export const SyncModal: React.FC<SyncModalProps> = ({
               </div>
             </form>
           </div>
+
+          {/* Shared-Secret Token (required for sync) */}
+          <div className="p-4 bg-slate-950/80 border border-amber-800/60 rounded-xl">
+            <form onSubmit={handleSaveToken} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300 mb-0.5 flex items-center gap-1.5">
+                  🔑 {isRu ? 'Секретный токен комнаты (обязательно)' : 'Room Secret Token (required)'}
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {isRu 
+                    ? 'Первый, кто включит синхронизацию, задает токен — остальные устройства должны ввести тот же токен. Без токена синхронизация отключена и данные не отправляются.'
+                    : 'The first device to enable sync sets the token — all others must enter the same one. Without a token, sync stays disabled and no data is sent.'}
+                </p>
+                {!syncToken && (
+                  <p className="text-[11px] font-semibold text-amber-400 mt-1">
+                    {isRu ? '⚠ Синхронизация отключена: токен не задан' : '⚠ Sync disabled: no token set'}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="tk-..."
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white font-mono font-bold text-xs focus:outline-none focus:border-amber-500 w-36"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg transition-colors"
+                >
+                  {isRu ? 'Сохранить' : 'Save'}
+                </button>
+              </div>
+            </form>
+            <button
+              type="button"
+              onClick={generateToken}
+              className="mt-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+            >
+              {isRu ? '🎲 Сгенерировать надежный токен' : '🎲 Generate a strong token'}
+            </button>
+          </div>
+
+          {/* In-Modal Toast / Notice */}
+          {noticeMsg && (
+            <div className="p-3 bg-slate-800 border border-cyan-800/60 rounded-xl text-xs text-slate-100 animate-fade-in">
+              {noticeMsg}
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}

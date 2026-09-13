@@ -12,7 +12,7 @@ import { DefectPhoto, InspectionSession } from '../types/inspection';
 import { exportInspectionToExcel } from '../utils/exportExcel';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
-import { pushPhotoToCloud, getActiveSyncRoom } from '../utils/syncApi';
+import { pushPhotoToCloud, getActiveSyncRoom, isSyncConfigured } from '../utils/syncApi';
 
 interface ExportModalProps {
   session: InspectionSession;
@@ -45,7 +45,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     onSaveToHistory(session);
 
     // Sync defect photos in background without blocking user print gesture
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
+    // (only when sync is configured — room + shared-secret token set)
+    if (typeof navigator !== 'undefined' && navigator.onLine && isSyncConfigured()) {
       const room = (getActiveSyncRoom() || session.facilityArea || 'FSE-MAIN').trim().toUpperCase();
       const photosToSync: DefectPhoto[] = [];
       session.items.forEach((item) => {

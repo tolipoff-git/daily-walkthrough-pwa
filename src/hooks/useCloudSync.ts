@@ -3,7 +3,10 @@ import { InspectionSession, DefectPhoto } from '../types/inspection';
 import { 
   getOrCreateDeviceId, 
   getActiveSyncRoom, 
-  setActiveSyncRoom as saveActiveSyncRoom,
+  getActiveSyncToken,
+  setActiveSyncRoom as saveActiveSyncRoom, 
+  setActiveSyncToken as saveActiveSyncToken,
+  isSyncConfigured,
   pushSessionToCloud, 
   pullSessionFromCloud, 
   pushPhotoToCloud,
@@ -12,6 +15,7 @@ import {
   SyncPayload 
 } from '../utils/syncApi';
 import { saveActiveSessionDb, saveHistorySessionDb } from '../utils/indexedDb';
+import { notifyHistoryStoreChanged } from './useHistory';
 import { getLocalTodayDate } from '../data/checklistData';
 
 // Canonical serialization of the session bytes that actually go over the wire.
@@ -69,6 +73,8 @@ interface UseCloudSyncProps {
 
 export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const [syncRoom, setSyncRoomState] = useState<string>(getActiveSyncRoom);
+  const [syncToken, setSyncTokenState] = useState<string>(getActiveSyncToken);
+  const syncConfiguredRef = useRef<boolean>(isSyncConfigured());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -92,6 +98,10 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   sessionRef.current = session;
   const onRemoteUpdateRef = useRef(onRemoteUpdate);
   onRemoteUpdateRef.current = onRemoteUpdate;
+  // Stable indirection for the mount-time online/offline handler: the handler
+  // must call the CURRENT triggerPull (room-aware), not one captured at mount.
+  const triggerPullRef = useRef<(() => Promise<void>) | null>(null);
+  const handleRemotePayloadRef = useRef<(remote: SyncPayload) => void>(() => {});
 
   // Process incoming remote payload (from SSE stream or pull)
   const handleRemotePayload = useCallback((remote: SyncPayload) => {
@@ -101,6 +111,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     // Past-day stale overwrite protection
     if (remote.session.date && remote.session.date < getLocalTodayDate()) {
       saveHistorySessionDb(remote.session).catch(() => {});
+      notifyHistoryStoreChanged();
       return;
     }
 
@@ -111,6 +122,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       remote.session.id !== sessionRef.current?.id
     ) {
       saveHistorySessionDb(remote.session).catch(() => {});
+      notifyHistoryStoreChanged();
       return;
     }
 
@@ -141,15 +153,15 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       saveActiveSessionDb(remote.session).catch(() => {});
 
       // Notify React state
-      onRemoteUpdate(remote.session);
+      onRemoteUpdateRef.current(remote.session);
     }
-  }, [onRemoteUpdate]);
+  }, []);
 
   // Track online/offline browser state
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      triggerPull().catch((err) => console.warn('Online sync triggerPull failed', err));
+      triggerPullRef.current?.().catch((err) => console.warn('Online sync triggerPull failed', err));
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -166,14 +178,29 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   }, []);
 
   const changeRoom = useCallback((newRoom: string) => {
-    const clean = (newRoom || 'FSE-MAIN').trim().toUpperCase();
+    const clean = (newRoom || '').trim().toUpperCase();
+    if (!clean) { setSyncStatus('error'); return; }
     saveActiveSyncRoom(clean);
     setSyncRoomState(clean);
+    syncConfiguredRef.current = isSyncConfigured();
     lastPushedTimestampRef.current = '';
     lastReceivedTimestampRef.current = '';
     lastPushedRef.current = '';
     pushedPhotoIdsRef.current = new Set();
     photoCacheRef.current = new Map();
+  }, []);
+
+  // Shared-secret token: required for cloud sync. One device in the room sets
+  // it first (first-write wins on the worker); the rest must enter the same
+  // token. Empty token = sync disabled, no network calls.
+  const setSyncToken = useCallback((token: string) => {
+    const clean = (token || '').trim();
+    saveActiveSyncToken(clean);
+    setSyncTokenState(clean);
+    syncConfiguredRef.current = isSyncConfigured();
+    if (!clean) {
+      setSyncStatus('error');
+    }
   }, []);
 
   // In-flight push promise: while one push is running, repeated calls return the
@@ -185,6 +212,12 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const pushToCloud = useCallback(async (currentRoom: string = syncRoom, explicitSession?: InspectionSession | null) => {
     if (pushInFlightRef.current) {
       return pushInFlightRef.current;
+    }
+    if (!isSyncConfigured()) {
+      // No room and/or no token: sync is not configured yet — do NOT touch
+      // the network (the worker would 401 anyway).
+      setSyncStatus('error');
+      return false;
     }
     if (!navigator.onLine) {
       setSyncStatus('offline');
@@ -314,15 +347,26 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
     return { ...remote, session: { ...remote.session, items } };
   }, []);
 
+  // Stable references so triggerPull's identity never changes between renders
+  const resolveRemotePhotosRef = useRef<(remote: SyncPayload, room: string) => Promise<SyncPayload>>(resolveRemotePhotos);
+  resolveRemotePhotosRef.current = resolveRemotePhotos;
+  handleRemotePayloadRef.current = handleRemotePayload;
+
   // Pull remote session from cloud
   const triggerPull = useCallback(async (currentRoom: string = syncRoom) => {
     if (!navigator.onLine || isSyncingRef.current) return;
+    if (!isSyncConfigured()) {
+      // Sync not configured (no token) — nothing to pull and the worker
+      // would reject the request; stay silent instead of erroring the UI.
+      return;
+    }
 
     try {
       const remote = await pullSessionFromCloud(currentRoom);
       if (remote) {
         if (remote.session.date && remote.session.date < getLocalTodayDate()) {
           saveHistorySessionDb(remote.session).catch(() => {});
+          notifyHistoryStoreChanged();
           return;
         }
         if (
@@ -331,15 +375,19 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
           remote.session.id !== sessionRef.current.id
         ) {
           saveHistorySessionDb(remote.session).catch(() => {});
+          notifyHistoryStoreChanged();
           return;
         }
         const resolved = await resolveRemotePhotos(remote, currentRoom);
-        handleRemotePayload(resolved);
+        handleRemotePayloadRef.current(resolved);
       }
     } catch (err) {
       console.error('Trigger pull error:', err);
     }
-  }, [syncRoom, handleRemotePayload, resolveRemotePhotos]);
+  }, [syncRoom]);
+
+  // Keep the mount-time online handler pointing at the current room-aware pull
+  triggerPullRef.current = triggerPull;
 
   // A session the user hasn't really touched yet (fresh page load, no marks)
   const isPristineSession = (s: InspectionSession | undefined): boolean => {
@@ -364,6 +412,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
         if (remote) {
           if (remote.session.date && remote.session.date < getLocalTodayDate()) {
             saveHistorySessionDb(remote.session).catch(() => {});
+            notifyHistoryStoreChanged();
             if (!cancelled) {
               await pushToCloud(syncRoom);
             }
@@ -378,6 +427,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
             remote.session.id !== sessionRef.current?.id
           ) {
             saveHistorySessionDb(remote.session).catch(() => {});
+            notifyHistoryStoreChanged();
             if (!cancelled) {
               await pushToCloud(syncRoom);
             }
@@ -386,7 +436,7 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
           const resolved = await resolveRemotePhotos(remote, syncRoom);
           if (cancelled) return;
-          handleRemotePayload(resolved);
+          handleRemotePayloadRef.current(resolved);
 
           const remoteTime = new Date(remote.updatedAt || 0).getTime();
           const localTime = new Date(sessionRef.current?.updatedAt || 0).getTime();
@@ -490,6 +540,8 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   return {
     syncRoom,
     setSyncRoom: changeRoom,
+    syncToken,
+    setSyncToken,
     syncStatus,
     lastSyncedAt,
     isOnline,

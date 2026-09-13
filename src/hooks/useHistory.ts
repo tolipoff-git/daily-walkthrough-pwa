@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { InspectionSession } from '../types/inspection';
 import { getAllHistorySessionsDb, saveHistorySessionDb, deleteHistorySessionDb } from '../utils/indexedDb';
 
+// Out-of-band notification channel: other hooks that write history records
+// directly to IndexedDB (bypassing saveInspectionToHistory) call
+// notifyHistoryStoreChanged() so the useHistory in-memory state re-reads the
+// DB and the "История" modal reflects the new records without a page reload.
+const historyChangeListeners = new Set<() => void>();
+
+export function notifyHistoryStoreChanged() {
+  historyChangeListeners.forEach((listener) => listener());
+}
+
 export function useHistory() {
   const [history, setHistory] = useState<InspectionSession[]>(() => {
     try {
@@ -14,17 +24,55 @@ export function useHistory() {
 
   const isInitialMount = useRef(true);
 
-  // Load from IndexedDB
-  useEffect(() => {
-    getAllHistorySessionsDb().then((dbHistory) => {
-      if (dbHistory && dbHistory.length > 0 && isInitialMount.current) {
-        setHistory(dbHistory);
+  // Reload the in-memory history from IndexedDB. Also re-reads the initial
+  // localStorage snapshot so a raw (non-DB) record kept there is preserved.
+  const refreshHistory = useCallback(() => {
+    const loadFromLocalStorage = () => {
+      try {
+        const local = localStorage.getItem('ehs_inspection_history_v1');
+        if (local) {
+          const localList = JSON.parse(local);
+          if (Array.isArray(localList)) {
+            return localList as InspectionSession[];
+          }
+        }
+      } catch {
+        // ignore malformed localStorage snapshot
       }
-      isInitialMount.current = false;
+      return [];
+    };
+
+    getAllHistorySessionsDb().then((dbHistory) => {
+      if (dbHistory && dbHistory.length > 0) {
+        const merged = new Map<string, InspectionSession>();
+        loadFromLocalStorage().forEach((s) => merged.set(s.id, s));
+        dbHistory.forEach((s) => merged.set(s.id, s));
+        setHistory([...merged.values()]);
+      } else {
+        setHistory(loadFromLocalStorage());
+      }
     }).catch(() => {
-      isInitialMount.current = false;
+      setHistory(loadFromLocalStorage());
     });
   }, []);
+
+  // Load from IndexedDB
+  useEffect(() => {
+    isInitialMount.current = true;
+    refreshHistory();
+  }, [refreshHistory]);
+
+  // Keep state in sync with hooks that write history records directly to
+  // IndexedDB (auto-rollover, reset, cloud stale-date / Completed-collision).
+  const onHistoryStoreChanged = useCallback(() => {
+    refreshHistory();
+  }, [refreshHistory]);
+  useEffect(() => {
+    historyChangeListeners.add(onHistoryStoreChanged);
+    return () => {
+      historyChangeListeners.delete(onHistoryStoreChanged);
+    };
+  }, [onHistoryStoreChanged]);
 
   // Sync to localStorage lightweight list
   useEffect(() => {
@@ -77,6 +125,7 @@ export function useHistory() {
   return {
     history,
     saveInspectionToHistory,
+    refreshHistory,
     deleteFromHistory,
     clearHistory,
   };

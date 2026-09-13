@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, DefectPhoto } from '../types/inspection';
 import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE, getLocalTodayDate, getLocalCurrentTime } from '../data/checklistData';
 import { saveActiveSessionDb, getActiveSessionDb, saveHistorySessionDb } from '../utils/indexedDb';
+import { notifyHistoryStoreChanged } from './useHistory';
 import { Language } from '../i18n/types';
 
 function hydrateSession(
@@ -147,6 +148,7 @@ export function useInspection() {
         const parsed = JSON.parse(saved);
         if (parsed.date && parsed.date < getLocalTodayDate()) {
           saveHistorySessionDb(parsed).catch(() => {});
+          notifyHistoryStoreChanged();
           return createNewInspectionSession(currentLang);
         }
         return hydrateSession(parsed, currentLang);
@@ -171,6 +173,7 @@ export function useInspection() {
       if (dbSession && !hasUserInteracted.current) {
         if (dbSession.date && dbSession.date < getLocalTodayDate()) {
           saveHistorySessionDb(dbSession).catch(() => {});
+          notifyHistoryStoreChanged();
           const freshSession = createNewInspectionSession(currentLang);
           sessionRef.current = freshSession;
           setSession(freshSession);
@@ -252,6 +255,7 @@ export function useInspection() {
         if (prev.date && prev.date < today) {
           const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
           saveHistorySessionDb(prev).catch(() => {});
+          notifyHistoryStoreChanged();
           const fresh = createNewInspectionSession(currentLang);
           saveActiveSessionDb(fresh).catch(() => {});
           try {
@@ -554,6 +558,7 @@ export function useInspection() {
     const current = sessionRef.current;
     if (current && (current.status === 'Completed' || current.items.some((i) => i.status !== 'PENDING') || current.generalNotes)) {
       saveHistorySessionDb(current).catch(() => {});
+      notifyHistoryStoreChanged();
     }
 
     // 2. Generate a fresh session with today's date and current start time
