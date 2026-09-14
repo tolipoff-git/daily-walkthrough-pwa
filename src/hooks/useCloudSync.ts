@@ -136,13 +136,11 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
       setLastSyncedAt(new Date());
       setSyncStatus('synced');
 
-      // Content-based echo guard: if this payload is byte-identical to the
-      // exact session we last pushed, it's our own push relayed by a peer
-      // (its updatedAt is echoed verbatim). Re-applying it would only churn
-      // state and re-trigger the debounced auto-push — skip it.
-      if (lastPushedRef.current && serializeSessionForEchoCheck(remote.session) === lastPushedRef.current) {
-        return;
-      }
+      // NOTE: no content-based echo guard here. A peer may relay our own
+      // payload back (same bytes, echoed updatedAt); the timestamp+received
+      // dedupe above is enough to avoid loops, and we must ALWAYS apply so a
+      // change made on another device shows up (the "laptop never updates"
+      // bug). If it IS our own data, re-applying is a no-op for the user.
 
       // Persist to IndexedDB immediately
       saveActiveSessionDb(remote.session).catch(() => {});
