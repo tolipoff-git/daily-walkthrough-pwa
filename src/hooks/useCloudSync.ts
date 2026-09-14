@@ -3,10 +3,7 @@ import { InspectionSession, DefectPhoto } from '../types/inspection';
 import { 
   getOrCreateDeviceId, 
   getActiveSyncRoom, 
-  getActiveSyncToken,
-  setActiveSyncRoom as saveActiveSyncRoom, 
-  setActiveSyncToken as saveActiveSyncToken,
-  isSyncConfigured,
+  setActiveSyncRoom as saveActiveSyncRoom,
   pushSessionToCloud, 
   pullSessionFromCloud, 
   pushPhotoToCloud,
@@ -73,8 +70,6 @@ interface UseCloudSyncProps {
 
 export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const [syncRoom, setSyncRoomState] = useState<string>(getActiveSyncRoom);
-  const [syncToken, setSyncTokenState] = useState<string>(getActiveSyncToken);
-  const syncConfiguredRef = useRef<boolean>(isSyncConfigured());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -179,28 +174,14 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
 
   const changeRoom = useCallback((newRoom: string) => {
     const clean = (newRoom || '').trim().toUpperCase();
-    if (!clean) { setSyncStatus('error'); return; }
+    if (!clean) return;
     saveActiveSyncRoom(clean);
     setSyncRoomState(clean);
-    syncConfiguredRef.current = isSyncConfigured();
     lastPushedTimestampRef.current = '';
     lastReceivedTimestampRef.current = '';
     lastPushedRef.current = '';
     pushedPhotoIdsRef.current = new Set();
     photoCacheRef.current = new Map();
-  }, []);
-
-  // Shared-secret token: required for cloud sync. One device in the room sets
-  // it first (first-write wins on the worker); the rest must enter the same
-  // token. Empty token = sync disabled, no network calls.
-  const setSyncToken = useCallback((token: string) => {
-    const clean = (token || '').trim();
-    saveActiveSyncToken(clean);
-    setSyncTokenState(clean);
-    syncConfiguredRef.current = isSyncConfigured();
-    if (!clean) {
-      setSyncStatus('error');
-    }
   }, []);
 
   // In-flight push promise: while one push is running, repeated calls return the
@@ -212,12 +193,6 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   const pushToCloud = useCallback(async (currentRoom: string = syncRoom, explicitSession?: InspectionSession | null) => {
     if (pushInFlightRef.current) {
       return pushInFlightRef.current;
-    }
-    if (!isSyncConfigured()) {
-      // No room and/or no token: sync is not configured yet — do NOT touch
-      // the network (the worker would 401 anyway).
-      setSyncStatus('error');
-      return false;
     }
     if (!navigator.onLine) {
       setSyncStatus('offline');
@@ -355,11 +330,6 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   // Pull remote session from cloud
   const triggerPull = useCallback(async (currentRoom: string = syncRoom) => {
     if (!navigator.onLine || isSyncingRef.current) return;
-    if (!isSyncConfigured()) {
-      // Sync not configured (no token) — nothing to pull and the worker
-      // would reject the request; stay silent instead of erroring the UI.
-      return;
-    }
 
     try {
       const remote = await pullSessionFromCloud(currentRoom);
@@ -540,8 +510,6 @@ export function useCloudSync({ session, onRemoteUpdate }: UseCloudSyncProps) {
   return {
     syncRoom,
     setSyncRoom: changeRoom,
-    syncToken,
-    setSyncToken,
     syncStatus,
     lastSyncedAt,
     isOnline,

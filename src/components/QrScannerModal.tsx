@@ -11,15 +11,13 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
-import { parseSyncQrPayload } from '../utils/syncApi';
 
 interface QrScannerModalProps {
   onClose: () => void;
   onScanRoom: (roomCode: string) => void;
-  onScanToken?: (token: string) => void;
 }
 
-export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanRoom, onScanToken }) => {
+export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanRoom }) => {
   const { language } = useLanguage();
   const isRu = language === 'ru';
 
@@ -33,11 +31,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
   const [hasTorch, setHasTorch] = useState(false);
   const [isScanning, setIsScanning] = useState(true);
   const [scannedRoom, setScannedRoom] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState('');
 
-  // Extract room parameter from scanned URL or raw string (back-compat with
-  // older QR codes that carried only the room, no token).
+  // Extract room parameter from scanned URL or raw string
   const extractRoomCode = useCallback((raw: string): string => {
     const trimmed = raw.trim();
     try {
@@ -65,26 +61,15 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
       setIsScanning(false);
       triggerHaptic(50);
 
-      const parsed = parseSyncQrPayload(rawCode);
-      const room = parsed.room || extractRoomCode(rawCode);
-      const token = parsed.token;
+      const room = extractRoomCode(rawCode);
       setScannedRoom(room);
-
-      if (token) {
-        setSuccessMessage(isRu ? 'QR распознан: комната + токен' : 'QR recognized: room + token');
-      } else {
-        setSuccessMessage(isRu ? 'QR распознан (только комната)' : 'QR recognized (room only)');
-      }
 
       setTimeout(() => {
         onScanRoom(room);
-        if (token && onScanToken) {
-          onScanToken(token);
-        }
         onClose();
       }, 600);
     },
-    [isScanning, extractRoomCode, onScanRoom, onScanToken, onClose, isRu]
+    [isScanning, extractRoomCode, onScanRoom, onClose]
   );
 
   // Start Video Stream
@@ -242,12 +227,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
     e.preventDefault();
     if (!manualInput.trim()) return;
     triggerHaptic();
-    const parsed = parseSyncQrPayload(manualInput);
-    const room = parsed.room || manualInput.trim().toUpperCase();
-    onScanRoom(room);
-    if (parsed.token && onScanToken) {
-      onScanToken(parsed.token);
-    }
+    onScanRoom(manualInput.trim().toUpperCase());
     onClose();
   };
 
@@ -346,9 +326,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
                   <p className="text-xs text-emerald-300 font-mono font-bold bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-700">
                     {scannedRoom}
                   </p>
-                  {successMessage && (
-                    <p className="text-xs text-emerald-200/90">{successMessage}</p>
-                  )}
                 </div>
               )}
 

@@ -173,8 +173,6 @@ export const App: React.FC = () => {
   const {
     syncRoom,
     setSyncRoom,
-    syncToken,
-    setSyncToken,
     syncStatus,
     lastSyncedAt,
     isOnline,
@@ -372,26 +370,16 @@ export const App: React.FC = () => {
     }, 150);
   };
 
-  const handleScanRoom = useCallback((room: string, token?: string) => {
+  const handleScanRoom = useCallback((room: string) => {
     setSyncRoom(room);
-    if (token) {
-      setSyncToken(token);
-    }
-    const doPush = () => {
-      // Force push only when sync is fully configured (room + token). Without
-      // a token the worker 401s and the attempt would just mark status error.
-      if (token) {
-        forcePush();
-      }
-    };
-    doPush();
+    forcePush();
     if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
     qrPullTimeoutRef.current = setTimeout(() => {
       if (isScannerOpenRef.current) {
         forcePull();
       }
     }, 500);
-  }, [setSyncRoom, setSyncToken, forcePush, forcePull]);
+  }, [setSyncRoom, forcePush, forcePull]);
 
   const getCategoryIcon = useCallback((iconName: string) => {
     switch (iconName) {
@@ -424,7 +412,6 @@ export const App: React.FC = () => {
           onOpenQrScanner={() => setShowDirectQrScanner(true)}
           syncStatus={syncStatus}
           syncRoom={syncRoom}
-          syncToken={syncToken}
           onReset={() => handleStartNewWalkthrough(language)}
           onFinish={handleFinish}
           isFinished={session.status === 'Completed'}
@@ -747,8 +734,6 @@ export const App: React.FC = () => {
           lastSyncedAt={lastSyncedAt}
           syncRoom={syncRoom}
           onSetSyncRoom={setSyncRoom}
-          syncToken={syncToken}
-          onSetSyncToken={setSyncToken}
           onForcePush={forcePush}
           onForcePull={forcePull}
           isOnline={isOnline}
@@ -764,7 +749,6 @@ export const App: React.FC = () => {
             setShowDirectQrScanner(false);
           }}
           onScanRoom={handleScanRoom}
-          onScanToken={setSyncToken}
         />
       )}
 

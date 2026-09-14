@@ -23,7 +23,7 @@ export default {
     const securityHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device-ID, X-Sync-Token',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device-ID',
       'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet, noimageindex',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'SAMEORIGIN',
@@ -264,15 +264,6 @@ export default {
         });
       }
 
-      // Auth gate: all sync reads/writes require the room token, so only
-      // devices that know the shared secret can touch this room's data.
-      if (!(await checkSyncAuth(env, key, request))) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
       // GET /api/sync/:key
       if (request.method === 'GET') {
         let rawData: string | null = null;
@@ -396,57 +387,6 @@ export default {
     });
   },
 };
-
-// KEY_PREFIX for the room token KV key
-const SYNC_TOKEN_PREFIX = 'system:room:';
-
-// Map a sync key (e.g. "session_FSE-MAIN", "photo_FSE-MAIN_abc") to its room code.
-function roomFromSyncKey(key: string): string | null {
-  const match = key.match(/^(?:session|photo)_([^_]+)(?:_|$)/);
-  return match ? match[1] : null;
-}
-
-function hexSha256(data: string): Promise<string> {
-  const bytes = new TextEncoder().encode(data);
-  return crypto.subtle.digest('SHA-256', bytes).then((digest) => {
-    const hex: string[] = [];
-    new Uint8Array(digest).forEach((b) => hex.push(b < 16 ? `0${b.toString(16)}` : b.toString(16)));
-    return hex.join('');
-  });
-}
-
-// Token the client must present via the X-Sync-Token header. First writer of a
-// room locks in the token; every subsequent reader/writer must match it.
-function expectedToken(env: Env, room: string): Promise<string | null> {
-  if (!env.EHS_KV) return Promise.resolve(null);
-  return env.EHS_KV.get(`${SYNC_TOKEN_PREFIX}${room}:token`);
-}
-
-// Auth gate for /api/sync/*: rejects requests whose token does not match the
-// room's stored token (or, when unset, locks in the presented token on a POST).
-// Same 401 message for every failure so key existence is not leaked.
-async function checkSyncAuth(env: Env, key: string, request: Request): Promise<boolean> {
-  const room = roomFromSyncKey(key);
-  if (!room) return false;
-  const presented = (request.headers.get('X-Sync-Token') || '').trim();
-  if (!presented) return false;
-
-  const stored = await expectedToken(env, room);
-  if (stored) {
-    const presentedHash = await hexSha256(presented);
-    return presentedHash === stored;
-  }
-  // No token stored yet: only the first write may set it (first-write wins).
-  if (request.method !== 'POST' || !env.EHS_KV) return false;
-  try {
-    await env.EHS_KV.put(`${SYNC_TOKEN_PREFIX}${room}:token`, await hexSha256(presented), { expirationTtl: 31536000 });
-  } catch {
-    // KV write failed (e.g. concurrent set from another isolate) — re-check below
-  }
-  const confirmed = await expectedToken(env, room);
-  const presentedHash = await hexSha256(presented);
-  return confirmed !== null && presentedHash === confirmed;
-}
 
 function escapeHtml(str: string): string {
   return str

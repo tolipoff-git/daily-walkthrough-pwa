@@ -37,7 +37,6 @@ interface HeaderProps {
   onOpenQrScanner?: () => void;
   syncStatus?: SyncStatus;
   syncRoom?: string;
-  syncToken?: string;
   onReset: () => void;
   onFinish: () => void;
   isFinished: boolean;
@@ -56,7 +55,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQrScanner,
   syncStatus = 'synced',
   syncRoom = 'FSE-MAIN',
-  syncToken = '',
   onReset,
   onFinish,
   isFinished,
@@ -297,30 +295,22 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'bg-blue-950/60 text-blue-300 border-blue-800 animate-pulse'
                     : syncStatus === 'offline'
                     ? 'bg-amber-950/60 text-amber-300 border-amber-800'
-                    : !syncToken
-                    ? 'bg-slate-800 text-slate-400 border-slate-700 hover:border-cyan-700'
                     : 'bg-slate-800 hover:bg-cyan-950/50 text-cyan-300 border-slate-700 hover:border-cyan-700'
                 }`}
                 title={language === 'ru'
-                  ? (syncToken
-                    ? `Онлайн-синхронизация активна (Комната: ${syncRoom}). Кликните для подключения телефона.`
-                    : `Синхронизация отключена — установите секретный токен комнаты в настройках синхронизации (Комната: ${syncRoom}).`)
-                  : (syncToken
-                    ? `Live Cloud Sync Active (Room: ${syncRoom}). Click to connect phone.`
-                    : `Sync disabled — set a room secret token in sync settings (Room: ${syncRoom}).`)}
+                  ? `Онлайн-синхронизация активна (Комната: ${syncRoom}). Кликните для подключения телефона.`
+                  : `Live Cloud Sync Active (Room: ${syncRoom}). Click to connect phone.`}
               >
                 {syncStatus === 'syncing' ? (
                   <RefreshCw className="w-3.5 h-3.5 text-blue-400 animate-spin" />
                 ) : syncStatus === 'offline' ? (
                   <CloudRain className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
-                  <Cloud className={`w-3.5 h-3.5 ${syncToken ? 'text-cyan-400' : 'text-slate-500'}`} />
+                  <Cloud className="w-3.5 h-3.5 text-cyan-400" />
                 )}
                 <span className="hidden md:inline">
                   {syncStatus === 'syncing' 
                     ? (language === 'ru' ? 'Синхронизация...' : 'Syncing...')
-                    : !syncToken
-                    ? (language === 'ru' ? `Sync off • ${syncRoom}` : `Sync off • ${syncRoom}`)
                     : `Sync • ${syncRoom}`}
                 </span>
               </button>

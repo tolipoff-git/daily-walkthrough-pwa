@@ -37,14 +37,15 @@ export function getOrCreateDeviceId(): string {
 
 // Room codes are [A-Z0-9-] only: an underscore would make the worker mis-parse
 // the room segment out of sync keys (session_<ROOM>, photo_<ROOM>_<id>).
+const DEFAULT_ROOM = 'FSE-MAIN';
 function sanitizeRoomCode(room: string): string {
   return (room || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40);
 }
 
-// Active sync room from URL or localStorage (no default room: sync starts
-// disabled until a room is explicitly set)
+// Active sync room from URL or localStorage (default: FSE-MAIN — same behavior
+// as pre-v3.13.0, sync works out of the box with no setup)
 export function getActiveSyncRoom(): string {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === 'undefined') return DEFAULT_ROOM;
   const urlParams = new URLSearchParams(window.location.search);
   const roomParam = urlParams.get('room') || urlParams.get('sync');
   if (roomParam) {
@@ -52,62 +53,17 @@ export function getActiveSyncRoom(): string {
     if (clean) localStorage.setItem('ehs_sync_room', clean);
     return clean;
   }
-  return sanitizeRoomCode(localStorage.getItem('ehs_sync_room') || '');
+  return sanitizeRoomCode(localStorage.getItem('ehs_sync_room') || '') || DEFAULT_ROOM;
 }
 
-// Sync QR payload: the pairing QR encodes the room AND the shared token so a
-// single scan configures a new device fully. Back-compat: old codes that only
-// carried ?room= still parse (token stays empty).
-export function buildSyncQrPayload(room: string, token: string): string {
-  const cleanRoom = sanitizeRoomCode(room);
-  if (!cleanRoom) return '';
+// Sync QR payload: encodes the room (pre-v3.13.0 style — no token; scanning
+// joins the room and sync starts immediately)
+export function buildSyncQrPayload(room: string): string {
+  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
   const base = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
   const url = new URL(`${base}/`);
   url.searchParams.set('room', cleanRoom);
-  if (token) url.searchParams.set('token', token.trim());
   return url.toString();
-}
-
-export function parseSyncQrPayload(raw: string): { room: string; token: string } {
-  const trimmed = (raw || '').trim();
-  try {
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      const url = new URL(trimmed);
-      const room = sanitizeRoomCode(url.searchParams.get('room') || url.searchParams.get('sync') || '');
-      const token = (url.searchParams.get('token') || url.searchParams.get('t') || '').trim();
-      return { room, token };
-    }
-  } catch {
-    // Not a full URL — try loose key=value parsing below
-  }
-  const roomMatch = trimmed.match(/room=([a-zA-Z0-9_-]+)/i);
-  const tokenMatch = trimmed.match(/token=([^&\s]+)/i) || trimmed.match(/[?&]t=([^&\s]+)/i);
-  return {
-    room: sanitizeRoomCode(roomMatch ? roomMatch[1] : trimmed),
-    token: tokenMatch ? decodeURIComponent(tokenMatch[1]) : '',
-  };
-}
-
-// Shared-secret token required for every cloud sync call. Empty = sync disabled.
-export function getActiveSyncToken(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('ehs_sync_token') || '';
-}
-
-export function setActiveSyncToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  const clean = (token || '').trim();
-  if (clean) {
-    localStorage.setItem('ehs_sync_token', clean);
-  } else {
-    localStorage.removeItem('ehs_sync_token');
-  }
-}
-
-// "Sync has not been configured yet" guard: no room or no token set means
-// the client MUST NOT hit the network (the worker rejects it with 401 anyway).
-export function isSyncConfigured(): boolean {
-  return Boolean(getActiveSyncRoom() && getActiveSyncToken());
 }
 
 export function setActiveSyncRoom(room: string): void {
@@ -121,26 +77,24 @@ export function setActiveSyncRoom(room: string): void {
 
   // Update URL without reload for easy sharing/bookmarking
   const url = new URL(window.location.href);
-  url.searchParams.set('room', clean);
+  url.searchParams.set('room', clean || DEFAULT_ROOM);
   window.history.replaceState({}, '', url.toString());
 }
 
 // Authorization header attached to every worker /api/sync call
 function syncAuthHeaders(deviceId?: string): Record<string, string> {
-  const headers: Record<string, string> = {
-    'X-Sync-Token': getActiveSyncToken(),
-  };
+  const headers: Record<string, string> = {};
   if (deviceId) headers['X-Device-ID'] = deviceId;
   return headers;
 }
 
 function getCloudTopic(room: string): string {
-  const clean = sanitizeRoomCode(room);
+  const clean = sanitizeRoomCode(room) || DEFAULT_ROOM;
   return `fse_ehs_sync_${clean}`;
 }
 
 function getWorkerSyncUrl(room: string): string {
-  const clean = sanitizeRoomCode(room);
+  const clean = sanitizeRoomCode(room) || DEFAULT_ROOM;
   return `/api/sync/session_${encodeURIComponent(clean)}`;
 }
 
@@ -160,8 +114,7 @@ function isValidPayload(payload: any): payload is SyncPayload {
  * Returns true only if the Worker API actually accepted the payload.
  */
 export async function pushSessionToCloud(room: string, payload: SyncPayload): Promise<boolean> {
-  const cleanRoom = sanitizeRoomCode(room);
-  if (!cleanRoom || !getActiveSyncToken()) return false; // sync not configured (no token yet)
+  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
   const payloadString = JSON.stringify(payload);
 
   // 1. Authoritative write to the Cloudflare Worker API
@@ -233,8 +186,7 @@ export async function pushSessionToCloud(room: string, payload: SyncPayload): Pr
  * Pulls latest session state from the Cloudflare Worker API.
  */
 export async function pullSessionFromCloud(room: string): Promise<SyncPayload | null> {
-  const cleanRoom = sanitizeRoomCode(room);
-  if (!cleanRoom || !getActiveSyncToken()) return null; // sync not configured
+  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
 
   try {
     const controller = new AbortController();
@@ -268,8 +220,7 @@ export async function pullSessionFromCloud(room: string): Promise<SyncPayload | 
  * photo travels over the network at most once per device.
  */
 export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promise<boolean> {
-  const cleanRoom = sanitizeRoomCode(room);
-  if (!cleanRoom || !getActiveSyncToken()) return false; // sync not configured
+  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -297,8 +248,7 @@ export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promis
  * Fetches a single photo by id from the Worker API.
  */
 export async function pullPhotoFromCloud(room: string, photoId: string): Promise<DefectPhoto | null> {
-  const cleanRoom = sanitizeRoomCode(room);
-  if (!cleanRoom || !getActiveSyncToken()) return null; // sync not configured
+  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
