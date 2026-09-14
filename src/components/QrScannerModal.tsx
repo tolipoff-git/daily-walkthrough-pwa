@@ -1,23 +1,25 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import jsQR from 'jsqr';
-import { 
-  Camera, 
-  X, 
-  Flashlight, 
-  FlashlightOff, 
+import {
+  Camera,
+  X,
+  Flashlight,
+  FlashlightOff,
   AlertCircle,
   CheckCircle2,
-  ScanLine
+  ScanLine,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
+import { parseSyncQrPayload } from '../utils/syncApi';
 
 interface QrScannerModalProps {
   onClose: () => void;
   onScanRoom: (roomCode: string) => void;
+  onScanToken?: (token: string) => void;
 }
 
-export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanRoom }) => {
+export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanRoom, onScanToken }) => {
   const { language } = useLanguage();
   const isRu = language === 'ru';
 
@@ -31,9 +33,11 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
   const [hasTorch, setHasTorch] = useState(false);
   const [isScanning, setIsScanning] = useState(true);
   const [scannedRoom, setScannedRoom] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState('');
 
-  // Extract room parameter from scanned URL or raw string
+  // Extract room parameter from scanned URL or raw string (back-compat with
+  // older QR codes that carried only the room, no token).
   const extractRoomCode = useCallback((raw: string): string => {
     const trimmed = raw.trim();
     try {
@@ -55,19 +59,33 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
     return trimmed.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase() || 'FSE-MAIN';
   }, []);
 
-  const handleDetected = useCallback((rawCode: string) => {
-    if (!isScanning) return;
-    setIsScanning(false);
-    triggerHaptic(50);
+  const handleDetected = useCallback(
+    (rawCode: string) => {
+      if (!isScanning) return;
+      setIsScanning(false);
+      triggerHaptic(50);
 
-    const room = extractRoomCode(rawCode);
-    setScannedRoom(room);
+      const parsed = parseSyncQrPayload(rawCode);
+      const room = parsed.room || extractRoomCode(rawCode);
+      const token = parsed.token;
+      setScannedRoom(room);
 
-    setTimeout(() => {
-      onScanRoom(room);
-      onClose();
-    }, 600);
-  }, [isScanning, extractRoomCode, onScanRoom, onClose]);
+      if (token) {
+        setSuccessMessage(isRu ? 'QR распознан: комната + токен' : 'QR recognized: room + token');
+      } else {
+        setSuccessMessage(isRu ? 'QR распознан (только комната)' : 'QR recognized (room only)');
+      }
+
+      setTimeout(() => {
+        onScanRoom(room);
+        if (token && onScanToken) {
+          onScanToken(token);
+        }
+        onClose();
+      }, 600);
+    },
+    [isScanning, extractRoomCode, onScanRoom, onScanToken, onClose, isRu]
+  );
 
   // Start Video Stream
   useEffect(() => {
@@ -112,8 +130,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
       } catch (err: any) {
         console.warn('Camera access error:', err);
         setHasCameraError(
-          isRu 
-            ? 'Не удалось получить доступ к камере. Разрешите доступ в настройках или введите код вручную.' 
+          isRu
+            ? 'Не удалось получить доступ к камере. Разрешите доступ в настройках или введите код вручную.'
             : 'Unable to access camera. Please allow camera permissions or enter room code manually.'
         );
       }
@@ -224,17 +242,22 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
     e.preventDefault();
     if (!manualInput.trim()) return;
     triggerHaptic();
-    onScanRoom(manualInput.trim().toUpperCase());
+    const parsed = parseSyncQrPayload(manualInput);
+    const room = parsed.room || manualInput.trim().toUpperCase();
+    onScanRoom(room);
+    if (parsed.token && onScanToken) {
+      onScanToken(parsed.token);
+    }
     onClose();
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-6 animate-fade-in print:hidden"
       role="dialog"
       aria-modal="true"
     >
-      <div 
+      <div
         className="relative max-w-lg w-full bg-slate-900 border border-slate-750 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -290,11 +313,11 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
           ) : (
             <>
               {/* Video Element */}
-              <video 
-                ref={videoRef} 
+              <video
+                ref={videoRef}
                 className="w-full h-full object-cover"
-                playsInline 
-                muted 
+                playsInline
+                muted
               />
               <canvas ref={canvasRef} className="hidden" />
 
@@ -323,6 +346,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
                   <p className="text-xs text-emerald-300 font-mono font-bold bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-700">
                     {scannedRoom}
                   </p>
+                  {successMessage && (
+                    <p className="text-xs text-emerald-200/90">{successMessage}</p>
+                  )}
                 </div>
               )}
 
@@ -332,8 +358,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({ onClose, onScanR
                   type="button"
                   onClick={toggleTorch}
                   className={`absolute top-4 right-4 p-3 rounded-full backdrop-blur-md transition-all z-10 ${
-                    torchEnabled 
-                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40' 
+                    torchEnabled
+                      ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40'
                       : 'bg-black/60 text-white border border-white/20'
                   }`}
                   aria-label="Toggle Flashlight"

@@ -14,6 +14,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
 import { SyncStatus } from '../hooks/useCloudSync';
 import { QrScannerModal } from './QrScannerModal';
+import { buildSyncQrPayload } from '../utils/syncApi';
 
 interface SyncModalProps {
   onClose: () => void;
@@ -56,11 +57,14 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   };
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
-  const syncUrl = `${baseUrl}/?room=${encodeURIComponent(syncRoom)}`;
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(syncUrl)}&bgcolor=0f172a&color=38bdf8&margin=6`;
+  const syncUrl = baseUrl && syncRoom ? buildSyncQrPayload(syncRoom, syncToken) || baseUrl : '';
+  const qrApiUrl = syncUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(syncUrl)}&bgcolor=0f172a&color=38bdf8&margin=6`
+    : '';
 
   const handleCopyLink = () => {
     triggerHaptic(30);
+    if (!syncUrl) return;
     navigator.clipboard.writeText(syncUrl).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -148,25 +152,33 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`p-2.5 rounded-xl border ${
-                !isOnline
+                !syncRoom || !syncToken
+                  ? 'bg-amber-950/60 border-amber-800 text-amber-400'
+                  : !isOnline
                   ? 'bg-amber-950/60 border-amber-800 text-amber-400'
                   : syncStatus === 'syncing'
                   ? 'bg-blue-950/60 border-blue-800 text-blue-400 animate-spin'
                   : 'bg-emerald-950/60 border-emerald-800 text-emerald-400'
               }`}>
-                {!isOnline ? <WifiOff className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
+                {!syncRoom || !syncToken ? <Radio className="w-5 h-5" /> : !isOnline ? <WifiOff className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
               </div>
 
               <div>
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  {!isOnline
+                  {!syncRoom || !syncToken
+                    ? (isRu ? 'Синхронизация отключена' : 'Sync Disabled')
+                    : !isOnline
                     ? (isRu ? 'Автономный режим (Офлайн)' : 'Offline Mode (Local Storage)')
                     : syncStatus === 'syncing'
                     ? (isRu ? 'Идет синхронизация с облаком...' : 'Syncing with cloud...')
                     : (isRu ? 'Синхронизировано в облаке' : 'Fully Synced with Cloud')}
                 </h4>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {lastSyncedAt 
+                  {!syncRoom || !syncToken
+                    ? (isRu
+                        ? 'Укажите комнату и секретный токен ниже, чтобы включить синхронизацию'
+                        : 'Set a room code and the shared secret token below to enable sync')
+                    : lastSyncedAt
                     ? `${isRu ? 'Последняя синхронизация:' : 'Last synced:'} ${lastSyncedAt.toLocaleTimeString()}`
                     : (isRu ? 'Готово к передаче данных' : 'Ready to sync')}
                 </p>
@@ -180,7 +192,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                   triggerHaptic();
                   onForcePull();
                 }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all"
+                disabled={!syncRoom || !syncToken}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 title={isRu ? 'Получить свежие данные из облака' : 'Pull latest changes from cloud'}
               >
                 <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
@@ -193,7 +206,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                   triggerHaptic();
                   onForcePush();
                 }}
-                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-md"
+                disabled={!syncRoom || !syncToken}
+                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
                 title={isRu ? 'Принудительно отправить текущую сессию в облако' : 'Force push current session to cloud'}
               >
                 <Cloud className="w-3.5 h-3.5" />
@@ -206,16 +220,24 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-slate-950/60 border border-slate-800 rounded-xl p-4">
             <div className="flex flex-col items-center justify-center p-3 bg-slate-900 border border-slate-750 rounded-xl text-center">
               <div className="relative p-2 bg-slate-950 rounded-lg border border-cyan-800/60 shadow-inner">
-                <img 
-                  src={qrApiUrl} 
-                  alt="Sync QR Code" 
-                  className="w-40 h-40 object-contain rounded"
-                  loading="lazy"
-                />
+                {qrApiUrl ? (
+                  <img 
+                    src={qrApiUrl} 
+                    alt="Sync QR Code" 
+                    className="w-40 h-40 object-contain rounded"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-40 h-40 flex items-center justify-center text-[11px] text-slate-500 px-3 text-center">
+                    {isRu
+                      ? 'Задайте комнату и токен, чтобы показать QR-код'
+                      : 'Set room + token to show the QR code'}
+                  </div>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1 font-medium">
                 <QrCode className="w-3.5 h-3.5 text-cyan-400" />
-                {isRu ? 'Наведите камеру смартфона для подключения' : 'Scan with your phone camera to connect'}
+                {isRu ? 'QR-код содержит комнату и токен — одно сканирование настраивает телефон' : 'QR carries room + token — one scan pairs your phone'}
               </p>
 
               {/* In-App Camera Scanner Button */}
@@ -239,18 +261,23 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                 </span>
                 <p className="text-slate-300 leading-relaxed">
                   {isRu
-                    ? '1. Откройте эту ссылку или отсканируйте QR-код на телефоне.'
-                    : '1. Open this link or scan the QR code on your phone.'}
+                    ? '1. На ноутбуке откройте Синхронизацию, задайте комнату и токен — QR-код ниже.'
+                    : '1. On your laptop open Sync, set room + token — QR below.'}
                 </p>
                 <p className="text-slate-300 leading-relaxed">
                   {isRu
-                    ? '2. Все отметки, сделанные во время обхода на телефоне, автоматически появляются на мониторе компьютера за 1-2 секунды.'
-                    : '2. Checkmarks and notes made on your phone appear live on your desktop monitor within 1-2 seconds.'}
+                    ? '2. Отсканируйте QR-код камерой телефона (или камерой PWA). Комната и токен применятся автоматически.'
+                    : '2. Scan the QR with your phone camera (or the in-app camera). Room + token apply automatically.'}
                 </p>
                 <p className="text-slate-300 leading-relaxed">
                   {isRu
-                    ? '3. Если внести правки на компьютере — телефон мгновенно обновляет свой экран.'
-                    : '3. Edits made on desktop immediately update the phone screen.'}
+                    ? '3. Все отметки, сделанные во время обхода на телефоне, автоматически появляются на мониторе компьютера за 1-2 секунды.'
+                    : '3. Checkmarks and notes made on your phone appear live on your desktop monitor within 1-2 seconds.'}
+                </p>
+                <p className="text-slate-300 leading-relaxed">
+                  {isRu
+                    ? '4. Если внести правки на компьютере — телефон мгновенно обновляет свой экран.'
+                    : '4. Edits made on desktop immediately update the phone screen.'}
                 </p>
               </div>
 
@@ -395,6 +422,12 @@ export const SyncModal: React.FC<SyncModalProps> = ({
             setTimeout(() => {
               onForcePull();
             }, 500);
+          }}
+          onScanToken={(token) => {
+            if (token) {
+              onSetSyncToken(token);
+              setTokenInput(token);
+            }
           }}
         />
       )}

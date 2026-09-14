@@ -372,16 +372,26 @@ export const App: React.FC = () => {
     }, 150);
   };
 
-  const handleScanRoom = useCallback((room: string) => {
+  const handleScanRoom = useCallback((room: string, token?: string) => {
     setSyncRoom(room);
-    forcePush();
+    if (token) {
+      setSyncToken(token);
+    }
+    const doPush = () => {
+      // Force push only when sync is fully configured (room + token). Without
+      // a token the worker 401s and the attempt would just mark status error.
+      if (token) {
+        forcePush();
+      }
+    };
+    doPush();
     if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
     qrPullTimeoutRef.current = setTimeout(() => {
       if (isScannerOpenRef.current) {
         forcePull();
       }
     }, 500);
-  }, [setSyncRoom, forcePush, forcePull]);
+  }, [setSyncRoom, setSyncToken, forcePush, forcePull]);
 
   const getCategoryIcon = useCallback((iconName: string) => {
     switch (iconName) {
@@ -754,6 +764,7 @@ export const App: React.FC = () => {
             setShowDirectQrScanner(false);
           }}
           onScanRoom={handleScanRoom}
+          onScanToken={setSyncToken}
         />
       )}
 

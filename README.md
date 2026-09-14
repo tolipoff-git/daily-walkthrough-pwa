@@ -171,3 +171,22 @@ npx wrangler kv namespace create EHS_KV
 Without the KV binding the Worker falls back to a per-isolate in-memory store, so `/api/sync` data does not survive across requests.
 
 **Sync architecture:** session data flows only through the same-origin Worker API (`/api/sync/:room`). The public ntfy.sh relay carries data-free *ping* notifications ("room X changed, pull now") — no inspection data ever leaves the Worker.
+
+### Room Secret Token (required since v3.13.0)
+
+Since **v3.13.0** every sync read/write requires a **shared-secret room token** (`X-Sync-Token` header, stored as a SHA-256 digest in KV, first-write-wins). Sync is **disabled** until a room **and** a token are both set — without them the client refuses to hit the network and the Worker returns `401 Unauthorized`.
+
+**Pairing a new device (recommended flow):**
+
+1. On the primary device (laptop) open **Live Sync** → set a room code → generate or enter a strong token (e.g. `🎲 Generate a strong token`).
+2. The QR code in the modal now encodes **both** the room and the token (`/?room=...&token=...`).
+3. On the phone, open the app → **Sync** → **📷 Scan QR** (or the header **Scan QR** shortcut), aim at the laptop screen. The scanner applies **room + token** automatically — no manual typing.
+4. Both devices now share one live session. Verify in the sync modal: status shows **"Fully Synced"** and `lastSyncedAt` updates.
+
+**Manual setup (fallback):**
+- Same room code and **exact same token** must be entered on every device in the room.
+- If a device shows **"Sync off"** in the header, it has no token — open **Live Sync** and set it.
+
+**Lost/mismatched token recovery:** the Worker locks the token on the first successful write of a room (SHA-256 stored at `system:room:<ROOM>:token` in KV). If one device used a different token, delete that KV key (wrangler/`--kv` or dashboard) so the room can be re-paired, then regenerate a token on the primary device and re-scan on the others.
+
+> ⚠️ **Privacy note:** the ntfy.sh relay topic remains **public and unauthenticated** — pings carry no session data, but the topic name (room) is visible. Do not put sensitive identifiers in room codes.

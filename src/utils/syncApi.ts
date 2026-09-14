@@ -55,6 +55,39 @@ export function getActiveSyncRoom(): string {
   return sanitizeRoomCode(localStorage.getItem('ehs_sync_room') || '');
 }
 
+// Sync QR payload: the pairing QR encodes the room AND the shared token so a
+// single scan configures a new device fully. Back-compat: old codes that only
+// carried ?room= still parse (token stays empty).
+export function buildSyncQrPayload(room: string, token: string): string {
+  const cleanRoom = sanitizeRoomCode(room);
+  if (!cleanRoom) return '';
+  const base = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
+  const url = new URL(`${base}/`);
+  url.searchParams.set('room', cleanRoom);
+  if (token) url.searchParams.set('token', token.trim());
+  return url.toString();
+}
+
+export function parseSyncQrPayload(raw: string): { room: string; token: string } {
+  const trimmed = (raw || '').trim();
+  try {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      const url = new URL(trimmed);
+      const room = sanitizeRoomCode(url.searchParams.get('room') || url.searchParams.get('sync') || '');
+      const token = (url.searchParams.get('token') || url.searchParams.get('t') || '').trim();
+      return { room, token };
+    }
+  } catch {
+    // Not a full URL — try loose key=value parsing below
+  }
+  const roomMatch = trimmed.match(/room=([a-zA-Z0-9_-]+)/i);
+  const tokenMatch = trimmed.match(/token=([^&\s]+)/i) || trimmed.match(/[?&]t=([^&\s]+)/i);
+  return {
+    room: sanitizeRoomCode(roomMatch ? roomMatch[1] : trimmed),
+    token: tokenMatch ? decodeURIComponent(tokenMatch[1]) : '',
+  };
+}
+
 // Shared-secret token required for every cloud sync call. Empty = sync disabled.
 export function getActiveSyncToken(): string {
   if (typeof window === 'undefined') return '';
