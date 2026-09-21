@@ -13,6 +13,7 @@ import { exportInspectionToExcel } from '../utils/exportExcel';
 import { triggerHaptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { pushPhotoToCloud, getActiveSyncRoom } from '../utils/syncApi';
+import { waitForPrintImages } from '../utils/printImages';
 
 interface ExportModalProps {
   session: InspectionSession;
@@ -40,7 +41,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     exportInspectionToExcel(session, language);
   };
 
-  const handleTriggerPrint = () => {
+  const handleTriggerPrint = async () => {
     triggerHaptic();
     onSaveToHistory(session);
 
@@ -65,9 +66,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
     // Unmount modal from DOM before printing to ensure pristine print snapshot
     onClose();
-    setTimeout(() => {
-      window.print();
-    }, 50);
+    // Wait for the print view's photos to decode — a synchronous print snapshot
+    // does not wait for images, which left the evidence sheets blank.
+    await waitForPrintImages();
+    window.print();
   };
 
   return (

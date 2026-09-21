@@ -8,6 +8,7 @@ import { triggerHaptic } from './utils/haptics';
 import { useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/types';
 import { getReportFileName } from './utils/formatters';
+import { waitForPrintImages } from './utils/printImages';
 import { APP_VERSION, COMMIT_HASH, COMMIT_URL } from './version';
 
 // Components
@@ -202,14 +203,12 @@ export const App: React.FC = () => {
   const [showWeeklyReportModal, setShowWeeklyReportModal] = useState<boolean>(false);
   const [activePrintMode, setActivePrintMode] = useState<'daily' | 'weekly'>('daily');
   const [weeklyPrintData, setWeeklyPrintData] = useState<WeeklyExecutiveReportData | null>(null);
-  const printTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const qrPullTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isScannerOpenRef = useRef(false);
   isScannerOpenRef.current = showDirectQrScanner;
 
   useEffect(() => {
     return () => {
-      if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
       if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
     };
   }, []);
@@ -349,25 +348,23 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDirectPrint = () => {
+  const handleDirectPrint = async () => {
     triggerHaptic();
     setActivePrintMode('daily');
     saveInspectionToHistory(session);
-    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-    printTimeoutRef.current = setTimeout(() => {
-      window.print();
-    }, 50);
+    // The print view is mounted hidden; wait for its photos to decode, otherwise
+    // the evidence appendix prints blank (the snapshot does not wait for images).
+    await waitForPrintImages();
+    window.print();
   };
 
-  const handleTriggerWeeklyPrint = (data: WeeklyExecutiveReportData) => {
+  const handleTriggerWeeklyPrint = async (data: WeeklyExecutiveReportData) => {
     setActivePrintMode('weekly');
     setWeeklyPrintData(data);
     setShowWeeklyReportModal(false);
     document.title = `EHS_Weekly_Executive_Report_${data.period.startDate}_${data.period.endDate}`;
-    if (printTimeoutRef.current) clearTimeout(printTimeoutRef.current);
-    printTimeoutRef.current = setTimeout(() => {
-      window.print();
-    }, 150);
+    await waitForPrintImages();
+    window.print();
   };
 
   const handleScanRoom = useCallback((room: string) => {
