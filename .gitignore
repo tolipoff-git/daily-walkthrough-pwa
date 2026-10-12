@@ -7,3 +7,7 @@ dist-ssr
 .idea
 .DS_Store
 *.log
+
+.wrangler/
+playwright-report/
+test-results/

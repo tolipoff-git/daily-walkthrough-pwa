@@ -1,320 +1,63 @@
-import { InspectionSession, DefectPhoto } from '../types/inspection';
+import { DefectPhoto } from '../types/inspection';
+import { RoomState, SyncOperation, SyncAck, normalizeRoom, validSession } from './syncProtocol';
 
-export interface SyncPayload {
-  session: InspectionSession;
-  deviceId: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface SyncResponse {
-  success: boolean;
-  payload?: SyncPayload;
-  timestamp?: string;
-  notFound?: boolean;
-  error?: string;
-}
-
-// Ping broadcast over the public relay. Contains NO session data —
-// it only tells peers "room X changed at time T, pull from the Worker API".
-interface SyncPing {
-  ehsSyncPing: true;
-  room: string;
-  deviceId: string;
-  updatedAt: string;
-}
-
-// Generate or retrieve persistent local device ID
 export function getOrCreateDeviceId(): string {
-  if (typeof window === 'undefined') return 'server';
-  let deviceId = localStorage.getItem('ehs_device_id');
-  if (!deviceId) {
-    deviceId = `dev_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
-    localStorage.setItem('ehs_device_id', deviceId);
-  }
-  return deviceId;
+  let id = localStorage.getItem('ehs_device_id');
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem('ehs_device_id', id); }
+  return id;
 }
-
-// Room codes are [A-Z0-9-] only: an underscore would make the worker mis-parse
-// the room segment out of sync keys (session_<ROOM>, photo_<ROOM>_<id>).
-const DEFAULT_ROOM = 'FSE-MAIN';
-function sanitizeRoomCode(room: string): string {
-  return (room || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40);
-}
-
-// Active sync room from URL or localStorage (default: FSE-MAIN — same behavior
-// as pre-v3.13.0, sync works out of the box with no setup)
 export function getActiveSyncRoom(): string {
-  if (typeof window === 'undefined') return DEFAULT_ROOM;
-  const urlParams = new URLSearchParams(window.location.search);
-  const roomParam = urlParams.get('room') || urlParams.get('sync');
-  if (roomParam) {
-    const clean = sanitizeRoomCode(roomParam);
-    if (clean) localStorage.setItem('ehs_sync_room', clean);
-    return clean;
-  }
-  return sanitizeRoomCode(localStorage.getItem('ehs_sync_room') || '') || DEFAULT_ROOM;
+  if (!localStorage.getItem('ehs_legacy_room')) localStorage.setItem('ehs_legacy_room', normalizeRoom(localStorage.getItem('ehs_sync_room') || 'FSE-MAIN'));
+  const params = new URLSearchParams(location.search);
+  const room = normalizeRoom(params.get('room') || params.get('sync') || localStorage.getItem('ehs_sync_room') || 'FSE-MAIN') || 'FSE-MAIN';
+  localStorage.setItem('ehs_sync_room', room);
+  return room;
 }
-
-// Sync QR payload: encodes the room (pre-v3.13.0 style — no token; scanning
-// joins the room and sync starts immediately)
+export function setActiveSyncRoom(room: string) {
+  const clean = normalizeRoom(room);
+  if (!clean) throw new Error('Invalid room');
+  localStorage.setItem('ehs_sync_room', clean);
+  const url = new URL(location.href); url.searchParams.set('room', clean);
+  history.replaceState({}, '', url);
+}
 export function buildSyncQrPayload(room: string): string {
-  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
-  const base = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
-  const url = new URL(`${base}/`);
-  url.searchParams.set('room', cleanRoom);
-  return url.toString();
+  const url = new URL('/', location.origin); url.searchParams.set('room', normalizeRoom(room)); return url.toString();
 }
-
-export function setActiveSyncRoom(room: string): void {
-  if (typeof window === 'undefined') return;
-  const clean = sanitizeRoomCode(room);
-  if (clean) {
-    localStorage.setItem('ehs_sync_room', clean);
-  } else {
-    localStorage.removeItem('ehs_sync_room');
-  }
-
-  // Update URL without reload for easy sharing/bookmarking
-  const url = new URL(window.location.href);
-  url.searchParams.set('room', clean || DEFAULT_ROOM);
-  window.history.replaceState({}, '', url.toString());
+export class SyncError extends Error {
+  constructor(public status: number, public body: unknown) { super(`Sync HTTP ${status}`); }
 }
-
-// Authorization header attached to every worker /api/sync call
-function syncAuthHeaders(deviceId?: string): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (deviceId) headers['X-Device-ID'] = deviceId;
-  return headers;
-}
-
-function getCloudTopic(room: string): string {
-  const clean = sanitizeRoomCode(room) || DEFAULT_ROOM;
-  return `fse_ehs_sync_${clean}`;
-}
-
-function getWorkerSyncUrl(room: string): string {
-  const clean = sanitizeRoomCode(room) || DEFAULT_ROOM;
-  return `/api/sync/session_${encodeURIComponent(clean)}`;
-}
-
-function isValidPayload(payload: any): payload is SyncPayload {
-  return Boolean(
-    payload &&
-    payload.session &&
-    typeof payload.session === 'object' &&
-    Array.isArray(payload.session.items) &&
-    payload.updatedAt
-  );
-}
-
-/**
- * Pushes session state to the Cloudflare Worker API (authoritative store),
- * then broadcasts a data-free ping over the public relay so peers pull.
- * Returns true only if the Worker API actually accepted the payload.
- */
-export async function pushSessionToCloud(room: string, payload: SyncPayload): Promise<boolean> {
-  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
-  const payloadString = JSON.stringify(payload);
-
-  // 1. Authoritative write to the Cloudflare Worker API
-  let workerOk = false;
+export async function syncRequest<T>(room: string, path: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    const res = await fetch(getWorkerSyncUrl(cleanRoom), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...syncAuthHeaders(payload.deviceId),
-      },
-      body: payloadString,
-      signal: controller.signal,
+    const token = localStorage.getItem('ehs_sync_token') || '';
+    const response = await fetch(`/api/rooms/${encodeURIComponent(normalizeRoom(room))}/${path}`, {
+      ...init, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, signal: controller.signal,
     });
-    clearTimeout(timeoutId);
-    workerOk = res.ok;
-    if (res.ok) {
-      // Trust the worker's explicit success flag over the bare 2xx status:
-      // a 200 with success:false (or a retryable storage error) must NOT be
-      // treated as synced — the payload stays pending and gets retried.
-      try {
-        const body = await res.json();
-        workerOk = body && body.success === true;
-      } catch {
-        // Non-JSON success body — keep workerOk as-is
-      }
-    } else {
-      workerOk = false;
-    }
-  } catch (err) {
-    console.warn('Sync push to Worker API failed:', err);
-  }
-
-  // 2. Broadcast a data-free ping so subscribed peers pull the new state.
-  //    Best-effort only — peers also poll, so a lost ping is not fatal.
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-    const ping: SyncPing = {
-      ehsSyncPing: true,
-      room: cleanRoom,
-      deviceId: payload.deviceId,
-      updatedAt: payload.updatedAt,
-    };
-
-    await fetch(`https://ntfy.sh/${encodeURIComponent(getCloudTopic(cleanRoom))}`, {
-      method: 'POST',
-      headers: {
-        'Title': `FSE Sync ${cleanRoom}`,
-        'Priority': 'default',
-        'X-Device-ID': payload.deviceId,
-      },
-      body: JSON.stringify(ping),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-  } catch {
-    // Ping relay unreachable — polling fallback covers this
-  }
-
-  return workerOk;
+    const body = await response.json();
+    if (!response.ok) throw new SyncError(response.status, body);
+    return body as T;
+  } finally { clearTimeout(timeout); }
 }
-
-/**
- * Pulls latest session state from the Cloudflare Worker API.
- */
-export async function pullSessionFromCloud(room: string): Promise<SyncPayload | null> {
-  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(`${getWorkerSyncUrl(cleanRoom)}?t=${Date.now()}`, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache',
-        ...syncAuthHeaders(),
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      const data = await response.json();
-      if (isValidPayload(data)) {
-        return data;
-      }
-    }
-  } catch {}
-
-  return null;
+export async function pullRoom(room: string): Promise<RoomState> {
+  const state = await syncRequest<RoomState>(room, 'state');
+  if (!Number.isSafeInteger(state.revision) || state.revision < 0 || (state.session !== null && !validSession(state.session))) throw new Error('Invalid sync response');
+  return state;
 }
-
-/**
- * Uploads a single photo to the Worker API as its own KV key
- * (photo_<ROOM>_<photoId>), so the session payload stays small and each
- * photo travels over the network at most once per device.
- */
+export async function sendOperation(room: string, op: SyncOperation): Promise<SyncAck> {
+  const ack = await syncRequest<SyncAck>(room, 'state', { method: 'POST', body: JSON.stringify(op) });
+  if (ack.operationId !== op.id || !Number.isSafeInteger(ack.revision) || !validSession(ack.saved)) throw new Error('Invalid sync acknowledgement');
+  return ack;
+}
 export async function pushPhotoToCloud(room: string, photo: DefectPhoto): Promise<boolean> {
-  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const res = await fetch(
-      `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photo.id)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...syncAuthHeaders(),
-        },
-        body: JSON.stringify(photo),
-        signal: controller.signal,
-      }
-    );
-    clearTimeout(timeoutId);
-    return res.ok;
-  } catch {
-    return false;
-  }
+    const ack = await syncRequest<{success: boolean}>(room, `photos/${encodeURIComponent(photo.id)}`, { method: 'PUT', body: JSON.stringify(photo) });
+    return ack.success === true;
+  } catch { return false; }
 }
-
-/**
- * Fetches a single photo by id from the Worker API.
- */
-export async function pullPhotoFromCloud(room: string, photoId: string): Promise<DefectPhoto | null> {
-  const cleanRoom = sanitizeRoomCode(room) || DEFAULT_ROOM;
+export async function pullPhotoFromCloud(room: string, id: string): Promise<DefectPhoto | null> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const res = await fetch(
-      `/api/sync/photo_${encodeURIComponent(cleanRoom)}_${encodeURIComponent(photoId)}?t=${Date.now()}`,
-      { method: 'GET', headers: { 'Cache-Control': 'no-cache', ...syncAuthHeaders() }, signal: controller.signal }
-    );
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && typeof data.id === 'string' && typeof data.url === 'string' && data.url) {
-        return data as DefectPhoto;
-      }
-    }
-  } catch {}
-  return null;
-}
-
-/**
- * Subscribes to live Server-Sent Events (SSE) for instant sync notifications.
- * The stream carries data-free pings only; on a ping from another device
- * the onPing callback fires and the caller pulls from the Worker API.
- */
-export function subscribeToLiveCloudStream(
-  room: string,
-  onPing: (ping: SyncPing) => void
-): () => void {
-  if (typeof window === 'undefined' || !window.EventSource) {
-    return () => {};
-  }
-
-  const cleanRoom = sanitizeRoomCode(room);
-  const topic = getCloudTopic(cleanRoom);
-  let eventSource: EventSource | null = null;
-
-  try {
-    eventSource = new EventSource(`https://ntfy.sh/${encodeURIComponent(topic)}/sse`);
-
-    eventSource.onmessage = (event) => {
-      try {
-        if (!event.data) return;
-        const parsed = JSON.parse(event.data);
-        if (parsed.event !== 'message' || !parsed.message) return;
-        const ping = JSON.parse(parsed.message);
-        // Only well-formed pings for this room are accepted; anything else
-        // on the public topic is ignored silently.
-        if (ping && ping.ehsSyncPing === true && ping.room === cleanRoom && ping.deviceId) {
-          onPing(ping as SyncPing);
-        }
-      } catch {
-        // Not a ping — ignore third-party noise on the public topic
-      }
-    };
-
-    eventSource.onerror = () => {
-      // Automatic browser reconnect handled by EventSource
-    };
-  } catch (err) {
-    console.warn('SSE subscription error:', err);
-  }
-
-  return () => {
-    if (eventSource) {
-      eventSource.close();
-    }
-  };
+    const photo = await syncRequest<DefectPhoto>(room, `photos/${encodeURIComponent(id)}`);
+    return photo.id === id && typeof photo.url === 'string' && photo.url ? photo : null;
+  } catch { return null; }
 }

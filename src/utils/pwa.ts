@@ -33,7 +33,7 @@ function showUpdateBanner(onApply: () => void): void {
   ].join(';');
 
   const label = document.createElement('span');
-  label.textContent = `🚀 ${APP_VERSION} — новая версия. Нажмите, чтобы обновить.`;
+  label.textContent = 'Доступна новая версия / Update available';
   banner.appendChild(label);
 
   const applyBtn = document.createElement('button');
@@ -64,30 +64,13 @@ function showUpdateBanner(onApply: () => void): void {
   }
 }
 
-function hardReload(): void {
-  window.location.href = `${window.location.pathname}?t=${Date.now()}`;
-}
-
 function applyPwaUpdate(): void {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker
-      .getRegistrations()
-      .then((regs) =>
-        Promise.all(regs.map((r) => r.unregister())).then(() => {
-          if ('caches' in window) {
-            caches
-              .keys()
-              .then((names) => Promise.all(names.map((n) => caches.delete(n))))
-              .then(hardReload);
-          } else {
-            hardReload();
-          }
-        })
-      )
-      .catch(hardReload);
-  } else {
-    hardReload();
-  }
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (reg?.waiting) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else location.reload();
+  }).catch(err => console.error('PWA update failed', err));
 }
 
 export function registerServiceWorker(): void {

@@ -18,6 +18,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 interface HistoryModalProps {
   history: InspectionSession[];
+  activeSessionId?: string | null;
   onClose: () => void;
   onLoadSession: (session: InspectionSession) => void;
   onDeleteSession: (id: string) => void;
@@ -27,6 +28,7 @@ interface HistoryModalProps {
 
 export const HistoryModal: React.FC<HistoryModalProps> = ({
   history,
+  activeSessionId,
   onClose,
   onLoadSession,
   onDeleteSession,
@@ -162,6 +164,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                     </button>
 
                     <button
+                      disabled={session.id === activeSessionId}
                       onClick={() => {
                         if (confirm(t.historyModal.deleteConfirm.replace('{id}', session.id))) {
                           triggerHaptic();
@@ -169,7 +172,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                         }
                       }}
                       className="p-1.5 bg-slate-700/80 hover:bg-red-600 text-slate-300 hover:text-white rounded-lg transition-colors"
-                      title={t.historyModal.deleteBtn}
+                      title={session.id === activeSessionId ? (language === 'ru' ? 'Текущий обход нельзя удалить' : 'The active walkthrough cannot be deleted') : t.historyModal.deleteBtn}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -192,7 +195,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               }}
               className="text-xs text-red-400 hover:text-red-300 font-semibold"
             >
-              {t.historyModal.clearAllBtn}
+              {language === 'ru' ? 'Удалить архивные обходы' : 'Delete archived walkthroughs'}
             </button>
           )}
 

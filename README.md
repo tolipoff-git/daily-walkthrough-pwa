@@ -159,34 +159,14 @@ This application is ready for Cloudflare Pages deployment:
 - **Routing**: Client-side routing with `_routes.json`
 - **Headers**: Immutable asset caching and Content-Security-Policy configured in `_headers`.
 
-### Sync persistence (required for Live Sync)
+### Sync v2 (v3.16.0)
 
-Live Sync stores session state in a Cloudflare KV namespace (`EHS_KV`). Create it once and bind it:
+Sessions and photos are stored by a SQLite Durable Object per room (`EHS_ROOMS`). Deploy with `wrangler.jsonc`, including its `sync-v2` migration. Keep the existing `EHS_KV` binding: each room imports its legacy session on first access, and legacy photos are imported when requested. Original KV records are retained.
 
-```bash
-npx wrangler kv namespace create EHS_KV
-# paste the returned id into wrangler.jsonc -> kv_namespaces[0].id
-```
+Each device keeps a persistent IndexedDB outbox. Reconnecting retries unacknowledged operations with the same operation ID. The server merges independent field edits; competing edits to the same field require an explicit choice in Live Sync, with a local history backup. Device clocks do not determine the winner. History and deletion markers sync across devices. The active report cannot be deleted.
 
-Without the KV binding the Worker falls back to a per-isolate in-memory store, so `/api/sync` data does not survive across requests.
+Pair devices by selecting the same room in Live Sync or scanning its QR code. The QR contains only the room, not credentials. Update both devices to v3.16.0: old `/api/sync` writes return 426 to prevent stale clients from overwriting migrated data. The service worker caches the built application for offline reloads; the update banner activates a waiting version.
 
-**Sync architecture:** session data flows only through the same-origin Worker API (`/api/sync/:room`). The public ntfy.sh relay carries data-free *ping* notifications ("room X changed, pull now") — no inspection data ever leaves the Worker.
+Authentication is optional and must be configured by the operator. Set the Worker secret `EHS_SYNC_TOKEN` to require a shared Bearer key, then enter the same access key in Live Sync on each device. Without this secret (or external access protection), room APIs remain publicly accessible to anyone who knows a room code. A room code is not a credential. Direct photo-viewer links cannot supply the Bearer header when this option is enabled.
 
-### Room Secret Token (required since v3.13.0)
-
-Since **v3.13.0** every sync read/write requires a **shared-secret room token** (`X-Sync-Token` header, stored as a SHA-256 digest in KV, first-write-wins). Sync is **disabled** until a room **and** a token are both set — without them the client refuses to hit the network and the Worker returns `401 Unauthorized`.
-
-**Pairing a new device (recommended flow):**
-
-1. On the primary device (laptop) open **Live Sync** → set a room code → generate or enter a strong token (e.g. `🎲 Generate a strong token`).
-2. The QR code in the modal now encodes **both** the room and the token (`/?room=...&token=...`).
-3. On the phone, open the app → **Sync** → **📷 Scan QR** (or the header **Scan QR** shortcut), aim at the laptop screen. The scanner applies **room + token** automatically — no manual typing.
-4. Both devices now share one live session. Verify in the sync modal: status shows **"Fully Synced"** and `lastSyncedAt` updates.
-
-**Manual setup (fallback):**
-- Same room code and **exact same token** must be entered on every device in the room.
-- If a device shows **"Sync off"** in the header, it has no token — open **Live Sync** and set it.
-
-**Lost/mismatched token recovery:** the Worker locks the token on the first successful write of a room (SHA-256 stored at `system:room:<ROOM>:token` in KV). If one device used a different token, delete that KV key (wrangler/`--kv` or dashboard) so the room can be re-paired, then regenerate a token on the primary device and re-scan on the others.
-
-> ⚠️ **Privacy note:** the ntfy.sh relay topic remains **public and unauthenticated** — pings carry no session data, but the topic name (room) is visible. Do not put sensitive identifiers in room codes.
+Validation: `npm test`, `npm run build`, and `npm run test:browser` (install Chromium with `npx playwright install chromium`). Browser tests use two isolated device contexts and a real local Worker/SQLite instance; they do not modify production records. Physical devices and the production deployment require a separate smoke check.

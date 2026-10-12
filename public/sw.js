@@ -1,88 +1,25 @@
-// Service Worker for EHS & Facility Daily Walkthrough PWA
-// NOTE: __CACHE_STAMP__ is replaced at build time by vite.config.ts (stampSwCache plugin).
-// Never hardcode a version here — a stale cache name re-introduces stale-asset bugs.
 const CACHE_NAME = 'ehs-pwa-__CACHE_STAMP__';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/favicon.svg',
-  '/icon.svg',
-  '/icon-192.png',
-  '/icon-512.png'
-];
-
-// Install event: Pre-cache core static shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('Pre-caching some assets failed:', err);
-      });
-    }).then(() => self.skipWaiting())
-  );
+const STATIC_ASSETS = /* BUILD_ASSETS */ [];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS)));
 });
-
-// Activate event: Force-clear stale caches immediately
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    }).then(() => self.clients.claim())
-  );
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
-
-// Fetch event: Network-first for navigation, Stale-while-revalidate for static assets
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  // Strictly skip cross-origin requests (e.g. ntfy.sh, qrserver, cdns)
-  if (url.origin !== self.location.origin) return;
-
-  // Skip dynamic API and Server-Sent Events (SSE)
-  if (url.pathname.startsWith('/api/') || request.headers.get('accept')?.includes('text/event-stream')) {
-    return;
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('ehs-pwa-') && k !== CACHE_NAME).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/photo/')) return;
+  if (event.request.mode === 'navigate') {
+    // Always serve the shell belonging to the controlling worker; HTML must
+    // never reference a newer bundle absent from this offline cache.
+    event.respondWith(caches.open(CACHE_NAME).then(async cache => {
+      const shell = await cache.match('/index.html', { ignoreVary: true });
+      return shell ? new Response(shell.body, { status: 200, headers: shell.headers }) : fetch(event.request);
+    }));
+  } else if (STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(caches.open(CACHE_NAME).then(async cache => (await cache.match(url.pathname, { ignoreVary: true })) || fetch(event.request)));
   }
-
-  // Handle SPA navigation requests
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match('/index.html').then((r) => r || caches.match(request));
-        })
-    );
-    return;
-  }
-
-  // Handle static assets & scripts with Cache First / Stale While Revalidate
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
-  );
 });

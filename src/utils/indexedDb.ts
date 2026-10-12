@@ -1,200 +1,75 @@
 import { InspectionSession } from '../types/inspection';
-
+import { normalizeRoom } from './syncProtocol';
 const DB_NAME = 'EHS_Walkthrough_DB';
-const DB_VERSION = 1;
-const STORE_ACTIVE = 'active_session';
-const STORE_HISTORY = 'history_sessions';
-
+const roomNow = () => normalizeRoom(localStorage.getItem('ehs_sync_room') || 'FSE-MAIN') || 'FSE-MAIN';
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB is not supported'));
-      return;
-    }
-
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_ACTIVE)) {
-        db.createObjectStore(STORE_ACTIVE, { keyPath: 'key' });
-      }
-      if (!db.objectStoreNames.contains(STORE_HISTORY)) {
-        const historyStore = db.createObjectStore(STORE_HISTORY, { keyPath: 'id' });
-        historyStore.createIndex('date', 'date', { unique: false });
-        historyStore.createIndex('createdAt', 'createdAt', { unique: false });
+    const request = indexedDB.open(DB_NAME, 3);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('active_session')) db.createObjectStore('active_session', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('history_sessions')) db.createObjectStore('history_sessions', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('sync_rooms')) db.createObjectStore('sync_rooms');
+      if (!db.objectStoreNames.contains('history_rooms')) {
+        const store = db.createObjectStore('history_rooms', { keyPath: 'key' });
+        store.createIndex('room', 'room');
+        const room = normalizeRoom(localStorage.getItem('ehs_legacy_room') || roomNow());
+        const active = request.transaction!.objectStore('active_session');
+        const oldActive = active.get('current');
+        oldActive.onsuccess = () => {
+          let session = oldActive.result?.session;
+          if (!session) {
+            try { session = JSON.parse(localStorage.getItem('ehs_active_session_v1') || 'null'); } catch { /* retain malformed backup */ }
+          }
+          if (session?.id) active.put({ key: `current:${room}`, session });
+        };
+        try {
+          const old = JSON.parse(localStorage.getItem('ehs_inspection_history_v1') || '[]');
+          if (Array.isArray(old)) for (const session of old) if (session?.id) store.put({ key: `${room}:${session.id}`, room, session });
+        } catch { /* malformed legacy backup does not block the primary DB */ }
+        const cursor = request.transaction!.objectStore('history_sessions').openCursor();
+        cursor.onsuccess = () => {
+          const c = cursor.result;
+          if (c) { store.put({ key: `${room}:${c.value.id}`, room, session: c.value }); c.continue(); }
+        };
       }
     };
-
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Close other EHS tabs to upgrade storage'));
   });
 }
-
-export async function saveActiveSessionDb(session: InspectionSession): Promise<void> {
-  let db: IDBDatabase | null = null;
+async function transaction<T>(store: string, mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openDb();
   try {
-    db = await openDb();
-    const tx = db.transaction(STORE_ACTIVE, 'readwrite');
-    const store = tx.objectStore(STORE_ACTIVE);
-    store.put({ key: 'current', session });
-    return await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => {
-        db?.close();
-        resolve();
-      };
-      tx.onerror = () => {
-        db?.close();
-        reject(tx.error);
-      };
-      tx.onabort = () => {
-        db?.close();
-        reject(tx.error || new Error('Transaction aborted'));
-      };
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(store, mode);
+      const request = run(tx.objectStore(store));
+      tx.oncomplete = () => resolve(request.result);
+      tx.onabort = tx.onerror = () => reject(tx.error || new Error('Storage transaction aborted'));
     });
-  } catch (err) {
-    db?.close();
-    // Fallback to localStorage
-    try {
-      localStorage.setItem('ehs_active_session_v1', JSON.stringify(session));
-    } catch {
-      console.warn('Fallback storage failed', err);
-    }
-  }
+  } finally { db.close(); }
 }
-
-export async function getActiveSessionDb(): Promise<InspectionSession | null> {
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openDb();
-    const tx = db.transaction(STORE_ACTIVE, 'readonly');
-    const store = tx.objectStore(STORE_ACTIVE);
-    const request = store.get('current');
-    return await new Promise<InspectionSession | null>((resolve, reject) => {
-      let result: InspectionSession | null = null;
-      request.onsuccess = () => {
-        if (request.result && request.result.session) {
-          result = request.result.session;
-        } else {
-          result = null;
-        }
-      };
-      request.onerror = () => {
-        db?.close();
-        reject(request.error);
-      };
-      tx.oncomplete = () => {
-        db?.close();
-        resolve(result);
-      };
-      tx.onerror = () => {
-        db?.close();
-        reject(tx.error);
-      };
-      tx.onabort = () => {
-        db?.close();
-        reject(tx.error || new Error('Transaction aborted'));
-      };
-    });
-  } catch {
-    db?.close();
-    // Fallback to localStorage
-    try {
-      const saved = localStorage.getItem('ehs_active_session_v1');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  }
+export async function saveActiveSessionDb(session: InspectionSession, room = roomNow()): Promise<void> {
+  await transaction('active_session', 'readwrite', s => s.put({ key: `current:${room}`, session }));
 }
-
-export async function saveHistorySessionDb(session: InspectionSession): Promise<void> {
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openDb();
-    const tx = db.transaction(STORE_HISTORY, 'readwrite');
-    const store = tx.objectStore(STORE_HISTORY);
-    store.put(session);
-    return await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => {
-        db?.close();
-        resolve();
-      };
-      tx.onerror = () => {
-        db?.close();
-        reject(tx.error);
-      };
-      tx.onabort = () => {
-        db?.close();
-        reject(tx.error || new Error('Transaction aborted'));
-      };
-    });
-  } catch (err) {
-    db?.close();
-    console.warn('IndexedDB saveHistory failed', err);
-  }
+export async function getActiveSessionDb(room = roomNow()): Promise<InspectionSession | null> {
+  const record = await transaction('active_session', 'readonly', s => s.get(`current:${room}`));
+  return record?.session || null;
 }
-
-export async function getAllHistorySessionsDb(): Promise<InspectionSession[]> {
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openDb();
-    const tx = db.transaction(STORE_HISTORY, 'readonly');
-    const store = tx.objectStore(STORE_HISTORY);
-    const request = store.getAll();
-    return await new Promise<InspectionSession[]>((resolve, reject) => {
-      let list: InspectionSession[] = [];
-      request.onsuccess = () => {
-        list = request.result || [];
-        // sort by date/createdAt descending
-        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      };
-      request.onerror = () => {
-        db?.close();
-        reject(request.error);
-      };
-      tx.oncomplete = () => {
-        db?.close();
-        resolve(list);
-      };
-      tx.onerror = () => {
-        db?.close();
-        reject(tx.error);
-      };
-      tx.onabort = () => {
-        db?.close();
-        reject(tx.error || new Error('Transaction aborted'));
-      };
-    });
-  } catch {
-    db?.close();
-    return [];
-  }
+export async function saveHistorySessionDb(session: InspectionSession, room = roomNow()): Promise<void> {
+  await transaction('history_rooms', 'readwrite', s => s.put({ key: `${room}:${session.id}`, room, session }));
 }
-
-export async function deleteHistorySessionDb(id: string): Promise<void> {
-  let db: IDBDatabase | null = null;
-  try {
-    db = await openDb();
-    const tx = db.transaction(STORE_HISTORY, 'readwrite');
-    const store = tx.objectStore(STORE_HISTORY);
-    store.delete(id);
-    return await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => {
-        db?.close();
-        resolve();
-      };
-      tx.onerror = () => {
-        db?.close();
-        reject(tx.error);
-      };
-      tx.onabort = () => {
-        db?.close();
-        reject(tx.error || new Error('Transaction aborted'));
-      };
-    });
-  } catch (err) {
-    db?.close();
-    console.warn('IndexedDB delete failed', err);
-  }
+export async function getAllHistorySessionsDb(room = roomNow()): Promise<InspectionSession[]> {
+  const records = await transaction('history_rooms', 'readonly', s => s.index('room').getAll(room));
+  return records.map(r => r.session).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+export async function deleteHistorySessionDb(id: string, room = roomNow()): Promise<void> {
+  await transaction('history_rooms', 'readwrite', s => s.delete(`${room}:${id}`));
+}
+export function readSyncRecord<T>(room: string): Promise<T | undefined> {
+  return transaction('sync_rooms', 'readonly', s => s.get(room));
+}
+export async function writeSyncRecord<T>(room: string, value: T): Promise<void> {
+  await transaction('sync_rooms', 'readwrite', s => s.put(value, room));
 }

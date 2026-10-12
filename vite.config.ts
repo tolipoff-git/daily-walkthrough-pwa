@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 import pkg from './package.json';
 
@@ -19,11 +19,14 @@ const stampSwCache = {
   name: 'stamp-sw-cache',
   apply: 'build' as const,
   closeBundle() {
-    try {
-      const swPath = resolve(__dirname, 'dist/sw.js');
-      const stamp = `ehs-pwa-${appVersion}-${buildTime.replace(/[^0-9]/g, '')}`;
-      writeFileSync(swPath, readFileSync(swPath, 'utf8').replace(/ehs-pwa-__CACHE_STAMP__/g, stamp));
-    } catch {}
+    const swPath = resolve(__dirname, 'dist/sw.js');
+    const stamp = `ehs-pwa-${appVersion}-${buildTime.replace(/[^0-9]/g, '')}`;
+    const assets = ['/index.html', '/manifest.webmanifest', '/favicon.svg', '/icon.svg', '/icon-192.png', '/icon-512.png',
+      ...readdirSync(resolve(__dirname, 'dist/assets')).map(name => `/assets/${name}`)];
+    const source = readFileSync(swPath, 'utf8');
+    if (!source.includes('/* BUILD_ASSETS */ []')) throw new Error('SW manifest marker missing');
+    writeFileSync(swPath, source.replace(/ehs-pwa-__CACHE_STAMP__/g, stamp).replace('/* BUILD_ASSETS */ []', JSON.stringify(assets)));
+
   },
 };
 

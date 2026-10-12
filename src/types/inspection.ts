@@ -64,6 +64,7 @@ export interface CategoryGroup {
 }
 
 export interface InspectionSession {
+  syncDeleted?: boolean;
   id: string;
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm

@@ -3,14 +3,15 @@
   "name": "daily-walkthrough-pwa",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-31",
-  // Sync persistence (Live Sync): KV namespace created via dashboard,
-  // bound here so /api/sync data survives across requests/isolates.
+  // Preserve the legacy KV binding for migration; SyncRoom owns new writes.
   "kv_namespaces": [
     {
       "binding": "EHS_KV",
       "id": "31338bec725d4814be9b30daf79fadff"
     }
   ],
+  "durable_objects": { "bindings": [{ "name": "EHS_ROOMS", "class_name": "SyncRoom" }] },
+  "migrations": [{ "tag": "sync-v2", "new_sqlite_classes": ["SyncRoom"] }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"

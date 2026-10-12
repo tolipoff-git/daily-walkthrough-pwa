@@ -53,6 +53,7 @@ export const App: React.FC = () => {
 
   const {
     session,
+    ready,
     updateSessionHeader,
     updateSessionHeaders,
     setItemStatus,
@@ -74,100 +75,12 @@ export const App: React.FC = () => {
   const {
     history,
     saveInspectionToHistory,
-    deleteFromHistory,
-    clearHistory,
+
   } = useHistory();
 
   const handleRemoteUpdate = useCallback((remoteSession: InspectionSession) => {
-    const currentSession = sessionRef.current;
-    if (remoteSession.updatedAt && remoteSession.updatedAt === currentSession.updatedAt) return;
-
-    // Protection: never overwrite an active In Progress walkthrough with a different Completed session
-    if (
-      remoteSession.status === 'Completed' &&
-      currentSession.status === 'In Progress' &&
-      remoteSession.id !== currentSession.id
-    ) {
-      saveInspectionToHistory(remoteSession);
-      return;
-    }
-
-    // Remote payloads don't carry photos (stripped before push) — preserve
-    // local photos per item instead of wiping them
-    const localPhotosById = new Map<string, DefectPhoto>();
-    const localItemPhotos = new Map<string, DefectPhoto[]>();
-
-    currentSession.items.forEach((item) => {
-      const validPhotos = (item.defectDetails?.photos || []).filter(
-        (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
-      );
-      if (validPhotos.length > 0) {
-        localItemPhotos.set(item.id, validPhotos);
-        validPhotos.forEach((p) => {
-          if (p.id) {
-            localPhotosById.set(p.id, p);
-          }
-        });
-      }
-    });
-
-    const merged: InspectionSession = {
-      ...remoteSession,
-      items: remoteSession.items.map((ri) => {
-        const localPhotos = localItemPhotos.get(ri.id) || [];
-        if (!ri.defectDetails) {
-          if (localPhotos.length > 0 && ri.status === 'FAIL') {
-            return {
-              ...ri,
-              defectDetails: {
-                location: '',
-                zonePreset: '',
-                description: '',
-                priority: 'P2',
-                assignedTo: 'Maintenance',
-                targetDate: 'Today',
-                photos: localPhotos,
-                isRepeatIssue: false,
-                resolutionStatus: 'Open',
-              },
-            };
-          }
-          return ri;
-        }
-
-        const remotePhotos = ri.defectDetails.photos || [];
-        let restoredPhotos = remotePhotos.map((rp) => {
-          if (!rp.url || typeof rp.url !== 'string' || rp.url.trim().length === 0) {
-            const matchedLocal = localPhotosById.get(rp.id);
-            if (matchedLocal?.url) {
-              return { ...rp, url: matchedLocal.url };
-            }
-          }
-          return rp;
-        });
-
-        const hasValidPhoto = restoredPhotos.some(
-          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
-        );
-
-        if (!hasValidPhoto && localPhotos.length > 0) {
-          restoredPhotos = localPhotos;
-        }
-
-        return {
-          ...ri,
-          defectDetails: {
-            ...ri.defectDetails,
-            photos: restoredPhotos,
-          },
-        };
-      }),
-    };
-    loadSession(merged);
-    // A walkthrough finished on another device belongs in local history too
-    if (merged.status === 'Completed') {
-      saveInspectionToHistory(merged);
-    }
+    loadSession(remoteSession);
+    if (remoteSession.status !== 'In Progress') saveInspectionToHistory(remoteSession);
   }, [loadSession, saveInspectionToHistory]);
 
   // Cloud Live Synchronization Hook
@@ -180,7 +93,11 @@ export const App: React.FC = () => {
     deviceId,
     forcePush,
     forcePull,
+    resolveConflict,
+    removeHistory,
+    activeSessionId,
   } = useCloudSync({
+    ready,
     session,
     onRemoteUpdate: handleRemoteUpdate,
   });
@@ -369,14 +286,7 @@ export const App: React.FC = () => {
 
   const handleScanRoom = useCallback((room: string) => {
     setSyncRoom(room);
-    forcePush();
-    if (qrPullTimeoutRef.current) clearTimeout(qrPullTimeoutRef.current);
-    qrPullTimeoutRef.current = setTimeout(() => {
-      if (isScannerOpenRef.current) {
-        forcePull();
-      }
-    }, 500);
-  }, [setSyncRoom, forcePush, forcePull]);
+  }, [setSyncRoom]);
 
   const getCategoryIcon = useCallback((iconName: string) => {
     switch (iconName) {
@@ -690,10 +600,11 @@ export const App: React.FC = () => {
       {showHistoryModal && (
         <HistoryModal
           history={history}
+          activeSessionId={activeSessionId}
           onClose={() => setShowHistoryModal(false)}
           onLoadSession={loadSession}
-          onDeleteSession={deleteFromHistory}
-          onClearHistory={clearHistory}
+          onDeleteSession={id => { const saved = history.find(s => s.id === id); if (saved) void removeHistory(saved); }}
+          onClearHistory={() => { for (const saved of history) void removeHistory(saved); }}
           onOpenWeeklyReport={() => setShowWeeklyReportModal(true)}
         />
       )}
@@ -727,6 +638,7 @@ export const App: React.FC = () => {
       {showSyncModal && (
         <SyncModal
           onClose={() => setShowSyncModal(false)}
+          onResolveConflict={resolveConflict}
           syncStatus={syncStatus}
           lastSyncedAt={lastSyncedAt}
           syncRoom={syncRoom}

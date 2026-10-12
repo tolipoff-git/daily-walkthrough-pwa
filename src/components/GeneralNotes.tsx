@@ -65,10 +65,11 @@ export const GeneralNotes: React.FC<GeneralNotesProps> = ({
 
       {/* Textarea for general observations */}
       <div className="mb-4">
-        <label className="block text-xs text-slate-400 font-medium mb-1.5">
+        <label htmlFor="general-notes" className="block text-xs text-slate-400 font-medium mb-1.5">
           {t.generalNotes.textareaLabel}
         </label>
         <textarea
+          id="general-notes"
           rows={3}
           value={session.generalNotes}
           onChange={(e) => onUpdateNotes(e.target.value)}

@@ -17,18 +17,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Regression tests
+        run: npm test
+
       - name: Run Build
         run: npm run build
+
+      - name: Browser tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:browser
 
       - name: Deploy to Cloudflare
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          curl -s -X POST \
-            "https://api.cloudflare.com/client/v4/workers/builds/deploy_hooks/${{ secrets.CF_DEPLOY_HOOK_ID }}" \
-            || echo "deploy hook failed (non-fatal)"
+          curl --fail-with-body -sS -X POST \
+            "https://api.cloudflare.com/client/v4/workers/builds/deploy_hooks/${{ secrets.CF_DEPLOY_HOOK_ID }}"

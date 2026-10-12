@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSafetyRef,
   onOpenSync,
   onOpenQrScanner,
-  syncStatus = 'synced',
+  syncStatus = 'pending',
   syncRoom = 'FSE-MAIN',
   onReset,
   onFinish,
@@ -231,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
               title={t.common.historyTitle}
             >
               <History className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden md:inline">{t.common.history}</span>
+              <span className="inline">{t.common.history}</span>
             </button>
 
             {/* Weekly CEO Report button */}
@@ -262,7 +262,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title={language === 'ru' ? 'Справочник персонала (инспекторы, мастера, руководители)' : 'Staff & Personnel Directory (Inspectors, Supervisors)'}
               >
                 <Users className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="hidden md:inline">{language === 'ru' ? 'Персонал' : 'Staff'}</span>
+                <span className="inline">{language === 'ru' ? 'Персонал' : 'Staff'}</span>
               </button>
             )}
 
@@ -278,7 +278,7 @@ export const Header: React.FC<HeaderProps> = ({
                 title={language === 'ru' ? 'Справочник стандартов безопасности FSE (HazCom, GHS 9 пиктограмм, СИЗ, SDS)' : 'FSE Safety Standards Guide (OSHA HazCom, 9 GHS Pictograms, PPE rules, SDS)'}
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden md:inline">{language === 'ru' ? 'Справочник EHS' : 'FSE Safety'}</span>
+                <span className="inline">{language === 'ru' ? 'Справочник EHS' : 'FSE Safety'}</span>
               </button>
             )}
 
@@ -308,10 +308,10 @@ export const Header: React.FC<HeaderProps> = ({
                 ) : (
                   <Cloud className="w-3.5 h-3.5 text-cyan-400" />
                 )}
-                <span className="hidden md:inline">
+                <span className="inline">
                   {syncStatus === 'syncing' 
                     ? (language === 'ru' ? 'Синхронизация...' : 'Syncing...')
-                    : `Sync • ${syncRoom}`}
+                    : `${syncStatus === 'synced' ? '✓' : syncStatus === 'conflict' ? '⚠' : '…'} ${syncStatus} • ${syncRoom}`}
                 </span>
               </button>
             )}

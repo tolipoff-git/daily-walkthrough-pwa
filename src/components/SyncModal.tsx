@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { 
-  Cloud, 
-  RefreshCw, 
-  Copy, 
-  Check, 
-  X, 
-  QrCode, 
-  WifiOff, 
+import QRCode from 'qrcode';
+import React, { useState, useEffect } from 'react';
+import {
+  Cloud,
+  RefreshCw,
+  Copy,
+  Check,
+  X,
+  QrCode,
+  WifiOff,
   Radio,
   Camera
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import { buildSyncQrPayload } from '../utils/syncApi';
 
 interface SyncModalProps {
   onClose: () => void;
+  onResolveConflict: (choice: 'local' | 'remote') => void;
   syncStatus: SyncStatus;
   lastSyncedAt: Date | null;
   syncRoom: string;
@@ -30,6 +32,7 @@ interface SyncModalProps {
 
 export const SyncModal: React.FC<SyncModalProps> = ({
   onClose,
+  onResolveConflict,
   syncStatus,
   lastSyncedAt,
   syncRoom,
@@ -53,9 +56,21 @@ export const SyncModal: React.FC<SyncModalProps> = ({
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://daily-walkthrough-pwa.tolipoff.workers.dev';
   const syncUrl = baseUrl && syncRoom ? buildSyncQrPayload(syncRoom) || baseUrl : '';
-  const qrApiUrl = syncUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(syncUrl)}&bgcolor=0f172a&color=38bdf8&margin=6`
-    : '';
+  const [qrApiUrl, setQrApiUrl] = useState('');
+  const [token, setToken] = useState(() => localStorage.getItem('ehs_sync_token') || '');
+  useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(syncUrl, { width: 220, margin: 2 }).then(url => { if (alive) setQrApiUrl(url); }).catch(() => setQrApiUrl(''));
+    return () => { alive = false; };
+  }, [syncUrl]);
+  const statusLabel = {
+    synced: isRu ? 'Изменения сохранены на сервере' : 'Changes saved on server',
+    syncing: isRu ? 'Идёт синхронизация…' : 'Syncing…',
+    pending: isRu ? 'Ожидают отправки или загрузки фото' : 'Changes or photos pending',
+    offline: isRu ? 'Офлайн — изменения ожидают отправки' : 'Offline — changes queued',
+    error: isRu ? 'Ошибка синхронизации — повторим автоматически' : 'Sync failed — retry scheduled',
+    conflict: isRu ? 'Конфликт правок — выберите версию' : 'Conflicting changes — choose a version',
+  }[syncStatus];
 
   const handleCopyLink = () => {
     triggerHaptic(30);
@@ -77,12 +92,12 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-fade-in print:hidden"
       role="dialog"
       aria-modal="true"
     >
-      <div 
+      <div
         className="relative max-w-2xl w-full bg-slate-900 border border-slate-750 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -101,9 +116,9 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                 </span>
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                {isRu 
-                  ? 'Мгновенный обмен данными между телефоном и компьютером' 
-                  : 'Seamless two-way live synchronization between Phone & Desktop'}
+                {isRu
+                  ? 'Обмен обходами между телефоном и компьютером'
+                  : 'Share walkthroughs between phone and desktop'}
               </p>
             </div>
           </div>
@@ -130,21 +145,17 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                   ? 'bg-amber-950/60 border-amber-800 text-amber-400'
                   : syncStatus === 'syncing'
                   ? 'bg-blue-950/60 border-blue-800 text-blue-400 animate-spin'
-                  : 'bg-emerald-950/60 border-emerald-800 text-emerald-400'
+                  : syncStatus === 'synced' ? 'bg-emerald-950/60 border-emerald-800 text-emerald-400' : 'bg-amber-950/60 border-amber-800 text-amber-400'
               }`}>
                 {!isOnline ? <WifiOff className="w-5 h-5" /> : <RefreshCw className="w-5 h-5" />}
               </div>
 
               <div>
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  {!isOnline
-                    ? (isRu ? 'Автономный режим (Офлайн)' : 'Offline Mode (Local Storage)')
-                    : syncStatus === 'syncing'
-                    ? (isRu ? 'Идет синхронизация с облаком...' : 'Syncing with cloud...')
-                    : (isRu ? 'Синхронизировано в облаке' : 'Fully Synced with Cloud')}
+                  {statusLabel}
                 </h4>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {lastSyncedAt 
+                  {lastSyncedAt
                     ? `${isRu ? 'Последняя синхронизация:' : 'Last synced:'} ${lastSyncedAt.toLocaleTimeString()}`
                     : (isRu ? 'Готово к передаче данных' : 'Ready to sync')}
                 </p>
@@ -180,14 +191,23 @@ export const SyncModal: React.FC<SyncModalProps> = ({
             </div>
           </div>
 
+          {syncStatus === 'conflict' && <div className="p-4 border border-amber-600 rounded-xl space-y-3">
+            <p>{isRu ? 'Один и тот же обход изменён на двух устройствах. Перед выбором локальная версия сохраняется в истории как конфликтная копия.' : 'This walkthrough changed on two devices. A local conflict copy is saved in history before resolving.'}</p>
+            <button className="px-3 py-2 bg-amber-800 rounded mr-2" onClick={() => onResolveConflict('local')}>{isRu ? 'Оставить мои правки' : 'Keep my changes'}</button>
+            <button className="px-3 py-2 bg-slate-700 rounded" onClick={() => onResolveConflict('remote')}>{isRu ? 'Принять серверную версию' : 'Use server version'}</button>
+          </div>}
+          <details className="text-xs text-slate-300"><summary>{isRu ? 'Ключ доступа (если включён на сервере)' : 'Access key (if enabled on server)'}</summary>
+            <input aria-label="Sync access key" type="password" value={token} onChange={e => setToken(e.target.value)} className="bg-slate-800 p-2 mt-2 rounded" />
+            <button className="ml-2" onClick={() => { localStorage.setItem('ehs_sync_token', token.trim()); onForcePull(); }}>{isRu ? 'Сохранить' : 'Save'}</button>
+          </details>
           {/* Connect Phone Section with QR Code */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-slate-950/60 border border-slate-800 rounded-xl p-4">
             <div className="flex flex-col items-center justify-center p-3 bg-slate-900 border border-slate-750 rounded-xl text-center">
               <div className="relative p-2 bg-slate-950 rounded-lg border border-cyan-800/60 shadow-inner">
                 {qrApiUrl ? (
-                  <img 
-                    src={qrApiUrl} 
-                    alt="Sync QR Code" 
+                  <img
+                    src={qrApiUrl}
+                    alt="Sync QR Code"
                     className="w-40 h-40 object-contain rounded"
                     loading="lazy"
                   />
@@ -230,13 +250,13 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                 </p>
                 <p className="text-slate-300 leading-relaxed">
                   {isRu
-                    ? '2. Все отметки, сделанные во время обхода на телефоне, автоматически появляются на мониторе компьютера за 1-2 секунды.'
-                    : '2. Checkmarks and notes made on your phone appear live on your desktop monitor within 1-2 seconds.'}
+                    ? '2. Все отметки, сделанные во время обхода на телефоне, появляются на другом устройстве после подтверждения сервером.'
+                    : '2. Checkmarks and notes made on your phone appear on the other device after server confirmation.'}
                 </p>
                 <p className="text-slate-300 leading-relaxed">
                   {isRu
-                    ? '3. Если внести правки на компьютере — телефон мгновенно обновляет свой экран.'
-                    : '3. Edits made on desktop immediately update the phone screen.'}
+                    ? '3. Если внести правки на компьютере — телефон получает изменения; конфликтующие правки требуют выбора.'
+                    : '3. Edits made on desktop immediately update the phone screen; conflicting edits require a choice.'}
                 </p>
               </div>
 
@@ -256,8 +276,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                     type="button"
                     onClick={handleCopyLink}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all shrink-0 ${
-                      copied 
-                        ? 'bg-emerald-600 text-white' 
+                      copied
+                        ? 'bg-emerald-600 text-white'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                     }`}
                   >
@@ -277,8 +297,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                   {isRu ? 'Код комнаты синхронизации (Sync Room):' : 'Active Sync Room Code:'}
                 </h4>
                 <p className="text-[11px] text-slate-400">
-                  {isRu 
-                    ? 'Устройства с одинаковым кодом комнаты работают в одной общей сессии.' 
+                  {isRu
+                    ? 'Устройства с одинаковым кодом комнаты работают в одной общей сессии.'
                     : 'Devices with the same room code share the exact same live session.'}
                 </p>
               </div>
@@ -333,10 +353,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           onScanRoom={(room) => {
             onSetSyncRoom(room);
             setRoomInput(room);
-            onForcePush();
-            setTimeout(() => {
-              onForcePull();
-            }, 500);
+
           }}
         />
       )}

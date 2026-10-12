@@ -1,3 +1,4 @@
+import { getActiveSyncRoom } from '../utils/syncApi';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChecklistItem, InspectionSession, InspectionStatus, DefectDetails, DefectPhoto } from '../types/inspection';
 import { createNewInspectionSession, CHECKLIST_ITEMS_TEMPLATE, getLocalTodayDate, getLocalCurrentTime } from '../data/checklistData';
@@ -7,8 +8,7 @@ import { Language } from '../i18n/types';
 
 function hydrateSession(
   s: any,
-  fallbackLang: Language = 'ru',
-  baseSession?: InspectionSession
+  fallbackLang: Language = 'ru'
 ): InspectionSession {
   const defaultSession = createNewInspectionSession(fallbackLang);
   if (!s || typeof s !== 'object') {
@@ -24,53 +24,12 @@ function hydrateSession(
         ? existing.defectDetails.photos
         : [];
 
-      let validatedPhotos: DefectPhoto[] = [];
-
-      if (baseSession) {
-        const baseItem = baseSession.items?.find((i) => i && i.id === t.id);
-        const basePhotos = (baseItem?.defectDetails?.photos || []).filter(
-          (p) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0)
-        );
-        const basePhotoMap = new Map(basePhotos.map((p) => [p.id, p]));
-
-        if (incomingPhotos.length > 0) {
-          validatedPhotos = incomingPhotos
-            .map((p: any) => {
-              if (p && typeof p.url === 'string' && p.url.trim().length > 0) {
-                return {
-                  id: String(p.id || `photo-${Date.now()}-${Math.random()}`),
-                  url: String(p.url).trim(),
-                  caption: p.caption ? String(p.caption) : undefined,
-                  timestamp: p.timestamp ? String(p.timestamp) : new Date().toISOString(),
-                };
-              }
-              // Empty or missing url: restore from base photo with matching id if available
-              if (p?.id && basePhotoMap.has(p.id)) {
-                return basePhotoMap.get(p.id)!;
-              }
-              return null;
-            })
-            .filter((p): p is DefectPhoto => Boolean(p));
-
-          // If incoming photos all had empty URLs and none matched by ID, fallback to basePhotos
-          if (validatedPhotos.length === 0 && basePhotos.length > 0) {
-            validatedPhotos = basePhotos;
-          }
-        } else if (basePhotos.length > 0 && existing.status === 'FAIL') {
-          validatedPhotos = basePhotos;
-        }
-      } else {
-        validatedPhotos = incomingPhotos
-          .filter((p: any) => Boolean(p && typeof p.url === 'string' && p.url.trim().length > 0))
-          .map((p: any) => ({
-            id: String(p.id || `photo-${Date.now()}-${Math.random()}`),
-            url: String(p.url).trim(),
-            caption: p.caption ? String(p.caption) : undefined,
-            timestamp: p.timestamp ? String(p.timestamp) : new Date().toISOString(),
-          }));
-      }
+      const validatedPhotos: DefectPhoto[] = incomingPhotos.filter(p => p && typeof p.id === 'string').map(p => ({
+        ...p, url: typeof p.url === 'string' ? p.url : '',
+      }));
 
       const defectDetails: DefectDetails | undefined = existing.defectDetails ? {
+        ...existing.defectDetails,
         location: existing.defectDetails.location || '',
         zonePreset: existing.defectDetails.zonePreset || '',
         description: existing.defectDetails.description || '',
@@ -113,23 +72,24 @@ function hydrateSession(
   });
 
   const validSignatures = {
-    inspector: s.signatures?.inspector || s.inspectorName || defaultSession.signatures.inspector,
-    inspectorTitle: s.signatures?.inspectorTitle || s.inspectorRole || defaultSession.signatures.inspectorTitle,
+    inspector: s.signatures?.inspector ?? s.inspectorName ?? defaultSession.signatures.inspector,
+    inspectorTitle: s.signatures?.inspectorTitle ?? s.inspectorRole ?? defaultSession.signatures.inspectorTitle,
     timestamp: s.signatures?.timestamp || s.createdAt || new Date().toISOString(),
-    reviewedBy: s.signatures?.reviewedBy || defaultSession.signatures.reviewedBy,
+    reviewedBy: s.signatures?.reviewedBy ?? defaultSession.signatures.reviewedBy,
     reviewTimestamp: s.signatures?.reviewTimestamp,
   };
 
   return {
+    ...s,
     id: s.id || defaultSession.id,
     date: s.date || defaultSession.date,
-    startTime: s.startTime || defaultSession.startTime,
+    startTime: s.startTime ?? defaultSession.startTime,
     endTime: s.endTime || '',
-    facilityName: s.facilityName || defaultSession.facilityName,
-    facilityArea: s.facilityArea || defaultSession.facilityArea,
-    shift: s.shift || defaultSession.shift,
-    inspectorName: s.inspectorName || defaultSession.inspectorName,
-    inspectorRole: s.inspectorRole || defaultSession.inspectorRole,
+    facilityName: s.facilityName ?? defaultSession.facilityName,
+    facilityArea: s.facilityArea ?? defaultSession.facilityArea,
+    shift: s.shift ?? defaultSession.shift,
+    inspectorName: s.inspectorName ?? defaultSession.inspectorName,
+    inspectorRole: s.inspectorRole ?? defaultSession.inspectorRole,
     items: updatedItems,
     generalNotes: s.generalNotes || '',
     status: s.status || defaultSession.status,
@@ -143,7 +103,7 @@ export function useInspection() {
   const [session, setSession] = useState<InspectionSession>(() => {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
     try {
-      const saved = localStorage.getItem('ehs_active_session_v1');
+      const saved = localStorage.getItem(`ehs_active_session_v2_${getActiveSyncRoom()}`);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.date && parsed.date < getLocalTodayDate()) {
@@ -159,6 +119,7 @@ export function useInspection() {
     return createNewInspectionSession(currentLang);
   });
 
+  const [ready, setReady] = useState(false);
   const isHydrated = useRef(false);
   const hasUserInteracted = useRef(false);
   const finishInFlightRef = useRef(false);
@@ -181,15 +142,17 @@ export function useInspection() {
         } else {
           setSession((prev) => {
             if (hasUserInteracted.current) return prev;
-            const hydrated = hydrateSession(dbSession, currentLang, prev);
+            const hydrated = hydrateSession(dbSession, currentLang);
             sessionRef.current = hydrated;
             return hydrated;
           });
         }
       }
       isHydrated.current = true;
+      setReady(true);
     }).catch(() => {
       isHydrated.current = true;
+      setReady(true);
     });
   }, []);
 
@@ -197,28 +160,14 @@ export function useInspection() {
   useEffect(() => {
     if (!isHydrated.current && !hasUserInteracted.current) return;
 
+    const saveRoom = getActiveSyncRoom();
     // Save full data including photos to IndexedDB
-    saveActiveSessionDb(session).catch((err) => console.warn('Failed to save to IndexedDB', err));
+    saveActiveSessionDb(session, saveRoom).catch((err) => console.warn('Failed to save to IndexedDB', err));
 
     // Save lightweight copy to localStorage (photos stripped — they live in
     // IndexedDB only; stringifying multi-MB base64 on every keystroke freezes
     // low-end phones)
     const timer = setTimeout(() => {
-      // Race guard: only write our own record. A newer session (fresh reset or
-      // reloaded from storage) must never be clobbered by a stale debounce fire —
-      // and the clock guard is a hard stop among same-id writes anyway: localStorage
-      // clock moves in ≤1s increments on some platforms, so honour the newest one.
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('ehs_active_session_v1') : null;
-      if (stored) {
-        try {
-          const existing = JSON.parse(stored);
-          if (existing && typeof existing === 'object' && typeof existing.id === 'string' && existing.id !== session.id) return;
-          if (existing && typeof existing.updatedAt === 'string' && typeof session.updatedAt === 'string'
-            && existing.updatedAt > session.updatedAt) return;
-        } catch {
-          // parse failure: fall through to overwrite
-        }
-      }
       try {
         const lightweight: InspectionSession = {
           ...session,
@@ -228,7 +177,7 @@ export function useInspection() {
               : i
           ),
         };
-        localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+        localStorage.setItem(`ehs_active_session_v2_${saveRoom}`, JSON.stringify(lightweight));
         if (session.inspectorName) {
           localStorage.setItem('ehs_last_inspector', session.inspectorName);
         }
@@ -267,7 +216,7 @@ export function useInspection() {
                   : i
               ),
             };
-            localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+            localStorage.setItem(`ehs_active_session_v2_${getActiveSyncRoom()}`, JSON.stringify(lightweight));
           } catch {}
           return fresh;
         }
@@ -574,7 +523,7 @@ export function useInspection() {
             : i
         ),
       };
-      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+      localStorage.setItem(`ehs_active_session_v2_${getActiveSyncRoom()}`, JSON.stringify(lightweight));
     } catch {
       // localStorage quota exceeded fallback handled safely by IndexedDB
     }
@@ -592,8 +541,8 @@ export function useInspection() {
 
   const loadSession = useCallback((loaded: InspectionSession) => {
     const currentLang: Language = (typeof window !== 'undefined' && localStorage.getItem('ehs_walkthrough_lang') === 'en') ? 'en' : 'ru';
-    setSession((prev) => {
-      const next = hydrateSession(loaded, currentLang, prev);
+    setSession(() => {
+      const next = hydrateSession(loaded, currentLang);
       sessionRef.current = next;
       return next;
     });
@@ -632,7 +581,7 @@ export function useInspection() {
             : i
         ),
       };
-      localStorage.setItem('ehs_active_session_v1', JSON.stringify(lightweight));
+      localStorage.setItem(`ehs_active_session_v2_${getActiveSyncRoom()}`, JSON.stringify(lightweight));
     } catch {}
     sessionRef.current = completedSession;
     setSession(completedSession);
@@ -641,6 +590,7 @@ export function useInspection() {
   }, []);
 
   return {
+    ready,
     session,
     updateSessionHeader,
     updateSessionHeaders,

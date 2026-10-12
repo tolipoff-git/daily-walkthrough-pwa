@@ -1,3 +1,4 @@
+export { SyncRoom } from './SyncRoom';
 export interface WorkerFetcher {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
@@ -10,10 +11,11 @@ export interface WorkerKVNamespace {
 export interface Env {
   ASSETS: WorkerFetcher;
   EHS_KV?: WorkerKVNamespace;
+  EHS_ROOMS?: { idFromName(name: string): unknown; get(id: unknown): WorkerFetcher };
+  EHS_SYNC_TOKEN?: string;
 }
 
-// In-memory fallback cache across edge isolate invocations
-const memoryStore = new Map<string, string>();
+
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -32,6 +34,21 @@ export default {
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: securityHeaders, status: 204 });
+    }
+
+    const roomMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9-]{1,40})\/(state|history|photos\/([\w-]{1,150}))$/);
+    // Optional deployment-level shared credential; no credential is embedded in JS.
+    if (env.EHS_SYNC_TOKEN && (url.pathname.startsWith('/api/') || url.pathname.startsWith('/photo/')) &&
+        request.headers.get('Authorization') !== `Bearer ${env.EHS_SYNC_TOKEN}`) {
+      return Response.json({ error: 'unauthorized' }, { status: 401 });
+    }
+    if (roomMatch) {
+      if (!env.EHS_ROOMS) return Response.json({ error: 'room_storage_missing' }, { status: 503 });
+      const target = new URL(`https://room/${roomMatch[2] === 'history' ? 'history' : 'state'}`);
+      target.searchParams.set('room', roomMatch[1]);
+      if (roomMatch[3]) target.searchParams.set('photo', roomMatch[3]);
+      if (url.searchParams.has('cursor')) target.searchParams.set('cursor', url.searchParams.get('cursor')!);
+      return env.EHS_ROOMS.get(env.EHS_ROOMS.idFromName(roomMatch[1])).fetch(new Request(target, request));
     }
 
     // Health & Info Endpoint
@@ -60,25 +77,22 @@ export default {
           const body = (await request.json()) as any;
           sessions = Array.isArray(body?.sessions) ? body.sessions : [];
         } else if (request.method === 'GET') {
-          // Attempt to pull latest session snapshot from KV room
-          let rawData: string | null = null;
-          if (env.EHS_KV) {
-            try {
-              rawData = await env.EHS_KV.get(`room:${room}`);
-            } catch (e) {
-              console.error('KV read error:', e);
-            }
-          }
-          if (!rawData) {
-            rawData = memoryStore.get(`room:${room}`) || null;
-          }
-          if (rawData) {
-            try {
-              const parsed = JSON.parse(rawData);
-              sessions = Array.isArray(parsed) ? parsed : [parsed];
-            } catch {}
-          }
+          if (!env.EHS_ROOMS || !/^[A-Z0-9-]{1,40}$/.test(room)) return Response.json({ error: 'room_storage_missing' }, { status: 503 });
+          let cursor: string | null = null;
+          do {
+            const target = new URL('https://room/history');
+            target.searchParams.set('room', room);
+            if (cursor) target.searchParams.set('cursor', cursor);
+            const response = await env.EHS_ROOMS.get(env.EHS_ROOMS.idFromName(room)).fetch(new Request(target));
+            if (!response.ok) return response;
+            const page = await response.json() as { sessions: any[]; cursor: string | null };
+            sessions.push(...page.sessions);
+            cursor = page.cursor;
+          } while (cursor);
+
         }
+
+        sessions = sessions.filter(s => !s.syncDeleted && (!start || s.date >= start) && (!end || s.date <= end));
 
         // Calculate aggregated metrics
         const totalDays = sessions.length;
@@ -116,8 +130,8 @@ export default {
           JSON.stringify({
             period: { start, end },
             auditedDaysCount: totalDays,
-            averageComplianceScore: avgScore,
-            ragStatus: avgScore >= 85 ? 'GREEN' : avgScore >= 70 ? 'AMBER' : 'RED',
+            averageComplianceScore: totalDays ? avgScore : null,
+            ragStatus: totalDays === 0 ? 'NO_DATA' : avgScore >= 85 ? 'GREEN' : avgScore >= 70 ? 'AMBER' : 'RED',
             totalDefects,
             defectsByArea,
             defectsByCategory,
@@ -157,25 +171,17 @@ export default {
       const acceptsHtml = acceptHeader.includes('text/html');
       const wantsHtml = acceptsHtml && !isRaw && !isDownload;
 
-      // KV key lookups (clean uppercase or original)
       const cleanRoom = room.toUpperCase();
-      const primaryKey = `photo_${cleanRoom}_${photoId}`;
-      const fallbackKey = `photo_${room}_${photoId}`;
-
       let rawData: string | null = null;
-      if (env.EHS_KV) {
-        try {
-          rawData = await env.EHS_KV.get(primaryKey);
-          if (!rawData && primaryKey !== fallbackKey) {
-            rawData = await env.EHS_KV.get(fallbackKey);
-          }
-        } catch (e) {
-          console.error('KV photo read error:', e);
-        }
-      }
-
-      if (!rawData) {
-        rawData = memoryStore.get(primaryKey) || memoryStore.get(fallbackKey) || null;
+      if (env.EHS_ROOMS) {
+        const target = new URL('https://room/state');
+        target.searchParams.set('room', cleanRoom);
+        target.searchParams.set('photo', photoId);
+        const response = await env.EHS_ROOMS.get(env.EHS_ROOMS.idFromName(cleanRoom)).fetch(new Request(target));
+        if (response.ok) rawData = await response.text();
+        else if (response.status !== 404) return response;
+      } else if (env.EHS_KV) {
+        rawData = await env.EHS_KV.get(`photo_${cleanRoom}_${photoId}`);
       }
 
       if (!rawData) {
@@ -253,124 +259,10 @@ export default {
       });
     }
 
-    // Real-time Sync API: /api/sync/:key
+    // v1 clients must update: accepting their unconditional writes would bypass
+    // conflict protection and invalidate the migration snapshot.
     if (url.pathname.startsWith('/api/sync/')) {
-      const key = decodeURIComponent(url.pathname.replace('/api/sync/', '')).trim();
-
-      if (!key) {
-        return new Response(JSON.stringify({ error: 'Missing sync key' }), {
-          status: 400,
-          headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // GET /api/sync/:key
-      if (request.method === 'GET') {
-        let rawData: string | null = null;
-
-        if (env.EHS_KV) {
-          try {
-            rawData = await env.EHS_KV.get(key);
-          } catch (e) {
-            console.error('KV read error:', e);
-          }
-        }
-
-        if (!rawData) {
-          rawData = memoryStore.get(key) || null;
-        }
-
-        if (!rawData) {
-          return new Response(JSON.stringify({ notFound: true, key }), {
-            status: 404,
-            headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        return new Response(rawData, {
-          status: 200,
-          headers: {
-            ...securityHeaders,
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-          },
-        });
-      }
-
-      // POST /api/sync/:key
-      if (request.method === 'POST') {
-        try {
-          const bodyText = await request.text();
-
-          // Validate JSON payload
-          JSON.parse(bodyText);
-
-          if (env.EHS_KV) {
-            try {
-              // 7 days expiration TTL
-              await env.EHS_KV.put(key, bodyText, { expirationTtl: 604800 });
-            } catch (e) {
-              console.error('KV write error:', e);
-              // Authoritative store rejected the write (limit/throttle) — do
-              // NOT claim success. Keep the bytes in the in-memory fallback so
-              // the current isolate can still serve reads, but report failure
-              // so the client keeps the payload pending and retries.
-              memoryStore.set(key, bodyText);
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  error: 'storage_unavailable',
-                  retryable: true,
-                  key,
-                  timestamp: new Date().toISOString(),
-                }),
-                {
-                  status: 503,
-                  headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-                }
-              );
-            }
-            // Success path: keep in-memory fallback in sync with KV
-            memoryStore.set(key, bodyText);
-
-            return new Response(
-              JSON.stringify({ 
-                success: true, 
-                key, 
-                timestamp: new Date().toISOString() 
-              }), 
-              {
-                status: 200,
-                headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-              }
-            );
-          }
-
-          // KV binding not configured at all — memory-only fallback. Acceptable
-          // only because the degraded store is surfaced via the warning field.
-          memoryStore.set(key, bodyText);
-          return new Response(
-            JSON.stringify({
-              success: true,
-              warning: 'kv_missing',
-              key,
-              timestamp: new Date().toISOString(),
-            }),
-            {
-              status: 200,
-              headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-            }
-          );
-        } catch (err: any) {
-          return new Response(
-            JSON.stringify({ error: 'Invalid JSON body', details: err?.message }), 
-            {
-              status: 400,
-              headers: { ...securityHeaders, 'Content-Type': 'application/json' },
-            }
-          );
-        }
-      }
+      return Response.json({ error: 'client_update_required' }, { status: 426, headers: { 'Cache-Control': 'no-store' } });
     }
 
     // Default: Static Asset Serving via Cloudflare Assets with Security & Anti-Indexing Headers
